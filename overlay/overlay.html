@@ -12,10 +12,27 @@
       <span id="phase" class="phase">대기</span>
       <button id="close" title="닫기 (Shift+F5)">✕</button>
     </header>
-    <div id="status" class="status">게임을 시작하면 참가자 명단이 떠요…</div>
-    <div class="section-h">참가자 <span id="pcount"></span></div>
-    <ul id="players" class="players"></ul>
-    <footer>Shift+F5 토글 · 헤더 드래그로 이동</footer>
+
+    <!-- 팀 배정 뷰 (session 기반) -->
+    <section id="view-team" class="view" style="display:none;">
+      <div id="tv-mine" class="tv-mine">
+        <div id="tv-badge" class="tv-badge">🔵 1팀</div>
+        <div class="tv-sub" id="tv-sub"></div>
+      </div>
+      <div class="tv-cols">
+        <div class="tv-side ours"><div class="tv-side-h" id="tv-ours-h">같은 편</div><ul id="tv-ours" class="tv-names"></ul></div>
+        <div class="tv-side theirs"><div class="tv-side-h" id="tv-theirs-h">상대</div><ul id="tv-theirs" class="tv-names"></ul></div>
+      </div>
+    </section>
+
+    <!-- 참가자 명단 뷰 (인게임 2999 기반) -->
+    <section id="view-roster" class="view">
+      <div id="status" class="status">게임을 시작하거나 팀이 짜이면 여기에 떠요…</div>
+      <div class="section-h" id="roster-h" style="display:none;">참가자 <span id="pcount"></span></div>
+      <ul id="players" class="players"></ul>
+    </section>
+
+    <footer>Shift+F5 명단 · 헤더 드래그로 이동</footer>
   </div>
   <script src="overlay.js"></script>
 </body>

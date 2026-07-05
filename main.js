@@ -6,6 +6,7 @@
 const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, nativeImage } = require('electron');
 const path = require('path');
 const https = require('https');
+const fs = require('fs');
 
 const WEB_URL = 'https://sohada2.github.io/aram/';
 const FIREBASE_DB = 'https://aramchaos-ca022-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -14,6 +15,20 @@ const TOGGLE_HOTKEY = 'Shift+F5';
 let overlayWin = null, desktopWin = null, homeWin = null, tray = null;
 let inGame = false, userHid = false, lpMap = {}, latestPlayers = [];
 let sampleActive = false;   // 미리보기(게임 없이 모양 보기) 중이면 폴링이 안 지움
+let sessionData = null, lastFormed = 0;   // 🧩 홈페이지 session(팀 배정) 상태
+let config = {};            // { myName }  — 내 이름(팀 판별용)
+
+// 설정 파일(userData) — 내 이름 저장
+let CONFIG_PATH = '';
+function loadConfig() { try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (_) { return {}; } }
+function saveConfig() { try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(config)); } catch (_) {} }
+
+// 팀 배정 미리보기용 샘플 session
+const SAMPLE_SESSION = {
+  active: true, teamSize: 3, mode: 'balance', teamsFormedAt: 1,
+  teamA: ['울퉁쓰', '애긔반달곰', '신규회원임'],
+  teamB: ['ap렉사이서폿', '맹독 벌꿀오소리', '나랑듀오해듀오'],
+};
 
 // 미리보기용 샘플 — 실제 내전 멤버 이름이라 Firebase LP가 실제로 붙음
 const SAMPLE_PLAYERS = [
@@ -38,6 +53,8 @@ function getJson(opts) {
 }
 const liveClientPlayerList = () => getJson({ host: '127.0.0.1', port: 2999, path: '/liveclientdata/playerlist', rejectUnauthorized: false, timeout: 2000 });
 const fetchLpPlayers = () => getJson(`${FIREBASE_DB}/season2/players.json`);
+const fetchSession   = () => getJson(`${FIREBASE_DB}/session.json`);
+const fetchPlayers   = () => getJson(`${FIREBASE_DB}/players.json`);   // 등록 플레이어(이름 목록)
 
 const norm = s => String(s || '').replace(/\s+/g, '').toLowerCase();
 
@@ -126,6 +143,21 @@ async function pollLp() {
   }
 }
 
+// 🧩 홈페이지 session(팀 배정) 폴링 — 새 팀 짜이면 오버레이 자동 표시
+async function pollSession() {
+  const s = await fetchSession();
+  const formed = (s && s.teamsFormedAt) || 0;
+  if (formed && formed !== lastFormed) {         // 새 팀 배정 감지
+    lastFormed = formed; sampleActive = false; userHid = false; sessionData = s;
+    showOverlay();
+    broadcast('session', { session: s, myName: config.myName || '', lpMap });
+    return;
+  }
+  if (sampleActive) return;                       // 미리보기 유지 중이면 안 건드림
+  sessionData = s || null;
+  broadcast('session', { session: sessionData, myName: config.myName || '', lpMap });
+}
+
 // ── 트레이 ──────────────────────────────────────────────────────────────
 function makeTray() {
   let icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
@@ -149,6 +181,23 @@ ipcMain.on('overlay-hide', () => { hideOverlay(); userHid = true; });
 ipcMain.on('open-web', () => shell.openExternal(WEB_URL));
 ipcMain.on('home-toggle', toggleHome);
 ipcMain.on('home-close', () => { if (homeWin) homeWin.hide(); });
+ipcMain.on('set-myname', (_e, name) => {           // 내 이름 저장 → 팀 판별
+  config.myName = name || ''; saveConfig();
+  broadcast('myname', config.myName);
+  broadcast('session', { session: sessionData, myName: config.myName, lpMap });
+});
+ipcMain.handle('get-players', async () => {        // 데스크톱 이름 선택용 목록
+  const d = await fetchPlayers();
+  const names = d ? [...new Set(Object.values(d).map(p => p && p.name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
+  return { names, myName: config.myName || '' };
+});
+ipcMain.on('session-preview', () => {              // 팀 배정 뷰 미리보기(샘플)
+  sampleActive = true; userHid = false; sessionData = SAMPLE_SESSION; showOverlay();
+  if (overlayWin) {
+    overlayWin.webContents.send('state', { inGame: true, label: '미리보기' });
+    overlayWin.webContents.send('session', { session: SAMPLE_SESSION, myName: '울퉁쓰', lpMap });
+  }
+});
 ipcMain.on('overlay-preview', () => {          // 게임 없이 오버레이 모양 미리보기
   sampleActive = true; userHid = false; latestPlayers = SAMPLE_PLAYERS.slice();
   showOverlay();
@@ -160,14 +209,17 @@ ipcMain.on('overlay-preview', () => {          // 게임 없이 오버레이 모
 
 // ── 앱 시작 ──────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  CONFIG_PATH = path.join(app.getPath('userData'), 'aram-overlay-config.json');
+  config = loadConfig();
   createOverlay();
   createDesktop();
   makeTray();
   globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
   globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
-  pollGame(); pollLp();
+  pollGame(); pollLp(); pollSession();
   setInterval(pollGame, 2500);
   setInterval(pollLp, 60000);
+  setInterval(pollSession, 3000);
 });
 app.on('window-all-closed', (e) => { /* 트레이 상주 — 창 다 닫혀도 안 죽음 */ });
 app.on('will-quit', () => globalShortcut.unregisterAll());

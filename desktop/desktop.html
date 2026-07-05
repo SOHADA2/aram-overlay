@@ -13,11 +13,17 @@
       <div class="row"><span>명단 오버레이</span><b>Shift + F5 · 게임 시작 시 자동</b></div>
       <div class="row"><span>홈페이지 오버레이</span><b>Shift + F6</b></div>
     </div>
-    <p class="desc"><b>홈페이지 오버레이</b>는 게임 위에 <b>진짜 내전 홈페이지</b>를 띄워요 — 팀짜기·투표·정산을 알트탭 없이 바로.
-      <b>명단 오버레이</b>는 그 판 참가자 명단+티어·LP를 작게 보여줘요. 둘 다 트레이에서 토글·종료.
+    <div class="card">
+      <label class="row"><span>내 이름</span>
+        <select id="myname"><option value="">— 선택 —</option></select>
+      </label>
+      <p class="note">오버레이가 "내 팀"을 알려면 홈페이지에 등록된 <b>본인 이름</b>을 골라주세요. (한 번만)</p>
+    </div>
+    <p class="desc"><b>팀 배정 오버레이</b>가 핵심이에요 — 팀이 짜이면 게임 위에 "내 팀 · 같은편/상대"가 자동으로 떠요(대기화면서 바로 확인).
       앱 안 깐 사람은 기존처럼 홈페이지로 접속(같은 데이터·자동 연동).</p>
-    <button id="home-overlay" class="primary">🌐 홈페이지 오버레이 (게임 위에 띄우기 · Shift+F6)</button>
-    <button id="preview" class="ghost">👀 명단 오버레이 미리보기 (게임 없이)</button>
+    <button id="preview-team" class="primary">👀 팀 배정 미리보기 (샘플로 모양 보기)</button>
+    <button id="preview" class="ghost">👀 명단 오버레이 미리보기 (인게임)</button>
+    <button id="home-overlay" class="ghost">🌐 전체 홈페이지 오버레이 (Shift+F6)</button>
     <button id="open-web" class="ghost">기본 브라우저로 홈페이지 열기</button>
     <p class="hint">borderless(테두리없는창) 모드에서 오버레이가 뜹니다 · 이 창은 닫아도 트레이에 상주해요</p>
   </main>
