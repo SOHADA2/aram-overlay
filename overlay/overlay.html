@@ -3,36 +3,42 @@
 <head>
   <meta charset="utf-8">
   <title>ARAM 내전 오버레이</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="overlay.css">
 </head>
 <body>
   <div id="panel">
     <header id="bar">
-      <span class="ttl">🗡️ 내전 오버레이</span>
+      <span class="ttl">🗡️ 내전</span>
       <span id="phase" class="phase">대기</span>
       <button id="close" title="닫기 (Shift+F5)">✕</button>
     </header>
 
-    <!-- 팀 배정 뷰 (session 기반) -->
+    <!-- 팀 배정 뷰 -->
     <section id="view-team" class="view" style="display:none;">
-      <div id="tv-mine" class="tv-mine">
-        <div id="tv-badge" class="tv-badge">🔵 1팀</div>
-        <div class="tv-sub" id="tv-sub"></div>
+      <div id="tv-band" class="tv-band">내 팀을 설정하세요</div>
+      <div class="ta-team blue" id="team1">
+        <div class="ta-color-bar"></div>
+        <div class="ta-head"><span class="ta-label" id="t1-label">1팀</span><span class="ta-count" id="t1-count"></span></div>
+        <ul class="ta-players" id="t1-players"></ul>
       </div>
-      <div class="tv-cols">
-        <div class="tv-side ours"><div class="tv-side-h" id="tv-ours-h">같은 편</div><ul id="tv-ours" class="tv-names"></ul></div>
-        <div class="tv-side theirs"><div class="tv-side-h" id="tv-theirs-h">상대</div><ul id="tv-theirs" class="tv-names"></ul></div>
+      <div class="ta-team red" id="team2">
+        <div class="ta-color-bar"></div>
+        <div class="ta-head"><span class="ta-label" id="t2-label">2팀</span><span class="ta-count" id="t2-count"></span></div>
+        <ul class="ta-players" id="t2-players"></ul>
       </div>
     </section>
 
-    <!-- 참가자 명단 뷰 (인게임 2999 기반) -->
+    <!-- 참가자 명단 뷰(인게임) -->
     <section id="view-roster" class="view">
-      <div id="status" class="status">게임을 시작하거나 팀이 짜이면 여기에 떠요…</div>
+      <div id="status" class="status">게임을 시작하거나 팀이 짜이면<br>여기에 자동으로 떠요.</div>
       <div class="section-h" id="roster-h" style="display:none;">참가자 <span id="pcount"></span></div>
       <ul id="players" class="players"></ul>
     </section>
 
-    <footer>Shift+F5 명단 · 헤더 드래그로 이동</footer>
+    <footer>Shift+F5 토글 · 헤더 드래그로 이동</footer>
   </div>
   <script src="overlay.js"></script>
 </body>

@@ -61,7 +61,7 @@ const norm = s => String(s || '').replace(/\s+/g, '').toLowerCase();
 // ── 창 생성 ──────────────────────────────────────────────────────────────
 function createOverlay() {
   overlayWin = new BrowserWindow({
-    width: 320, height: 440, x: 24, y: 90,
+    width: 362, height: 540, x: 24, y: 84,
     transparent: true, frame: false, resizable: false, movable: true,
     alwaysOnTop: true, skipTaskbar: true, show: false, focusable: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },

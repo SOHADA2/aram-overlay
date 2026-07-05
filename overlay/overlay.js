@@ -16,8 +16,6 @@ window.api.onSession(({ session, myName: mn, lpMap: m }) => { sessionData = sess
 window.api.onMyName(name => { myName = name || ''; render(); });
 
 function showView(v) { el('view-team').style.display = v === 'team' ? 'block' : 'none'; el('view-roster').style.display = v === 'roster' ? 'block' : 'none'; }
-function lpBadge(name) { const r = lpMap[norm(name)]; return r ? `<span class="lp">${TIER_SHORT[r.tier] || '?'} ${r.lp}</span>` : ''; }
-function nameLi(name) { const me = (myName && norm(name) === norm(myName)) ? ' class="me"' : ''; return `<li${me}>${esc(name)}${lpBadge(name)}</li>`; }
 
 function myTeam() {
   if (!sessionData || !sessionData.active) return 0;
@@ -26,18 +24,24 @@ function myTeam() {
   if (me && b.includes(me)) return 2;
   return 0;
 }
+function playerRow(name, i) {
+  const me = (myName && norm(name) === norm(myName)) ? ' class="me"' : '';
+  const r = lpMap[norm(name)];
+  const lp = r ? `<span class="lp">${TIER_SHORT[r.tier] || '?'} ${r.lp}</span>` : '';
+  return `<li${me}><span class="num">${i + 1}</span><span class="nm">${esc(name)}</span>${lp}</li>`;
+}
 
 function renderTeam() {
   const A = sessionData.teamA || [], B = sessionData.teamB || [], mt = myTeam();
-  const mine = el('tv-mine'), badge = el('tv-badge');
-  const size = sessionData.teamSize || A.length || '?';
-  let ours, theirs;
-  if (mt === 2) { mine.classList.add('t2'); badge.textContent = '🔴 2팀'; ours = B; theirs = A; el('tv-ours-h').textContent = '같은 편 (2팀)'; el('tv-theirs-h').textContent = '상대 (1팀)'; }
-  else if (mt === 1) { mine.classList.remove('t2'); badge.textContent = '🔵 1팀'; ours = A; theirs = B; el('tv-ours-h').textContent = '같은 편 (1팀)'; el('tv-theirs-h').textContent = '상대 (2팀)'; }
-  else { mine.classList.remove('t2'); badge.textContent = '팀 배정'; ours = A; theirs = B; el('tv-ours-h').textContent = '1팀'; el('tv-theirs-h').textContent = '2팀'; }
-  el('tv-sub').textContent = (mt ? '내 팀' : '내 이름 미설정 — 데스크톱 창에서 설정') + ` · ${size}:${size}`;
-  el('tv-ours').innerHTML = ours.map(nameLi).join('');
-  el('tv-theirs').innerHTML = theirs.map(nameLi).join('');
+  const band = el('tv-band');
+  band.className = 'tv-band' + (mt === 1 ? ' t1' : mt === 2 ? ' t2' : '');
+  band.innerHTML = mt === 1 ? '내 팀 · <b>🔷 1팀</b>' : mt === 2 ? '내 팀 · <b>🔶 2팀</b>' : '데스크톱 창에서 <b>내 이름</b>을 설정하세요';
+  el('team1').className = 'ta-team blue' + (mt === 1 ? ' mine' : '');
+  el('team2').className = 'ta-team red' + (mt === 2 ? ' mine' : '');
+  el('t1-count').textContent = A.length + '명';
+  el('t2-count').textContent = B.length + '명';
+  el('t1-players').innerHTML = A.length ? A.map(playerRow).join('') : '<li><span class="num"></span><span class="nm" style="color:#5f6478">—</span></li>';
+  el('t2-players').innerHTML = B.length ? B.map(playerRow).join('') : '<li><span class="num"></span><span class="nm" style="color:#5f6478">—</span></li>';
 }
 
 function renderRoster() {
