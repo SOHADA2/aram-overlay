@@ -32,17 +32,19 @@ Add-Type @'
 using System;using System.Runtime.InteropServices;
 public class Win{
  [DllImport("user32.dll")] public static extern IntPtr FindWindow(string c,string n);
- [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+ [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
  public struct RECT{public int L,T,R,B;}
+ public static string Find(){
+  IntPtr h=FindWindow(null,"League of Legends");
+  if(h==IntPtr.Zero||!IsWindowVisible(h)||IsIconic(h)) return "";
+  RECT r; GetWindowRect(h,out r);
+  return r.L+" "+r.T+" "+r.R+" "+r.B;
+ }
 }
 '@
-$h=[Win]::FindWindow($null,'League of Legends')
-if($h -ne [IntPtr]::Zero -and [Win]::IsWindowVisible($h) -and -not [Win]::IsIconic($h)){
- $r=New-Object Win+RECT; [void][Win]::GetWindowRect($h,[ref]$r)
- Write-Output ('{0} {1} {2} {3}' -f $r.L,$r.T,$r.R,$r.B)
-}`;
+[Win]::Find()`;
 const _psB64 = Buffer.from(_psScript, 'utf16le').toString('base64');
 function findClientBounds() {                 // 롤 클라 창의 물리 픽셀 사각형 반환(없으면 null)
   return new Promise(resolve => {
@@ -50,7 +52,9 @@ function findClientBounds() {                 // 롤 클라 창의 물리 픽셀
       { timeout: 4000, windowsHide: true }, (err, stdout) => {
         if (err || !stdout) return resolve(null);
         const p = stdout.trim().split(/\s+/).map(Number);
-        if (p.length === 4 && p.every(Number.isFinite) && p[2] > p[0]) resolve({ x: p[0], y: p[1], w: p[2] - p[0], h: p[3] - p[1] });
+        const w = p[2] - p[0], h = p[3] - p[1];
+        if (p.length === 4 && p.every(Number.isFinite) && w >= 700 && h >= 400)   // 유령/최소화 창(136x39 등) 무시
+          resolve({ x: p[0], y: p[1], w, h });
         else resolve(null);
       });
   });
