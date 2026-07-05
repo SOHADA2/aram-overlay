@@ -59,12 +59,17 @@ function findClientBounds() {                 // 롤 클라 창의 물리 픽셀
       });
   });
 }
-function applyDock(pb) {                       // 물리좌표 → DIP 변환 후 클라 오른쪽에 붙임
+function applyDock(pb) {                       // 물리좌표 → DIP 변환 후 클라 오른쪽 '바깥'에 붙임
   if (!overlayWin || !pb) return;
   const sf = (screen.getPrimaryDisplay().scaleFactor) || 1;
   const cx = pb.x / sf, cy = pb.y / sf, cw = pb.w / sf, ch = pb.h / sf;
-  const W = Math.max(300, Math.min(380, Math.round(cw * 0.30)));
-  overlayWin.setBounds({ x: Math.round(cx + cw - W), y: Math.round(cy), width: Math.round(W), height: Math.round(ch) });
+  const disp = screen.getDisplayMatching({ x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) });
+  const dispRight = disp.workArea.x + disp.workArea.width;
+  let W = Math.min(400, Math.round(dispRight - (cx + cw)));   // 클라 오른쪽 바깥 남은 공간(최대 400)
+  if (W < 300) W = 300;                                       // 공간 부족하면 300(살짝 겹칠 수 있음)
+  let x = Math.round(cx + cw);                                // 클라 오른쪽 '바깥'
+  if (x + W > dispRight) x = Math.max(disp.workArea.x, dispRight - W);   // 화면 밖이면 안으로 당김
+  overlayWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
 }
 async function pollDock() {
   if (config.dock === false) return;           // 도킹 끈 상태면 자유 배치
