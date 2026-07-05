@@ -11,7 +11,7 @@ const WEB_URL = 'https://sohada2.github.io/aram/';
 const FIREBASE_DB = 'https://aramchaos-ca022-default-rtdb.asia-southeast1.firebasedatabase.app';
 const TOGGLE_HOTKEY = 'Shift+F5';
 
-let overlayWin = null, desktopWin = null, tray = null;
+let overlayWin = null, desktopWin = null, homeWin = null, tray = null;
 let inGame = false, userHid = false, lpMap = {}, latestPlayers = [];
 let sampleActive = false;   // 미리보기(게임 없이 모양 보기) 중이면 폴링이 안 지움
 
@@ -56,13 +56,31 @@ function createOverlay() {
 }
 function createDesktop() {
   desktopWin = new BrowserWindow({
-    width: 520, height: 560, resizable: true, minWidth: 420, minHeight: 420,
+    width: 520, height: 600, resizable: true, minWidth: 420, minHeight: 440,
     backgroundColor: '#0e0c16', title: 'ARAM 내전 오버레이',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   desktopWin.setMenuBarVisibility(false);
   desktopWin.loadFile('desktop/desktop.html');
   desktopWin.on('closed', () => { desktopWin = null; });
+}
+
+// 🌐 홈페이지 오버레이 — 게임 위에 진짜 홈페이지(팀짜기·투표·정산)를 띄운다(webview로 임베드)
+function createHome() {
+  homeWin = new BrowserWindow({
+    width: 430, height: 720, x: 380, y: 60,
+    frame: false, backgroundColor: '#0e0c16', show: false,
+    alwaysOnTop: true, skipTaskbar: true, resizable: true, minWidth: 340, minHeight: 440,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, webviewTag: true },
+  });
+  homeWin.setAlwaysOnTop(true, 'screen-saver');
+  homeWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  homeWin.loadFile('home/home.html');
+  homeWin.on('closed', () => { homeWin = null; });
+}
+function toggleHome() {
+  if (!homeWin) { createHome(); homeWin.show(); return; }
+  if (homeWin.isVisible()) homeWin.hide(); else homeWin.show();
 }
 
 // ── 오버레이 표시/숨김 ────────────────────────────────────────────────────
@@ -115,8 +133,10 @@ function makeTray() {
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
   tray.setToolTip('ARAM 내전 오버레이');
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: `오버레이 토글 (${TOGGLE_HOTKEY})`, click: toggleOverlay },
-    { label: '내전 홈페이지 열기', click: () => shell.openExternal(WEB_URL) },
+    { label: `명단 오버레이 토글 (${TOGGLE_HOTKEY})`, click: toggleOverlay },
+    { label: '홈페이지 오버레이 토글 (Shift+F6)', click: toggleHome },
+    { type: 'separator' },
+    { label: '내전 홈페이지 (기본 브라우저)', click: () => shell.openExternal(WEB_URL) },
     { label: '데스크톱 창 열기', click: () => { if (!desktopWin) createDesktop(); else desktopWin.show(); } },
     { type: 'separator' },
     { label: '종료', click: () => app.quit() },
@@ -127,6 +147,8 @@ function makeTray() {
 // ── IPC ──────────────────────────────────────────────────────────────────
 ipcMain.on('overlay-hide', () => { hideOverlay(); userHid = true; });
 ipcMain.on('open-web', () => shell.openExternal(WEB_URL));
+ipcMain.on('home-toggle', toggleHome);
+ipcMain.on('home-close', () => { if (homeWin) homeWin.hide(); });
 ipcMain.on('overlay-preview', () => {          // 게임 없이 오버레이 모양 미리보기
   sampleActive = true; userHid = false; latestPlayers = SAMPLE_PLAYERS.slice();
   showOverlay();
@@ -142,6 +164,7 @@ app.whenReady().then(() => {
   createDesktop();
   makeTray();
   globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
+  globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
   pollGame(); pollLp();
   setInterval(pollGame, 2500);
   setInterval(pollLp, 60000);

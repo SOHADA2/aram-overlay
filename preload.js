@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld('api', {
   hideOverlay: () => ipcRenderer.send('overlay-hide'),
   openWeb: () => ipcRenderer.send('open-web'),
   previewOverlay: () => ipcRenderer.send('overlay-preview'),
+  homeToggle: () => ipcRenderer.send('home-toggle'),
+  homeClose: () => ipcRenderer.send('home-close'),
 });

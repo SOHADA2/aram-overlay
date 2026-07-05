@@ -10,13 +10,15 @@
   <main>
     <div class="card">
       <div class="row"><span>롤 게임</span><b id="game-state">감지 대기</b></div>
-      <div class="row"><span>오버레이</span><b>게임 시작 시 자동 표시</b></div>
-      <div class="row"><span>토글 단축키</span><b>Shift + F5</b></div>
+      <div class="row"><span>명단 오버레이</span><b>Shift + F5 · 게임 시작 시 자동</b></div>
+      <div class="row"><span>홈페이지 오버레이</span><b>Shift + F6</b></div>
     </div>
-    <p class="desc">롤 게임에 들어가면 화면 위(오버레이)에 <b>참가자 명단</b>과 홈페이지의 <b>티어·LP</b>가 함께 떠요.
-      트레이 아이콘에서 언제든 토글·종료할 수 있어요. 모바일·다른 PC는 홈페이지로 그대로 접속(같은 데이터).</p>
-    <button id="preview" class="ghost">👀 오버레이 미리보기 (게임 없이 모양 보기)</button>
-    <button id="open-web" class="primary">🌐 내전 홈페이지 열기</button>
+    <p class="desc"><b>홈페이지 오버레이</b>는 게임 위에 <b>진짜 내전 홈페이지</b>를 띄워요 — 팀짜기·투표·정산을 알트탭 없이 바로.
+      <b>명단 오버레이</b>는 그 판 참가자 명단+티어·LP를 작게 보여줘요. 둘 다 트레이에서 토글·종료.
+      앱 안 깐 사람은 기존처럼 홈페이지로 접속(같은 데이터·자동 연동).</p>
+    <button id="home-overlay" class="primary">🌐 홈페이지 오버레이 (게임 위에 띄우기 · Shift+F6)</button>
+    <button id="preview" class="ghost">👀 명단 오버레이 미리보기 (게임 없이)</button>
+    <button id="open-web" class="ghost">기본 브라우저로 홈페이지 열기</button>
     <p class="hint">borderless(테두리없는창) 모드에서 오버레이가 뜹니다 · 이 창은 닫아도 트레이에 상주해요</p>
   </main>
   <script src="desktop.js"></script>

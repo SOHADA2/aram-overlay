@@ -1,0 +1,16 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0e0c16;
+  font-family: 'Pretendard','Segoe UI',system-ui,sans-serif; -webkit-user-select: none; user-select: none; }
+body { display: flex; flex-direction: column; }
+
+#bar { -webkit-app-region: drag; display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px;
+  background: linear-gradient(180deg,#1a1626,#12101c); border-bottom: 1px solid rgba(240,200,90,0.25); flex: 0 0 auto; }
+#bar .ttl { flex: 1; font-size: 12px; font-weight: 800; color: #ffd24a; white-space: nowrap; }
+#bar button { -webkit-app-region: no-drag; width: 24px; height: 24px; border: none; border-radius: 6px; cursor: pointer;
+  background: rgba(255,255,255,0.08); color: #cfd4e6; font-size: 12px; font-weight: 800; }
+#bar #close:hover { background: #e0483a; color: #fff; }
+#bar #reload:hover { background: rgba(255,255,255,0.16); }
+
+#wrap { flex: 1; position: relative; min-height: 0; }
+#loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #9aa0b4; font-size: 13px; }
+webview { width: 100%; height: 100%; border: 0; display: block; }
