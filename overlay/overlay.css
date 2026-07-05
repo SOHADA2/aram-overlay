@@ -1,0 +1,34 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: transparent; overflow: hidden;
+  font-family: 'Pretendard','Segoe UI',system-ui,sans-serif; -webkit-user-select: none; user-select: none; }
+
+#panel { width: 100%; height: 100%; display: flex; flex-direction: column; color: #e8ecf6;
+  background: linear-gradient(160deg, rgba(14,12,22,0.93), rgba(10,9,16,0.96));
+  border: 1px solid rgba(240,200,90,0.42); border-radius: 14px; overflow: hidden;
+  box-shadow: 0 14px 44px rgba(0,0,0,0.6); }
+
+header { -webkit-app-region: drag; display: flex; align-items: center; gap: 8px; padding: 9px 10px;
+  background: rgba(240,200,90,0.10); border-bottom: 1px solid rgba(240,200,90,0.22); }
+header .ttl { flex: 1; font-size: 13px; font-weight: 800; color: #ffd24a; white-space: nowrap; }
+header .phase { font-size: 10px; font-weight: 700; color: #9aa0b4; background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 10px; }
+header #close { -webkit-app-region: no-drag; width: 22px; height: 22px; border: none; border-radius: 6px; cursor: pointer;
+  background: rgba(255,255,255,0.08); color: #cfd4e6; font-size: 12px; font-weight: 800; }
+header #close:hover { background: #e0483a; color: #fff; }
+
+.status { padding: 9px 11px; font-size: 11px; color: #9aa0b4; line-height: 1.5; }
+.section-h { padding: 4px 11px; font-size: 10px; font-weight: 800; letter-spacing: .3px; color: #f0c04a; }
+.section-h span { color: #9aa0b4; font-weight: 600; }
+
+.players { list-style: none; flex: 1; overflow-y: auto; padding: 0 8px 6px; }
+.players::-webkit-scrollbar { width: 6px; } .players::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 3px; }
+.players li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 4px;
+  border-radius: 9px; background: rgba(255,255,255,0.035); font-size: 12px; }
+.players li.team-100 { border-left: 3px solid #4a8dff; }
+.players li.team-200 { border-left: 3px solid #ff6b6b; }
+.players li .name { flex: 1; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.players li .champ { color: #8a90a6; font-size: 10px; }
+.players li .lp { font-size: 10px; font-weight: 800; color: #1a1206; background: linear-gradient(180deg,#ffe08a,#f0c060);
+  padding: 1px 7px; border-radius: 9px; white-space: nowrap; }
+.players li .lp.none { background: rgba(255,255,255,0.08); color: #7a8092; }
+
+footer { padding: 6px 11px; font-size: 9px; color: #5f6478; border-top: 1px solid rgba(255,255,255,0.05); }

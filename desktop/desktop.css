@@ -1,0 +1,18 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Pretendard','Segoe UI',system-ui,sans-serif;
+  background: linear-gradient(165deg,#0e0c16,#14101f 70%,#1a1226); color: #e8ecf6; -webkit-user-select: none; user-select: none; }
+body { display: flex; flex-direction: column; }
+header { display: flex; align-items: baseline; gap: 8px; padding: 14px 16px; border-bottom: 1px solid rgba(240,200,90,0.2); }
+header .ttl { font-size: 16px; font-weight: 800; color: #ffd24a; }
+header .ver { font-size: 11px; color: #5f6478; }
+main { flex: 1; padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+.card { background: rgba(255,255,255,0.04); border: 1px solid rgba(240,200,90,0.22); border-radius: 12px; padding: 12px 14px; }
+.card .row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; font-size: 13px; }
+.card .row + .row { border-top: 1px solid rgba(255,255,255,0.05); }
+.card .row span { color: #9aa0b4; } .card .row b { color: #e8ecf6; }
+#game-state.on { color: #7CFC9A; }
+.desc { font-size: 12px; color: #9aa0b4; line-height: 1.7; } .desc b { color: #ffe39a; }
+.primary { padding: 12px; border: none; border-radius: 11px; font-size: 14px; font-weight: 800; cursor: pointer;
+  background: linear-gradient(135deg,#e0a82e,#f0c860); color: #1a1206; }
+.primary:active { transform: translateY(1px); }
+.hint { margin-top: auto; text-align: center; font-size: 10px; color: #5f6478; line-height: 1.6; }

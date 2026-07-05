@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ARAM 내전 오버레이</title>
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+  <div id="panel">
+    <header id="bar">
+      <span class="ttl">🗡️ 내전 오버레이</span>
+      <span id="phase" class="phase">대기</span>
+      <button id="close" title="닫기 (Shift+F5)">✕</button>
+    </header>
+    <div id="status" class="status">게임을 시작하면 참가자 명단이 떠요…</div>
+    <div class="section-h">참가자 <span id="pcount"></span></div>
+    <ul id="players" class="players"></ul>
+    <footer>Shift+F5 토글 · 헤더 드래그로 이동</footer>
+  </div>
+  <script src="overlay.js"></script>
+</body>
+</html>
