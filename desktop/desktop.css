@@ -15,4 +15,7 @@ main { flex: 1; padding: 18px 16px; display: flex; flex-direction: column; gap: 
 .primary { padding: 12px; border: none; border-radius: 11px; font-size: 14px; font-weight: 800; cursor: pointer;
   background: linear-gradient(135deg,#e0a82e,#f0c860); color: #1a1206; }
 .primary:active { transform: translateY(1px); }
+.ghost { padding: 11px; border: 1px solid rgba(240,200,90,0.4); border-radius: 11px; font-size: 13px; font-weight: 700; cursor: pointer;
+  background: rgba(240,200,90,0.08); color: #ffe39a; }
+.ghost:active { transform: translateY(1px); }
 .hint { margin-top: auto; text-align: center; font-size: 10px; color: #5f6478; line-height: 1.6; }

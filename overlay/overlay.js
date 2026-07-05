@@ -7,9 +7,9 @@ const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&l
 
 el('close').addEventListener('click', () => window.api.hideOverlay());
 
-window.api.onState(({ inGame }) => {
-  el('phase').textContent = inGame ? '게임 중' : '대기';
-  if (!inGame) { el('players').innerHTML = ''; el('pcount').textContent = ''; el('status').style.display = 'block'; }
+window.api.onState(({ inGame, label }) => {
+  el('phase').textContent = label || (inGame ? '게임 중' : '대기');
+  if (!inGame && label !== '미리보기') { el('players').innerHTML = ''; el('pcount').textContent = ''; el('status').style.display = 'block'; }
 });
 
 window.api.onPlayers(({ players, lpMap }) => {

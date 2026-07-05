@@ -6,4 +6,5 @@ contextBridge.exposeInMainWorld('api', {
   onState: (cb) => ipcRenderer.on('state', (_e, d) => cb(d)),
   hideOverlay: () => ipcRenderer.send('overlay-hide'),
   openWeb: () => ipcRenderer.send('open-web'),
+  previewOverlay: () => ipcRenderer.send('overlay-preview'),
 });

@@ -13,6 +13,17 @@ const TOGGLE_HOTKEY = 'Shift+F5';
 
 let overlayWin = null, desktopWin = null, tray = null;
 let inGame = false, userHid = false, lpMap = {}, latestPlayers = [];
+let sampleActive = false;   // 미리보기(게임 없이 모양 보기) 중이면 폴링이 안 지움
+
+// 미리보기용 샘플 — 실제 내전 멤버 이름이라 Firebase LP가 실제로 붙음
+const SAMPLE_PLAYERS = [
+  { name: '울퉁쓰',          champ: 'Orianna',   teamId: 100 },
+  { name: '애긔반달곰',      champ: 'Aatrox',    teamId: 100 },
+  { name: '신규회원임',      champ: 'Aurora',    teamId: 100 },
+  { name: 'ap렉사이서폿',    champ: 'Garen',     teamId: 200 },
+  { name: '맹독 벌꿀오소리', champ: 'Nasus',     teamId: 200 },
+  { name: '나랑듀오해듀오',  champ: 'Seraphine', teamId: 200 },
+];
 
 // ── HTTPS GET (JSON) ────────────────────────────────────────────────────
 function getJson(opts) {
@@ -71,6 +82,8 @@ function broadcast(channel, payload) {
 async function pollGame() {
   const list = await liveClientPlayerList();
   const nowIn = Array.isArray(list);
+  if (nowIn) sampleActive = false;          // 실게임 시작 → 미리보기 해제
+  else if (sampleActive) return;            // 미리보기 유지 중(실게임 아님) → 건드리지 않음
   if (nowIn) {
     latestPlayers = list.filter(p => !p.isBot).map(p => ({
       name: (p.riotIdGameName || p.summonerName || (typeof p.riotId === 'string' ? p.riotId.split('#')[0] : '') || '').trim(),
@@ -82,7 +95,7 @@ async function pollGame() {
     inGame = nowIn;
     if (inGame) { if (!userHid) showOverlay(); }
     else { hideOverlay(); userHid = false; latestPlayers = []; }
-    broadcast('state', { inGame });
+    broadcast('state', { inGame, label: inGame ? '게임 중' : '대기' });
   }
   broadcast('players', { players: latestPlayers, lpMap });
 }
@@ -114,6 +127,14 @@ function makeTray() {
 // ── IPC ──────────────────────────────────────────────────────────────────
 ipcMain.on('overlay-hide', () => { hideOverlay(); userHid = true; });
 ipcMain.on('open-web', () => shell.openExternal(WEB_URL));
+ipcMain.on('overlay-preview', () => {          // 게임 없이 오버레이 모양 미리보기
+  sampleActive = true; userHid = false; latestPlayers = SAMPLE_PLAYERS.slice();
+  showOverlay();
+  if (overlayWin) {
+    overlayWin.webContents.send('state', { inGame: true, label: '미리보기' });
+    overlayWin.webContents.send('players', { players: latestPlayers, lpMap });
+  }
+});
 
 // ── 앱 시작 ──────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
