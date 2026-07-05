@@ -61,8 +61,8 @@ const norm = s => String(s || '').replace(/\s+/g, '').toLowerCase();
 // ── 창 생성 ──────────────────────────────────────────────────────────────
 function createOverlay() {
   overlayWin = new BrowserWindow({
-    width: 362, height: 540, x: 24, y: 84,
-    transparent: true, frame: false, resizable: false, movable: true,
+    width: 456, height: 452, x: 24, y: 84, minWidth: 260, minHeight: 220,
+    transparent: true, frame: false, resizable: true, movable: true,   // 크기 조절 가능(반응형)
     alwaysOnTop: true, skipTaskbar: true, show: false, focusable: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
