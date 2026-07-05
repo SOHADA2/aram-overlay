@@ -3,10 +3,11 @@
 //   · 인게임 명단: Live Client Data API(127.0.0.1:2999·게임 실행 중에만 응답·자체서명 무시)
 //   · 내전 LP/티어: 홈페이지와 같은 Firebase(공개 read)
 // 브릿지(aram-bridge) 없이도 오버레이는 단독 동작. 게임 감지=2999 응답 여부.
-const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, nativeImage, screen } = require('electron');
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
+const { execFile } = require('child_process');
 
 const WEB_URL = 'https://sohada2.github.io/aram/';
 const FIREBASE_DB = 'https://aramchaos-ca022-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -22,6 +23,53 @@ let config = {};            // { myName }  — 내 이름(팀 판별용)
 let CONFIG_PATH = '';
 function loadConfig() { try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (_) { return {}; } }
 function saveConfig() { try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(config)); } catch (_) {} }
+
+// 🖥️ 롤 클라이언트 창에 도킹(오른쪽 가장자리에 붙이기·GGQ 스타일)
+let dockedBounds = null;   // 마지막으로 맞춘 클라 물리좌표(중복 setBounds 방지)
+const _psScript = `
+$ErrorActionPreference='SilentlyContinue'
+Add-Type @'
+using System;using System.Runtime.InteropServices;
+public class Win{
+ [DllImport("user32.dll")] public static extern IntPtr FindWindow(string c,string n);
+ [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
+ [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+ [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+ public struct RECT{public int L,T,R,B;}
+}
+'@
+$h=[Win]::FindWindow($null,'League of Legends')
+if($h -ne [IntPtr]::Zero -and [Win]::IsWindowVisible($h) -and -not [Win]::IsIconic($h)){
+ $r=New-Object Win+RECT; [void][Win]::GetWindowRect($h,[ref]$r)
+ Write-Output ('{0} {1} {2} {3}' -f $r.L,$r.T,$r.R,$r.B)
+}`;
+const _psB64 = Buffer.from(_psScript, 'utf16le').toString('base64');
+function findClientBounds() {                 // 롤 클라 창의 물리 픽셀 사각형 반환(없으면 null)
+  return new Promise(resolve => {
+    execFile('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', _psB64],
+      { timeout: 4000, windowsHide: true }, (err, stdout) => {
+        if (err || !stdout) return resolve(null);
+        const p = stdout.trim().split(/\s+/).map(Number);
+        if (p.length === 4 && p.every(Number.isFinite) && p[2] > p[0]) resolve({ x: p[0], y: p[1], w: p[2] - p[0], h: p[3] - p[1] });
+        else resolve(null);
+      });
+  });
+}
+function applyDock(pb) {                       // 물리좌표 → DIP 변환 후 클라 오른쪽에 붙임
+  if (!overlayWin || !pb) return;
+  const sf = (screen.getPrimaryDisplay().scaleFactor) || 1;
+  const cx = pb.x / sf, cy = pb.y / sf, cw = pb.w / sf, ch = pb.h / sf;
+  const W = Math.max(300, Math.min(380, Math.round(cw * 0.30)));
+  overlayWin.setBounds({ x: Math.round(cx + cw - W), y: Math.round(cy), width: Math.round(W), height: Math.round(ch) });
+}
+async function pollDock() {
+  if (config.dock === false) return;           // 도킹 끈 상태면 자유 배치
+  const pb = await findClientBounds();
+  if (!pb) return;                             // 클라 안 떠 있으면 그대로 둠
+  const sig = `${pb.x},${pb.y},${pb.w},${pb.h}`;
+  if (sig !== dockedBounds) { dockedBounds = sig; applyDock(pb); }
+  if (overlayWin && !overlayWin.isVisible() && !userHid) overlayWin.showInactive();  // 클라 뜨면 자동 표시
+}
 
 // 팀 배정 미리보기용 샘플 session
 const SAMPLE_SESSION = {
@@ -159,13 +207,18 @@ async function pollSession() {
 }
 
 // ── 트레이 ──────────────────────────────────────────────────────────────
-function makeTray() {
-  let icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
-  if (!icon.isEmpty()) icon = icon.resize({ width: 18, height: 18 });
-  tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip('ARAM 내전 오버레이');
+function toggleDock() {
+  config.dock = (config.dock === false);   // 뒤집기(기본 켜짐)
+  saveConfig();
+  if (config.dock !== false) { dockedBounds = null; pollDock(); }
+  refreshTrayMenu();
+}
+function refreshTrayMenu() {
+  if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: `명단 오버레이 토글 (${TOGGLE_HOTKEY})`, click: toggleOverlay },
+    { label: '롤 클라이언트에 붙이기(도킹)', type: 'checkbox', checked: config.dock !== false, click: toggleDock },
+    { type: 'separator' },
+    { label: `오버레이 토글 (${TOGGLE_HOTKEY})`, click: toggleOverlay },
     { label: '홈페이지 오버레이 토글 (Shift+F6)', click: toggleHome },
     { type: 'separator' },
     { label: '내전 홈페이지 (기본 브라우저)', click: () => shell.openExternal(WEB_URL) },
@@ -173,6 +226,13 @@ function makeTray() {
     { type: 'separator' },
     { label: '종료', click: () => app.quit() },
   ]));
+}
+function makeTray() {
+  let icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
+  if (!icon.isEmpty()) icon = icon.resize({ width: 18, height: 18 });
+  tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
+  tray.setToolTip('ARAM 내전 오버레이');
+  refreshTrayMenu();
   tray.on('double-click', () => { if (!desktopWin) createDesktop(); else desktopWin.show(); });
 }
 
@@ -216,10 +276,11 @@ app.whenReady().then(() => {
   makeTray();
   globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
   globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
-  pollGame(); pollLp(); pollSession();
+  pollGame(); pollLp(); pollSession(); pollDock();
   setInterval(pollGame, 2500);
   setInterval(pollLp, 60000);
   setInterval(pollSession, 3000);
+  setInterval(pollDock, 2500);        // 🖥️ 롤 클라 창 따라 도킹
 });
 app.on('window-all-closed', (e) => { /* 트레이 상주 — 창 다 닫혀도 안 죽음 */ });
 app.on('will-quit', () => globalShortcut.unregisterAll());
