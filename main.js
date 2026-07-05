@@ -130,8 +130,9 @@ function createOverlay() {
 }
 function createDesktop() {
   desktopWin = new BrowserWindow({
-    width: 520, height: 600, resizable: true, minWidth: 420, minHeight: 440,
-    backgroundColor: '#0e0c16', title: '아수라장 내전',
+    width: 460, height: 640, resizable: true, minWidth: 400, minHeight: 520,
+    backgroundColor: '#0b0912', title: '아수라장 내전',
+    icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   desktopWin.setMenuBarVisibility(false);
@@ -144,6 +145,7 @@ function createHome() {
   homeWin = new BrowserWindow({
     width: 430, height: 720, x: 380, y: 60,
     frame: false, backgroundColor: '#0e0c16', show: false,
+    icon: path.join(__dirname, 'assets', 'icon.png'),
     alwaysOnTop: true, skipTaskbar: true, resizable: true, minWidth: 340, minHeight: 440,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, webviewTag: true },
   });

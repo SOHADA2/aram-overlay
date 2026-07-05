@@ -1,7 +1,6 @@
-// ── 데스크톱 창: 입장(ID 선택) → 방장 체크 흐름 ──────────────────────────
+// ── 데스크톱(로그인/홈) — 입장(ID 선택) → 방장 체크 ──────────────────────
 const $ = id => document.getElementById(id);
 
-// 버튼들
 $('open-web').addEventListener('click', () => window.api.openWeb());
 $('preview-team').addEventListener('click', () => window.api.previewSession());
 $('home-overlay').addEventListener('click', () => window.api.homeToggle());
@@ -21,10 +20,8 @@ function showHome(name, isHost) {
   $('is-host').checked = !!isHost;
   $('host-box').classList.toggle('on', !!isHost);
 }
-$('entry').style.display = 'flex'; $('entry').style.flexDirection = 'column'; $('entry').style.gap = '12px';
-$('home').style.flexDirection = 'column'; $('home').style.gap = '12px';
 
-// 입장 셀렉트
+// 로그인(입장) 셀렉트
 const esel = $('entry-name');
 esel.addEventListener('change', () => { $('entry-go').disabled = !esel.value; });
 $('entry-go').addEventListener('click', () => {
@@ -32,9 +29,7 @@ $('entry-go').addEventListener('click', () => {
   window.api.setMyName(esel.value);
   showHome(esel.value, $('is-host').checked);
 });
-
-// 아이디 변경
-$('change-name').addEventListener('click', () => { showEntry(); });
+$('change-name').addEventListener('click', showEntry);
 
 // 방장 체크
 $('is-host').addEventListener('change', () => {
@@ -50,7 +45,6 @@ $('is-host').addEventListener('change', () => {
     esel.innerHTML = '<option value="">— 아이디 선택 —</option>' +
       names.map(n => `<option value="${n.replace(/"/g, '&quot;')}"${n === myName ? ' selected' : ''}>${n}</option>`).join('');
     $('entry-go').disabled = !esel.value;
-    if (myName) showHome(myName, isHost);   // 이미 입장했으면 바로 홈
-    else showEntry();
+    if (myName) showHome(myName, isHost); else showEntry();
   } catch (_) { showEntry(); }
 })();

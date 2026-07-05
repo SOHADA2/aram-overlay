@@ -3,43 +3,53 @@
 <head>
   <meta charset="utf-8">
   <title>아수라장 내전</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="desktop.css">
 </head>
 <body>
-  <header><span class="ttl">🗡️ 아수라장 내전</span><span class="ver">오버레이 v0.1</span></header>
-  <main>
-    <!-- 입장 전: 내 아이디 선택 -->
-    <section id="entry" style="display:none;">
-      <p class="lead">내 아이디를 선택해 입장하세요</p>
+  <div class="bg"></div>
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">⚔️ 아수라장 내전</div>
+      <div class="tag">인게임 오버레이 · 팀 · 투표 · 정산</div>
+    </div>
+
+    <!-- 로그인(입장) -->
+    <section id="entry" class="card login" style="display:none;">
+      <div class="card-title">계정으로 입장</div>
+      <label class="field-label">내 아이디</label>
       <select id="entry-name"><option value="">— 아이디 선택 —</option></select>
-      <button id="entry-go" class="primary" disabled>입장</button>
-      <p class="hint">홈페이지에 등록된 <b>본인 닉네임</b>을 고르세요. 오버레이가 "내 팀"을 알아보는 데 써요. (나중에 변경 가능)</p>
+      <button id="entry-go" class="btn-gold" disabled>입장 ▸</button>
+      <div class="foot-hint">홈페이지에 등록된 <b>본인 닉네임</b>을 선택하세요.<br>오버레이가 "내 팀"을 알아보는 데 사용해요.</div>
     </section>
 
-    <!-- 입장 후 -->
-    <section id="home" style="display:none;">
-      <div class="me-card">
-        <div class="me-info"><span class="me-label">입장</span><span class="me-name" id="me-name"></span></div>
-        <button id="change-name" class="link">변경</button>
+    <!-- 입장 후(홈) -->
+    <section id="home" class="card" style="display:none;">
+      <div class="user-bar">
+        <div class="avatar">🗡️</div>
+        <div class="user-info"><span class="u-label">접속 중</span><span class="me-name" id="me-name"></span></div>
+        <button id="change-name" class="link">계정 변경</button>
       </div>
 
       <label class="host-toggle" id="host-box">
         <input type="checkbox" id="is-host">
-        <span class="ht-text"><b>👑 나는 방장이에요</b><small>내전 대기방 방장 — 팀 짜기·진행을 담당해요</small></span>
+        <span class="ht-text"><b>👑 나는 방장이에요</b><small>내전 대기방 방장 — 팀 짜기·진행 담당</small></span>
       </label>
 
-      <div class="card">
+      <div class="stat">
         <div class="row"><span>롤 게임</span><b id="game-state">감지 대기</b></div>
         <div class="row"><span>클라 도킹</span><b>자동 (트레이에서 끄기)</b></div>
         <div class="row"><span>단축키</span><b>Shift+F5 · Shift+F6</b></div>
       </div>
 
-      <button id="preview-team" class="primary">👀 팀 배정 미리보기</button>
-      <button id="home-overlay" class="ghost">🌐 전체 홈페이지 오버레이 (Shift+F6)</button>
-      <button id="open-web" class="ghost">기본 브라우저로 홈페이지 열기</button>
-      <p class="hint">롤 클라이언트를 켜면 오버레이가 <b>클라 오른쪽에 자동으로</b> 붙어요. 이 창은 닫아도 트레이에 상주합니다.</p>
+      <button id="preview-team" class="btn-gold">👀 팀 배정 미리보기</button>
+      <button id="home-overlay" class="btn-ghost">🌐 전체 홈페이지 오버레이</button>
+      <button id="open-web" class="btn-ghost">브라우저로 홈페이지 열기</button>
+      <div class="foot-hint">롤 클라이언트를 켜면 오버레이가 <b>클라 오른쪽에 자동으로</b> 붙어요.<br>이 창은 닫아도 트레이에 상주합니다.</div>
     </section>
-  </main>
+  </div>
   <script src="desktop.js"></script>
 </body>
 </html>
