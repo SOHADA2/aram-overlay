@@ -5,19 +5,34 @@ body { display: flex; flex-direction: column; }
 header { display: flex; align-items: baseline; gap: 8px; padding: 14px 16px; border-bottom: 1px solid rgba(240,200,90,0.2); }
 header .ttl { font-size: 16px; font-weight: 800; color: #ffd24a; }
 header .ver { font-size: 11px; color: #5f6478; }
-main { flex: 1; padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
-.card { background: rgba(255,255,255,0.04); border: 1px solid rgba(240,200,90,0.22); border-radius: 12px; padding: 12px 14px; }
-.card .row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; font-size: 13px; }
+main { flex: 1; padding: 18px 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+.lead { font-size: 14px; font-weight: 700; text-align: center; margin: 8px 0 2px; }
+select { background: #1b1626; color: #e8ecf6; border: 1px solid rgba(240,200,90,0.35); border-radius: 9px; padding: 10px 12px; font-size: 14px; width: 100%; }
+.hint { font-size: 11px; color: #9aa0b4; line-height: 1.6; } .hint b { color: #ffe39a; }
+
+/* 입장 후 */
+.me-card { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(240,200,90,0.25); border-radius: 12px; padding: 12px 14px; }
+.me-info { flex: 1; display: flex; flex-direction: column; }
+.me-label { font-size: 10px; color: #9aa0b4; }
+.me-name { font-size: 16px; font-weight: 800; color: #ffe39a; }
+.link { background: none; border: none; color: #9aa0b4; font-size: 12px; cursor: pointer; text-decoration: underline; }
+
+.host-toggle { display: flex; align-items: center; gap: 10px; background: rgba(240,200,90,0.06); border: 1px solid rgba(240,200,90,0.28); border-radius: 12px; padding: 11px 14px; cursor: pointer; }
+.host-toggle input { width: 18px; height: 18px; accent-color: #ffd24a; flex-shrink: 0; }
+.ht-text { display: flex; flex-direction: column; }
+.ht-text b { font-size: 13px; color: #ffe39a; }
+.ht-text small { font-size: 10px; color: #9aa0b4; margin-top: 1px; }
+.host-toggle.on { background: rgba(240,200,90,0.12); border-color: rgba(240,200,90,0.55); }
+
+.card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px 14px; }
+.card .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; }
 .card .row + .row { border-top: 1px solid rgba(255,255,255,0.05); }
 .card .row span { color: #9aa0b4; } .card .row b { color: #e8ecf6; }
 #game-state.on { color: #7CFC9A; }
-.card select { background: #1b1626; color: #e8ecf6; border: 1px solid rgba(240,200,90,0.35); border-radius: 8px; padding: 6px 8px; font-size: 13px; min-width: 170px; max-width: 60%; }
-.note { font-size: 11px; color: #9aa0b4; margin-top: 6px; line-height: 1.5; } .note b { color: #ffe39a; }
-.desc { font-size: 12px; color: #9aa0b4; line-height: 1.7; } .desc b { color: #ffe39a; }
-.primary { padding: 12px; border: none; border-radius: 11px; font-size: 14px; font-weight: 800; cursor: pointer;
-  background: linear-gradient(135deg,#e0a82e,#f0c860); color: #1a1206; }
-.primary:active { transform: translateY(1px); }
-.ghost { padding: 11px; border: 1px solid rgba(240,200,90,0.4); border-radius: 11px; font-size: 13px; font-weight: 700; cursor: pointer;
-  background: rgba(240,200,90,0.08); color: #ffe39a; }
+
+.primary { padding: 12px; border: none; border-radius: 11px; font-size: 14px; font-weight: 800; cursor: pointer; background: linear-gradient(135deg,#e0a82e,#f0c860); color: #1a1206; }
+.primary:disabled { opacity: 0.45; cursor: default; }
+.primary:not(:disabled):active { transform: translateY(1px); }
+.ghost { padding: 11px; border: 1px solid rgba(240,200,90,0.4); border-radius: 11px; font-size: 13px; font-weight: 700; cursor: pointer; background: rgba(240,200,90,0.08); color: #ffe39a; }
 .ghost:active { transform: translateY(1px); }
-.hint { margin-top: auto; text-align: center; font-size: 10px; color: #5f6478; line-height: 1.6; }

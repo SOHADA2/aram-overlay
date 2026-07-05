@@ -131,7 +131,7 @@ function createOverlay() {
 function createDesktop() {
   desktopWin = new BrowserWindow({
     width: 520, height: 600, resizable: true, minWidth: 420, minHeight: 440,
-    backgroundColor: '#0e0c16', title: 'ARAM 내전 오버레이',
+    backgroundColor: '#0e0c16', title: '아수라장 내전',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   desktopWin.setMenuBarVisibility(false);
@@ -240,7 +240,7 @@ function makeTray() {
   let icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
   if (!icon.isEmpty()) icon = icon.resize({ width: 18, height: 18 });
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip('ARAM 내전 오버레이');
+  tray.setToolTip('아수라장 내전');
   refreshTrayMenu();
   tray.on('double-click', () => { if (!desktopWin) createDesktop(); else desktopWin.show(); });
 }
@@ -250,15 +250,18 @@ ipcMain.on('overlay-hide', () => { hideOverlay(); userHid = true; });
 ipcMain.on('open-web', () => shell.openExternal(WEB_URL));
 ipcMain.on('home-toggle', toggleHome);
 ipcMain.on('home-close', () => { if (homeWin) homeWin.hide(); });
-ipcMain.on('set-myname', (_e, name) => {           // 내 이름 저장 → 팀 판별
+ipcMain.on('set-myname', (_e, name) => {           // 내 이름(입장 ID) 저장 → 팀 판별
   config.myName = name || ''; saveConfig();
   broadcast('myname', config.myName);
   broadcast('session', { session: sessionData, myName: config.myName, lpMap });
 });
-ipcMain.handle('get-players', async () => {        // 데스크톱 이름 선택용 목록
+ipcMain.on('set-host', (_e, v) => {                // 방장(팀 짜기 진행자) 여부
+  config.isHost = !!v; saveConfig();
+});
+ipcMain.handle('get-players', async () => {        // 데스크톱 ID 선택용 목록 + 현재 설정
   const d = await fetchPlayers();
   const names = d ? [...new Set(Object.values(d).map(p => p && p.name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
-  return { names, myName: config.myName || '' };
+  return { names, myName: config.myName || '', isHost: !!config.isHost };
 });
 ipcMain.on('session-preview', () => {              // 팀 배정 뷰 미리보기(샘플)
   sampleActive = true; userHid = false; sessionData = SAMPLE_SESSION; showOverlay();

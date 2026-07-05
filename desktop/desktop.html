@@ -2,30 +2,43 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>ARAM 내전 오버레이</title>
+  <title>아수라장 내전</title>
   <link rel="stylesheet" href="desktop.css">
 </head>
 <body>
-  <header><span class="ttl">🗡️ ARAM 내전 오버레이</span><span class="ver">v0.1.0</span></header>
+  <header><span class="ttl">🗡️ 아수라장 내전</span><span class="ver">오버레이 v0.1</span></header>
   <main>
-    <div class="card">
-      <div class="row"><span>롤 게임</span><b id="game-state">감지 대기</b></div>
-      <div class="row"><span>명단 오버레이</span><b>Shift + F5 · 게임 시작 시 자동</b></div>
-      <div class="row"><span>홈페이지 오버레이</span><b>Shift + F6</b></div>
-    </div>
-    <div class="card">
-      <label class="row"><span>내 이름</span>
-        <select id="myname"><option value="">— 선택 —</option></select>
+    <!-- 입장 전: 내 아이디 선택 -->
+    <section id="entry" style="display:none;">
+      <p class="lead">내 아이디를 선택해 입장하세요</p>
+      <select id="entry-name"><option value="">— 아이디 선택 —</option></select>
+      <button id="entry-go" class="primary" disabled>입장</button>
+      <p class="hint">홈페이지에 등록된 <b>본인 닉네임</b>을 고르세요. 오버레이가 "내 팀"을 알아보는 데 써요. (나중에 변경 가능)</p>
+    </section>
+
+    <!-- 입장 후 -->
+    <section id="home" style="display:none;">
+      <div class="me-card">
+        <div class="me-info"><span class="me-label">입장</span><span class="me-name" id="me-name"></span></div>
+        <button id="change-name" class="link">변경</button>
+      </div>
+
+      <label class="host-toggle" id="host-box">
+        <input type="checkbox" id="is-host">
+        <span class="ht-text"><b>👑 나는 방장이에요</b><small>내전 대기방 방장 — 팀 짜기·진행을 담당해요</small></span>
       </label>
-      <p class="note">오버레이가 "내 팀"을 알려면 홈페이지에 등록된 <b>본인 이름</b>을 골라주세요. (한 번만)</p>
-    </div>
-    <p class="desc"><b>팀 배정 오버레이</b>가 핵심이에요 — 팀이 짜이면 게임 위에 "내 팀 · 같은편/상대"가 자동으로 떠요(대기화면서 바로 확인).
-      앱 안 깐 사람은 기존처럼 홈페이지로 접속(같은 데이터·자동 연동).</p>
-    <button id="preview-team" class="primary">👀 팀 배정 미리보기 (샘플로 모양 보기)</button>
-    <button id="preview" class="ghost">👀 명단 오버레이 미리보기 (인게임)</button>
-    <button id="home-overlay" class="ghost">🌐 전체 홈페이지 오버레이 (Shift+F6)</button>
-    <button id="open-web" class="ghost">기본 브라우저로 홈페이지 열기</button>
-    <p class="hint">borderless(테두리없는창) 모드에서 오버레이가 뜹니다 · 이 창은 닫아도 트레이에 상주해요</p>
+
+      <div class="card">
+        <div class="row"><span>롤 게임</span><b id="game-state">감지 대기</b></div>
+        <div class="row"><span>클라 도킹</span><b>자동 (트레이에서 끄기)</b></div>
+        <div class="row"><span>단축키</span><b>Shift+F5 · Shift+F6</b></div>
+      </div>
+
+      <button id="preview-team" class="primary">👀 팀 배정 미리보기</button>
+      <button id="home-overlay" class="ghost">🌐 전체 홈페이지 오버레이 (Shift+F6)</button>
+      <button id="open-web" class="ghost">기본 브라우저로 홈페이지 열기</button>
+      <p class="hint">롤 클라이언트를 켜면 오버레이가 <b>클라 오른쪽에 자동으로</b> 붙어요. 이 창은 닫아도 트레이에 상주합니다.</p>
+    </section>
   </main>
   <script src="desktop.js"></script>
 </body>

@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('api', {
   homeClose: () => ipcRenderer.send('home-close'),
   getPlayers: () => ipcRenderer.invoke('get-players'),
   setMyName: (n) => ipcRenderer.send('set-myname', n),
+  setHost: (v) => ipcRenderer.send('set-host', v),
 });
