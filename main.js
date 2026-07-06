@@ -172,11 +172,24 @@ function createDesktop() {
     width: 460, height: 640, resizable: true, minWidth: 400, minHeight: 520,
     backgroundColor: '#0b0912', title: '아수라장 내전',
     icon: path.join(__dirname, 'assets', 'icon.png'),
+    show: false,   // ready-to-show까지 숨김 → 깜빡임 방지 + 런처(VBS SW_HIDE) 힌트 무시하고 명시 표시
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   desktopWin.setMenuBarVisibility(false);
   desktopWin.loadFile('desktop/desktop.html');
+  // 🪟 시작 시 메인 화면을 확실히 앞으로 (트레이로만 숨는 문제 수정)
+  desktopWin.once('ready-to-show', () => showDesktop());
+  // ✕ 닫기 = 트레이 상주(앱 종료 아님) — 다시 트레이/도킹으로 열 수 있음
+  desktopWin.on('close', (e) => { if (!app._quitting) { e.preventDefault(); desktopWin.hide(); } });
   desktopWin.on('closed', () => { desktopWin = null; });
+}
+// 데스크톱(메인) 창 표시 — 생성 안 됐으면 만들고, 숨어있으면 띄워서 앞으로
+function showDesktop() {
+  if (!desktopWin || desktopWin.isDestroyed()) { createDesktop(); return; }
+  if (desktopWin.isMinimized()) desktopWin.restore();
+  desktopWin.show();
+  desktopWin.moveTop();
+  desktopWin.focus();
 }
 
 // 🌐 홈페이지 오버레이 — 게임 위에 진짜 홈페이지(팀짜기·투표·정산)를 띄운다(webview로 임베드)
@@ -348,18 +361,19 @@ function refreshTrayMenu() {
     { label: '홈페이지 오버레이 토글 (Shift+F6)', click: toggleHome },
     { type: 'separator' },
     { label: '내전 홈페이지 (기본 브라우저)', click: () => shell.openExternal(WEB_URL) },
-    { label: '데스크톱 창 열기', click: () => { if (!desktopWin) createDesktop(); else desktopWin.show(); } },
+    { label: '메인 화면 열기', click: showDesktop },
     { type: 'separator' },
-    { label: '종료', click: () => app.quit() },
+    { label: '종료', click: () => { app._quitting = true; app.quit(); } },
   ]));
 }
 function makeTray() {
   let icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
   if (!icon.isEmpty()) icon = icon.resize({ width: 18, height: 18 });
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip('아수라장 내전');
+  tray.setToolTip('아수라장 내전 — 클릭하면 메인 화면');
   refreshTrayMenu();
-  tray.on('double-click', () => { if (!desktopWin) createDesktop(); else desktopWin.show(); });
+  tray.on('click', showDesktop);          // 좌클릭도 메인 화면(윈도우 트레이 관례)
+  tray.on('double-click', showDesktop);
 }
 
 // ── IPC ──────────────────────────────────────────────────────────────────
@@ -399,19 +413,26 @@ ipcMain.on('overlay-preview', () => {          // 게임 없이 오버레이 모
 });
 
 // ── 앱 시작 ──────────────────────────────────────────────────────────────
-app.whenReady().then(() => {
-  CONFIG_PATH = path.join(app.getPath('userData'), 'aram-overlay-config.json');
-  config = loadConfig();
-  createOverlay();
-  createDesktop();
-  makeTray();
-  globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
-  globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
-  pollGame(); pollLp(); pollSession(); pollDock();
-  setInterval(pollGame, 2500);
-  setInterval(pollLp, 60000);
-  setInterval(pollSession, 3000);
-  setInterval(pollDock, 2500);        // 🖥️ 롤 클라 창 따라 도킹
-});
+// 중복 실행 방지 — 이미 켜져 있으면 새 인스턴스 대신 기존 메인 화면을 앞으로
+const _gotLock = app.requestSingleInstanceLock();
+if (!_gotLock) { app.quit(); }
+else {
+  app.on('second-instance', () => showDesktop());   // 사장님이 런처를 또 누르면 메인 화면 표시
+  app.whenReady().then(() => {
+    CONFIG_PATH = path.join(app.getPath('userData'), 'aram-overlay-config.json');
+    config = loadConfig();
+    createOverlay();
+    createDesktop();   // ready-to-show에서 showDesktop() → 시작 시 메인 화면 앞으로
+    makeTray();
+    globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
+    globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
+    pollGame(); pollLp(); pollSession(); pollDock();
+    setInterval(pollGame, 2500);
+    setInterval(pollLp, 60000);
+    setInterval(pollSession, 3000);
+    setInterval(pollDock, 2500);        // 🖥️ 롤 클라 창 따라 도킹
+  });
+}
+app.on('before-quit', () => { app._quitting = true; });   // 종료 시엔 close를 트레이 숨김으로 가로채지 않음
 app.on('window-all-closed', (e) => { /* 트레이 상주 — 창 다 닫혀도 안 죽음 */ });
 app.on('will-quit', () => globalShortcut.unregisterAll());
