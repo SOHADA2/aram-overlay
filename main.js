@@ -43,12 +43,14 @@ public class Win{
  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
+ [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  public struct RECT{public int L,T,R,B;}
  public static string Find(){
   IntPtr h=FindWindow(null,"League of Legends");
   if(h==IntPtr.Zero||!IsWindowVisible(h)||IsIconic(h)) return "";
   RECT r; GetWindowRect(h,out r);
-  return r.L+" "+r.T+" "+r.R+" "+r.B;
+  int fg=(GetForegroundWindow()==h)?1:0;   // 클라가 지금 활성창인가
+  return r.L+" "+r.T+" "+r.R+" "+r.B+" "+fg;
  }
 }
 '@
@@ -84,16 +86,32 @@ function applyDockLeft(pb) {                    // 내 정보 패널 = 클라 '�
   leftWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
 }
 function hideLeftPanel() { if (leftWin && !leftWin.isDestroyed() && leftWin.isVisible()) leftWin.hide(); leftDockedBounds = null; }
+// 🪟 클라와 같은 층위 — 롤 클라(또는 우리 패널)가 활성일 때만 패널을 위로, 아니면 뒤로(다른 앱에 안 가림)
+let clientFg = false, panelFg = false, _lastRaise = null, _dropTimer = null;
+let _ovFocus = false, _lfFocus = false;
+function applyRaise() {
+  if (inGame) return;   // 게임 중(전체화면)엔 pollGame이 오버레이를 위로 올림
+  const raise = !!(clientFg || panelFg);
+  if (raise === _lastRaise) return; _lastRaise = raise;
+  for (const win of [overlayWin, leftWin]) if (win && !win.isDestroyed()) { try { win.setAlwaysOnTop(raise, raise ? 'screen-saver' : 'normal'); } catch (_) {} }
+}
+function evalRaise() {   // 올릴 땐 즉시, 내릴 땐 살짝 텀(클라↔패널 클릭 전환 깜빡임 방지)
+  if (clientFg || panelFg) { if (_dropTimer) { clearTimeout(_dropTimer); _dropTimer = null; } applyRaise(); }
+  else if (!_dropTimer) _dropTimer = setTimeout(() => { _dropTimer = null; applyRaise(); }, 300);
+}
+function setPanelFg() { const v = _ovFocus || _lfFocus; if (v !== panelFg) { panelFg = v; evalRaise(); } }
 function handleDockLine(line) {
   const p = line.split(/\s+/).map(Number);
-  const valid = p.length === 4 && p.every(Number.isFinite) && (p[2] - p[0]) >= 700 && (p[3] - p[1]) >= 400;
-  if (config.dock === false || !valid) { setDockedFlag(false); hideLeftPanel(); return; }   // 도킹 끔/클라 없음
+  const valid = p.length >= 4 && p.slice(0, 4).every(Number.isFinite) && (p[2] - p[0]) >= 700 && (p[3] - p[1]) >= 400;
+  if (config.dock === false || !valid) { setDockedFlag(false); hideLeftPanel(); if (clientFg) { clientFg = false; evalRaise(); } return; }   // 도킹 끔/클라 없음
+  const fg = p[4] === 1;                            // 롤 클라가 지금 활성창인가
+  if (fg !== clientFg) { clientFg = fg; evalRaise(); }
   const w = p[2] - p[0], h = p[3] - p[1], sig = `${p[0]},${p[1]},${w},${h}`;
-  // ▶ 오른쪽 오버레이(팀·명단)
+  // ◀ 팀·명단 오버레이 = 클라 왼쪽
   if (sig !== dockedBounds) { dockedBounds = sig; applyDock({ x: p[0], y: p[1], w, h }); }
   setDockedFlag(true);
   if (overlayWin && !overlayWin.isVisible() && !userHid) overlayWin.showInactive();
-  // ◀ 왼쪽 내 정보(로그인 + 패널 켬 상태에서만)
+  // ▶ 내 정보 = 클라 오른쪽 (로그인 + 패널 켬 상태에서만)
   if (config.myName && config.sidePanel !== false && !leftUserHid) {
     if (sig !== leftDockedBounds) { leftDockedBounds = sig; applyDockLeft({ x: p[0], y: p[1], w, h }); }
     if (leftWin && !leftWin.isDestroyed() && !leftWin.isVisible()) leftWin.showInactive();
@@ -234,11 +252,14 @@ function createOverlay() {
     width: 456, height: 452, x: 24, y: 84, minWidth: 260, minHeight: 220,
     transparent: true, frame: false, resizable: true, movable: true,   // 크기 조절 가능(반응형)
     alwaysOnTop: false, skipTaskbar: true, show: false, focusable: true,   // 로비=클라와 같은 층위, 게임 중만 위로(pollGame)
+    roundedCorners: false,   // 🪟 Win11 창 모서리 둥글림 끄기 → 클라에 각지게 딱 맞음
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   overlayWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   overlayWin.loadFile('overlay/overlay.html');
-  overlayWin.on('closed', () => { overlayWin = null; });
+  overlayWin.on('focus', () => { _ovFocus = true; setPanelFg(); });   // 패널 클릭=활성 유지
+  overlayWin.on('blur', () => { _ovFocus = false; setPanelFg(); });
+  overlayWin.on('closed', () => { overlayWin = null; _ovFocus = false; setPanelFg(); });
 }
 function createDesktop() {
   desktopWin = new BrowserWindow({
@@ -263,11 +284,14 @@ function createLeftPanel() {
     frame: false, backgroundColor: '#010A13', show: false,
     icon: path.join(__dirname, 'assets', 'icon.png'),
     alwaysOnTop: false, skipTaskbar: true, resizable: true, focusable: true,   // 클라와 같은 층위(로비 정보 패널)
+    roundedCorners: false,   // 🪟 Win11 창 모서리 둥글림 끄기 → 클라에 각지게 딱 맞음
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   leftWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   leftWin.loadFile('sidepanel/sidepanel.html');
-  leftWin.on('closed', () => { leftWin = null; });
+  leftWin.on('focus', () => { _lfFocus = true; setPanelFg(); });   // 패널 클릭=활성 유지
+  leftWin.on('blur', () => { _lfFocus = false; setPanelFg(); });
+  leftWin.on('closed', () => { leftWin = null; _lfFocus = false; setPanelFg(); });
 }
 // 데스크톱(메인) 창 표시 — 생성 안 됐으면 만들고, 숨어있으면 띄워서 앞으로
 function showDesktop() {
@@ -383,10 +407,10 @@ async function pollGame() {
   }
   if (nowIn !== inGame) {              // 상태 전환
     inGame = nowIn;
-    // 게임 중(전체화면)만 위로, 로비/클라에선 같은 층위(항상최상위 X)
+    // 게임 중(전체화면)만 위로, 로비/클라에선 같은 층위(클라 활성 시에만 evalRaise가 올림)
     try { if (overlayWin && !overlayWin.isDestroyed()) overlayWin.setAlwaysOnTop(inGame, inGame ? 'screen-saver' : 'normal'); } catch (_) {}
     if (inGame) { if (!userHid) showOverlay(); }
-    else { hideOverlay(); userHid = false; latestPlayers = []; }
+    else { hideOverlay(); userHid = false; latestPlayers = []; _lastRaise = null; evalRaise(); }   // 게임 종료 → 로비 층위 재적용
     broadcast('state', { inGame, label: inGame ? '게임 중' : '대기' });
   }
   broadcast('players', { players: latestPlayers, lpMap });
