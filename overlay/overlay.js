@@ -13,14 +13,22 @@ let sessionData = null, myName = '', roster = [], lpMap = {}, inGame = false, ph
 el('close').addEventListener('click', () => window.api.hideOverlay());
 
 let settleData = null;   // 💰 최근 정산 {settle, lpNow}
+let itemData = null, _itemPhaseKey = 0, _itemSeenAt = 0, _itemBusy = false;   // 🎒 아이템 페이즈
 window.api.onState(({ inGame: ig, label }) => { inGame = !!ig; phaseLabel = label || (ig ? '게임 중' : '대기'); render(); });
 window.api.onPlayers(({ players, lpMap: m }) => { roster = players || []; if (m) lpMap = m; render(); });
 window.api.onSession(({ session, myName: mn, lpMap: m }) => { sessionData = session || null; if (mn !== undefined) myName = mn || ''; if (m) lpMap = m; render(); });
 window.api.onMyName(name => { myName = name || ''; render(); });
 window.api.onSettlement(d => { settleData = d || null; render(); });
+window.api.onItemPhase(d => {
+  itemData = d || null;
+  if (d && d.endAt !== _itemPhaseKey) { _itemPhaseKey = d.endAt; _itemSeenAt = Date.now(); }   // 새 페이즈 = 로컬 15초 시작
+  render();
+});
+setInterval(() => { if (itemActive()) { const l = itemSecsLeft(); const e = el('it-sec'); if (e) e.textContent = l; if (l <= 0) render(); } }, 500);
 
 function showView(v) {
   el('view-team').style.display   = v === 'team'   ? 'block' : 'none';
+  el('view-item').style.display   = v === 'item'   ? 'block' : 'none';
   el('view-vote').style.display   = v === 'vote'   ? 'block' : 'none';
   el('view-settle').style.display = v === 'settle' ? 'block' : 'none';
   el('view-roster').style.display = v === 'roster' ? 'block' : 'none';
@@ -199,7 +207,50 @@ function renderSettle() {
   el('st-close').onclick = () => { if (s.matchKey) markSettleSeen(s.matchKey); settleData = null; render(); };
 }
 
+// ── 🎒 아이템 사용(팀 구성 직전 15초) ────────────────────────────────────
+// 홈페이지에서 미리 산 전투 아이템을 여기서 활성화. items_s2 토글(main.js가 상호배제·조건 검증·Firebase write).
+const COMBAT_ITEMS = [
+  { id: 's1_gamble',       name: '도박권',        ic: '🎲', desc: '승 +40 / 패 −30 LP' },
+  { id: 's1_lp2x',         name: 'LP 2배권',      ic: '⚡', desc: '승리 시 획득 LP 2배' },
+  { id: 's1_promo_shield', name: '승급전 방어권', ic: '🛡️', desc: '승급전 패배 무효' },
+  { id: 's1_promo_win',    name: '승급전 승리권', ic: '⚔️', desc: '승급전 승리 = 2승' },
+];
+function itemActive() { return !!(itemData && itemSecsLeft() > 0); }
+function itemSecsLeft() { return Math.max(0, 15 - Math.floor((Date.now() - _itemSeenAt) / 1000)); }
+function _myItems() { return (itemData && itemData.gold && itemData.gold.data && itemData.gold.data.items_s2) || []; }
+function renderItem() {
+  el('it-sec').textContent = itemSecsLeft();
+  const items = _myItems();
+  const cnt = id => items.filter(it => it && it.id === id).length;
+  const on = id => items.some(it => it && it.id === id && it.active);
+  el('it-body').innerHTML = COMBAT_ITEMS.map(ci => {
+    const owned = cnt(ci.id), act = on(ci.id);
+    const cls = owned ? (act ? 'on' : 'own') : 'empty';
+    const st = owned ? (act ? '✓ 켜짐' : '켜기') : '미보유';
+    return `<button class="it-chip ${cls}" data-id="${ci.id}" ${owned ? '' : 'disabled'}>`
+      + `<span class="it-ic">${ci.ic}</span>`
+      + `<span class="it-info"><b>${ci.name}${owned > 1 ? ` <em>×${owned}</em>` : ''}</b><small>${ci.desc}</small></span>`
+      + `<span class="it-st">${st}</span></button>`;
+  }).join('');
+  el('it-body').querySelectorAll('.it-chip:not([disabled])').forEach(b => b.onclick = async () => {
+    if (_itemBusy) return; _itemBusy = true; b.classList.add('busy');
+    el('it-err').style.display = 'none';
+    const r = await window.api.itemToggle(b.dataset.id);
+    _itemBusy = false; b.classList.remove('busy');
+    if (!r || !r.ok) { el('it-err').textContent = '⚠️ ' + ((r && r.err) || '실패'); el('it-err').style.display = ''; }
+    else {   // 낙관적 로컬 반영(다음 폴링이 확정) — 같은 id/충돌 끄고 이 id 하나 켬
+      const wasOn = on(b.dataset.id);
+      const conflict = { s1_gamble: ['s1_lp2x'], s1_lp2x: ['s1_gamble'], s1_promo_shield: ['s1_promo_win'], s1_promo_win: ['s1_promo_shield'] }[b.dataset.id] || [];
+      const off = new Set([b.dataset.id, ...conflict]);
+      items.forEach(it => { if (off.has(it.id)) it.active = false; });
+      if (!wasOn) { const t = items.find(it => it.id === b.dataset.id); if (t) t.active = true; }
+      renderItem();
+    }
+  });
+}
+
 function render() {
+  if (itemActive()) { renderItem(); showView('item'); el('phase').textContent = '아이템'; return; }
   if (settleActive()) { renderSettle(); showView('settle'); el('phase').textContent = '정산'; return; }
   const hasTeams = sessionData && sessionData.active && (((sessionData.teamA || []).length) || ((sessionData.teamB || []).length));
   if (hasTeams && isVoting()) {

@@ -118,6 +118,8 @@ const fetchPlayers   = () => getJson(`${FIREBASE_DB}/players.json`);   // 등록
 const fetchMatches   = () => getJson(`${FIREBASE_DB}/matches.json`);   // ⚔️ 팀짜기 승률 계산용(수 MB — 팀짤 때만)
 const fetchSeason    = () => getJson(`${FIREBASE_DB}/config/currentSeason.json`);
 const fetchSettlement= () => getJson(`${FIREBASE_DB}/lastSettlement.json`);   // 💰 정산 결과(참여자 전파용)
+const fetchGoldAll   = () => getJson(`${FIREBASE_DB}/gold.json`);      // 🎒 아이템 페이즈 — 내 gold 노드 찾기용
+const fetchMyLp      = () => getJson(`${FIREBASE_DB}/season2/players.json`);   // 배치/승급전 판정용
 
 // ── HTTPS 요청(JSON body) — 익명 인증·Firebase 쓰기용 ─────────────────────
 function reqJson(method, url, body) {
@@ -159,6 +161,29 @@ async function fbDelete(pathStr) {   // 특정 키 삭제 — 홈페이지 remov
   const r = await reqJson('DELETE', `${FIREBASE_DB}/${pathStr}.json?auth=${tok}`);
   if (r.status === 401 || r.status === 403) { _fbTok = null; }
   return { ok: r.status === 200 };
+}
+async function fbUpdate(pathStr, value) {   // 노드 일부 필드만 갱신(PATCH) — 홈페이지 update()와 동일. items_s2만 덮어씀(다른 필드 유실 방지).
+  const tok = await fbToken();
+  if (!tok) return { ok: false, err: '인증 실패' };
+  const r = await reqJson('PATCH', `${FIREBASE_DB}/${pathStr}.json?auth=${tok}`, value);
+  if (r.status === 401 || r.status === 403) { _fbTok = null; }
+  return { ok: r.status === 200, err: r.status === 200 ? null : `쓰기 실패(HTTP ${r.status})` };
+}
+// 🎒 내 gold 노드({key, name, items_s2, ...}) 찾기 — 이름 매칭
+async function fetchMyGold() {
+  const all = await fetchGoldAll();
+  if (!all || !config.myName) return null;
+  const me = normName(config.myName);
+  for (const k in all) { if (all[k] && normName(all[k].name || '') === me) return { key: k, data: all[k] }; }
+  return null;
+}
+// 내 시즌2 LP 상태(배치/승급전 — 아이템 활성화 조건)
+async function fetchMyLpState() {
+  const all = await fetchMyLp();
+  if (!all || !config.myName) return null;
+  const me = normName(config.myName);
+  for (const k in all) { if (normName(all[k]?.name || k) === me) return all[k]; }
+  return all[me] || null;
 }
 // 이름 → 홈페이지 투표 키(fbKey = normName 후 공백→_) · session에서 내 팀 판별
 const fbKeyOf = name => normName(name).replace(/\s+/g, '_');
@@ -290,6 +315,13 @@ async function pollSettlement() {
 // 🧩 홈페이지 session(팀 배정) 폴링 — 새 팀 짜이면 오버레이 자동 표시
 async function pollSession() {
   const s = await fetchSession();
+  // 🎒 아이템 페이즈(팀 확정 전) — 내 gold·LP 상태 함께 오버레이로. 방장/참가자 모두 아이템 사용 가능.
+  if (isItemPhase(s)) {
+    const [g, lp] = await Promise.all([fetchMyGold(), fetchMyLpState()]);
+    if (!userHid) showOverlay();
+    broadcast('itemphase', { gold: g, lp, endAt: s.itemPhaseEnd });
+    return;
+  }
   const formed = (s && s.teamsFormedAt) || 0;
   if (formed && formed !== lastFormed) {         // 새 팀 배정 감지
     lastFormed = formed; sampleActive = false; userHid = false; sessionData = s;
@@ -390,6 +422,11 @@ function isVotingStage(s) {
                   (s.mvp.teamBVotes && Object.keys(s.mvp.teamBVotes).length);
   return !!(fresh || anyVote);
 }
+// 🎒 아이템 페이즈 — 팀 구성 직전 15초(홈 startItemPhase가 session.phase='item'+players 씀). 내가 참가자일 때만.
+function isItemPhase(s) {
+  return !!(s && s.phase === 'item' && s.itemPhaseEnd && Array.isArray(s.players)
+    && config.myName && s.players.includes(normName(config.myName)));
+}
 
 // ── 트레이 ──────────────────────────────────────────────────────────────
 function toggleDock() {
@@ -467,6 +504,31 @@ ipcMain.handle('vote-clear', async (_e) => {   // ↩ 다시 선택(투표 취�
   await fbDelete(`session/mvp/${team}Votes/${k}`);
   await fbDelete(`session/manner/${team}Votes/${k}`);
   return { ok: true };
+});
+// 🎒 아이템 활성화 토글 — 홈 toggleItemActive 이식(items_s2 배열 재작성·상호배제 규칙). 골드 무관.
+const ITEM_CONFLICT = { s1_gamble: ['s1_lp2x'], s1_lp2x: ['s1_gamble'], s1_promo_shield: ['s1_promo_win'], s1_promo_win: ['s1_promo_shield'] };
+ipcMain.handle('item-toggle', async (_e, { id }) => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };
+  const items = Array.isArray(mg.data.items_s2) ? mg.data.items_s2.map(x => ({ ...x })) : [];
+  const idx = items.findIndex(it => it && it.id === id);
+  if (idx < 0) return { ok: false, err: '보유하지 않은 아이템이에요' };
+  const turningOn = !items[idx].active;
+  if (turningOn) {
+    const lp = await fetchMyLpState();
+    const placementDone = lp ? lp.placementDone !== false : true;   // 정보 없으면 허용(홈이 최종 검증)
+    const promoActive = !!(lp && lp.promoActive);
+    if ((id === 's1_promo_shield' || id === 's1_promo_win') && !promoActive) return { ok: false, err: '승급전 중에만 쓸 수 있어요' };
+    if ((id === 's1_gamble' || id === 's1_lp2x') && (!placementDone || promoActive))
+      return { ok: false, err: promoActive ? '승급전 중엔 쓸 수 없어요' : '배치고사 완료 후 쓸 수 있어요' };
+    const off = new Set([id, ...(ITEM_CONFLICT[id] || [])]);   // 같은 id + 충돌 아이템 전부 끄고
+    items.forEach(it => { if (off.has(it.id)) it.active = false; });
+    items[idx].active = true;                                  // 이 항목만 켬
+  } else {
+    items.forEach(it => { if (it.id === id) it.active = false; });   // 끄기: 같은 id 전부 off
+  }
+  const r = await fbUpdate(`gold/${mg.key}`, { items_s2: items });
+  return { ok: r.ok, err: r.err };
 });
 ipcMain.on('session-preview', () => {              // 팀 배정 뷰 미리보기(샘플)
   sampleActive = true; userHid = false; sessionData = SAMPLE_SESSION; showOverlay();

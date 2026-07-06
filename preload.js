@@ -24,4 +24,7 @@ contextBridge.exposeInMainWorld('api', {
   voteClear: () => ipcRenderer.invoke('vote-clear'),
   // 💰 정산
   onSettlement: (cb) => ipcRenderer.on('settlement', (_e, d) => cb(d)),
+  // 🎒 아이템 페이즈
+  onItemPhase: (cb) => ipcRenderer.on('itemphase', (_e, d) => cb(d)),
+  itemToggle: (id) => ipcRenderer.invoke('item-toggle', { id }),
 });
