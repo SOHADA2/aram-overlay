@@ -103,3 +103,32 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 .vt-chip { font-family:var(--f-mono); font-size:8.5px; color:var(--dim); background:rgba(255,255,255,0.04);
   border:1px solid rgba(255,255,255,0.07); border-radius:5px; padding:2px 6px; white-space:nowrap; }
 .vt-chip.ok { color:var(--win); border-color:rgba(124,252,154,0.3); }
+
+/* ── 💰 정산 뷰 ── */
+.st-banner { text-align:center; font-size:12px; padding:8px; border-radius:10px; margin-bottom:9px;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:var(--dim); }
+.st-banner b { font-size:14px; color:var(--ink); }
+.st-banner.t1 { background:var(--teal-soft); border-color:var(--teal-line); color:#dffff8; }
+.st-banner.t2 { background:var(--gold-soft); border-color:var(--gold-line); color:#fff2c8; }
+.st-awards { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:9px; }
+.st-aw { font-size:10px; color:var(--ink-soft); background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:4px 8px; }
+.st-aw b { color:#ffe39a; font-weight:800; margin-right:2px; }
+.st-teams { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+.st-team { border-radius:11px; overflow:hidden; border:1px solid; }
+.st-team.win  { border-color:var(--teal-line); background:linear-gradient(160deg,rgba(56,217,192,0.07),transparent); }
+.st-team.lose { border-color:rgba(255,255,255,0.1); background:rgba(255,255,255,0.02); }
+.st-team-h { font-family:var(--f-title); font-size:12px; letter-spacing:1px; padding:6px 11px; border-bottom:1px solid var(--hair); }
+.st-team.win .st-team-h { color:var(--teal); }
+.st-team.lose .st-team-h { color:var(--dim); }
+.st-team ul { list-style:none; }
+.st-team li { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 11px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:12px; }
+.st-team li:last-child { border-bottom:none; }
+.st-team li.me { background:rgba(232,200,74,0.08); }
+.st-team li.me .st-nm { color:#ffe39a; font-weight:800; }
+.st-nm { flex:1; min-width:0; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.st-lp { font-family:var(--f-mono); font-size:11px; font-weight:800; flex-shrink:0; }
+.st-lp.plus { color:var(--win); } .st-lp.minus { color:var(--lose); } .st-lp.zero { color:var(--dim); }
+.st-lp.dim { color:var(--dim); font-weight:600; }
+.st-tier { font-family:var(--f-mono); font-size:8.5px; color:var(--gold); margin-left:2px; }
+#st-close { width:100%; }

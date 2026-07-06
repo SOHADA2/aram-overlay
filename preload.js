@@ -22,4 +22,6 @@ contextBridge.exposeInMainWorld('api', {
   // 🗳️ 투표
   voteCast: (mvpPick, mannerPick) => ipcRenderer.invoke('vote-cast', { mvpPick, mannerPick }),
   voteClear: () => ipcRenderer.invoke('vote-clear'),
+  // 💰 정산
+  onSettlement: (cb) => ipcRenderer.on('settlement', (_e, d) => cb(d)),
 });

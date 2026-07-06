@@ -116,6 +116,7 @@ const fetchSession   = () => getJson(`${FIREBASE_DB}/session.json`);
 const fetchPlayers   = () => getJson(`${FIREBASE_DB}/players.json`);   // 등록 플레이어(이름 목록)
 const fetchMatches   = () => getJson(`${FIREBASE_DB}/matches.json`);   // ⚔️ 팀짜기 승률 계산용(수 MB — 팀짤 때만)
 const fetchSeason    = () => getJson(`${FIREBASE_DB}/config/currentSeason.json`);
+const fetchSettlement= () => getJson(`${FIREBASE_DB}/lastSettlement.json`);   // 💰 정산 결과(참여자 전파용)
 
 // ── HTTPS 요청(JSON body) — 익명 인증·Firebase 쓰기용 ─────────────────────
 function reqJson(method, url, body) {
@@ -268,6 +269,21 @@ async function pollLp() {
     for (const k in data) { const d = data[k]; const n = norm(d.name || k); if (n) m[n] = { tier: d.tier || '', lp: d.lp || 0 }; }
     lpMap = m; broadcast('players', { players: latestPlayers, lpMap });
   }
+}
+
+// 💰 정산 폴링 — 홈페이지 finalizeVotes가 lastSettlement에 publish. 새 정산이면 현재 LP(정산 반영 후) 함께 오버레이로.
+let _settleSeenAt = 0;
+async function pollSettlement() {
+  const s = await fetchSettlement();
+  if (!s || !s.publishedAt || s.publishedAt === _settleSeenAt) return;
+  _settleSeenAt = s.publishedAt;
+  if (Date.now() - s.publishedAt > 10 * 60 * 1000) return;   // 10분 넘은 정산은 무시(홈페이지와 동일 신선도)
+  // 정산 반영 후 최신 LP를 normName(홈 규칙) 키로 — s1LpBefore와 같은 키라 델타 계산 가능
+  const raw = await fetchLpPlayers();
+  const lpNow = {};
+  if (raw) for (const k in raw) { const d = raw[k]; const key = normName(d.name || k); if (key) lpNow[key] = { tier: d.tier || '', lp: d.lp || 0 }; }
+  if (!userHid) showOverlay();
+  broadcast('settlement', { settle: s, lpNow });
 }
 
 // 🧩 홈페이지 session(팀 배정) 폴링 — 새 팀 짜이면 오버레이 자동 표시
@@ -474,10 +490,11 @@ else {
     makeTray();
     globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
     globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
-    pollGame(); pollLp(); pollSession(); pollDock();
+    pollGame(); pollLp(); pollSession(); pollSettlement(); pollDock();
     setInterval(pollGame, 2500);
     setInterval(pollLp, 60000);
     setInterval(pollSession, 3000);
+    setInterval(pollSettlement, 3000);  // 💰 정산 결과 감지
     setInterval(pollDock, 2500);        // 🖥️ 롤 클라 창 따라 도킹
   });
 }

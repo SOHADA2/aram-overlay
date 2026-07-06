@@ -12,14 +12,17 @@ let sessionData = null, myName = '', roster = [], lpMap = {}, inGame = false, ph
 
 el('close').addEventListener('click', () => window.api.hideOverlay());
 
+let settleData = null;   // 💰 최근 정산 {settle, lpNow}
 window.api.onState(({ inGame: ig, label }) => { inGame = !!ig; phaseLabel = label || (ig ? '게임 중' : '대기'); render(); });
 window.api.onPlayers(({ players, lpMap: m }) => { roster = players || []; if (m) lpMap = m; render(); });
 window.api.onSession(({ session, myName: mn, lpMap: m }) => { sessionData = session || null; if (mn !== undefined) myName = mn || ''; if (m) lpMap = m; render(); });
 window.api.onMyName(name => { myName = name || ''; render(); });
+window.api.onSettlement(d => { settleData = d || null; render(); });
 
 function showView(v) {
   el('view-team').style.display   = v === 'team'   ? 'block' : 'none';
   el('view-vote').style.display   = v === 'vote'   ? 'block' : 'none';
+  el('view-settle').style.display = v === 'settle' ? 'block' : 'none';
   el('view-roster').style.display = v === 'roster' ? 'block' : 'none';
 }
 
@@ -143,7 +146,61 @@ function renderVoteProgress() {
     `<div class="vt-prow"><span class="t-red">2팀</span>${B.map(n => chip('teamB', n)).join('')}</div>`;
 }
 
+// ── 💰 정산 뷰 ──────────────────────────────────────────────────────────
+// lastSettlement 페이로드(winners/losers/s1LpBefore/tierChanges/mvp·manner) + main이 준 현재 LP(lpNow)로 요약 표시.
+const TIER_KR = { unranked:'언랭', iron:'아이언', bronze:'브론즈', silver:'실버', gold:'골드', platinum:'플래', emerald:'에메', diamond:'다이아', master:'마스터', grandmaster:'그마', challenger:'챌' };
+function seenSettles() { try { return (localStorage.getItem('ovSeenSettle') || '').split(',').filter(Boolean); } catch (_) { return []; } }
+function markSettleSeen(key) { try { const a = seenSettles().filter(x => x !== key); a.push(key); localStorage.setItem('ovSeenSettle', a.slice(-50).join(',')); } catch (_) {} }
+function settleActive() {
+  const d = settleData; if (!d || !d.settle) return false;
+  const s = d.settle;
+  if (!s.publishedAt || Date.now() - s.publishedAt > 10 * 60 * 1000) return false;
+  if (s.matchKey && seenSettles().includes(s.matchKey)) return false;   // 이미 확인함
+  return !!(s.winners && s.losers);
+}
+function lpDeltaHtml(name) {
+  const s = settleData.settle, before = (s.s1LpBefore || {})[nn(name)], now = (settleData.lpNow || {})[nn(name)];
+  if (before && before.placementDone === false) return `<span class="st-lp dim">배치 ${(before.placementGames || 0) + 1}/5</span>`;
+  if (before && before.promoActive) return `<span class="st-lp dim">승급전</span>`;
+  if (!before || !now) return `<span class="st-lp dim">—</span>`;
+  const d = (now.lp || 0) - (before.lp || 0);
+  const tierMoved = before.tier && now.tier && before.tier !== now.tier;
+  const tierTxt = tierMoved ? ` <span class="st-tier">${TIER_KR[before.tier] || before.tier}→${TIER_KR[now.tier] || now.tier}</span>` : '';
+  if (d === 0 && !tierMoved) return `<span class="st-lp zero">±0</span>`;
+  const cls = d > 0 ? 'plus' : d < 0 ? 'minus' : 'zero';
+  const sign = d > 0 ? '+' : '';
+  return `<span class="st-lp ${cls}">${sign}${d} LP</span>${tierTxt}`;
+}
+function settleTeamHtml(names, isWin, badgeMap) {
+  const rows = (names || []).map(name => {
+    const me = (myName && nn(name) === nn(myName)) ? ' me' : '';
+    const b = badgeMap[nn(name)] || '';
+    return `<li class="${me.trim()}"><span class="st-nm">${esc(name)}${b}</span>${lpDeltaHtml(name)}</li>`;
+  }).join('');
+  return `<div class="st-team ${isWin ? 'win' : 'lose'}"><div class="st-team-h">${isWin ? '🏆 승리' : '패배'}</div><ul>${rows}</ul></div>`;
+}
+function renderSettle() {
+  const s = settleData.settle;
+  const winA = (s.winners || []).some(n => (sessionData && (sessionData.teamA || [])).some(x => nn(x) === nn(n)));   // 승자가 1팀인지
+  el('st-banner').className = 'st-banner ' + (winA ? 't1' : 't2');
+  el('st-banner').innerHTML = `🏁 <b>${winA ? '1팀' : '2팀'} 승리</b> · 정산 결과`;
+
+  // 수상자 배지 맵 + 상단 어워드
+  const badge = {};
+  const add = (name, b) => { if (name) badge[nn(name)] = (badge[nn(name)] || '') + b; };
+  add(s.mvpWinner, ' 🏆'); add(s.mvpLoser, ' ⭐'); add(s.mannerWinner, ' 💎'); add(s.mannerLoser, ' 💎');
+  const aw = [];
+  if (s.mvpWinner) aw.push(`<span class="st-aw"><b>🏆 MVP</b> ${esc(s.mvpWinner)}</span>`);
+  if (s.mvpLoser) aw.push(`<span class="st-aw"><b>⭐ SVP</b> ${esc(s.mvpLoser)}</span>`);
+  if (s.mannerWinner || s.mannerLoser) aw.push(`<span class="st-aw"><b>💎 매너</b> ${esc([s.mannerWinner, s.mannerLoser].filter(Boolean).join(', '))}</span>`);
+  el('st-awards').innerHTML = aw.join('');
+
+  el('st-teams').innerHTML = settleTeamHtml(s.winners, true, badge) + settleTeamHtml(s.losers, false, badge);
+  el('st-close').onclick = () => { if (s.matchKey) markSettleSeen(s.matchKey); settleData = null; render(); };
+}
+
 function render() {
+  if (settleActive()) { renderSettle(); showView('settle'); el('phase').textContent = '정산'; return; }
   const hasTeams = sessionData && sessionData.active && (((sessionData.teamA || []).length) || ((sessionData.teamB || []).length));
   if (hasTeams && isVoting()) {
     // 팀이 바뀌면 선택 초기화(다음 경기 투표)
