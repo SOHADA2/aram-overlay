@@ -15,4 +15,8 @@ contextBridge.exposeInMainWorld('api', {
   getPlayers: () => ipcRenderer.invoke('get-players'),
   setMyName: (n) => ipcRenderer.send('set-myname', n),
   setHost: (v) => ipcRenderer.send('set-host', v),
+  // ⚔️ 팀 짜기(방장 전용)
+  tbStart: (names, mode) => ipcRenderer.invoke('tb-start', { names, mode }),
+  tbSkip: () => ipcRenderer.send('tb-skip'),
+  onTeamBuild: (cb) => ipcRenderer.on('teambuild', (_e, d) => cb(d)),
 });

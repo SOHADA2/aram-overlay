@@ -44,10 +44,40 @@
         <div class="row"><span>단축키</span><b>Shift+F5 · Shift+F6</b></div>
       </div>
 
+      <button id="tb-open" class="btn-gold" style="display:none;">⚔️ 팀 짜기 (방장)</button>
       <button id="preview-team" class="btn-gold">👀 팀 배정 미리보기</button>
       <button id="home-overlay" class="btn-ghost">🌐 전체 홈페이지 오버레이</button>
       <button id="open-web" class="btn-ghost">브라우저로 홈페이지 열기</button>
       <div class="foot-hint">롤 클라이언트를 켜면 오버레이가 <b>클라 오른쪽에 자동으로</b> 붙어요.<br>이 창은 닫아도 트레이에 상주합니다.</div>
+    </section>
+
+    <!-- ⚔️ 팀 짜기 (방장 전용) — 홈페이지와 완전 연동: 아이템 타이머 15초 → 팀 발표가 홈페이지 유저에게도 그대로 뜸 -->
+    <section id="teambuild" class="card" style="display:none;">
+      <div class="card-title">⚔️ 팀 짜기 <button id="tb-back" class="link" style="margin-left:auto;">← 홈</button></div>
+
+      <div id="tb-pick">
+        <div class="tb-row">
+          <span class="tb-count"><b id="tb-num">0</b>명 선택</span>
+          <span class="tb-modes">
+            <label><input type="radio" name="tb-mode" value="balance" checked> 밸런스</label>
+            <label><input type="radio" name="tb-mode" value="random"> 랜덤</label>
+          </span>
+        </div>
+        <div id="tb-list" class="tb-list"></div>
+        <button id="tb-go" class="btn-gold" disabled>⚔️ 팀 구성 (아이템 15초 후 발표)</button>
+        <div class="foot-hint">홈페이지 팀원들에겐 <b>아이템 구매 타이머 → 팀 발표</b>가 평소처럼 자동으로 떠요.<br>11명 이상·홀수면 관전자가 자동 선정됩니다.</div>
+      </div>
+
+      <div id="tb-run" style="display:none;">
+        <div class="tb-timer"><b id="tb-left">15</b><span>초 — 아이템 사용 시간</span></div>
+        <button id="tb-skip" class="btn-ghost">⏭️ 건너뛰고 바로 팀 구성</button>
+      </div>
+
+      <div id="tb-done" style="display:none;">
+        <div id="tb-result" class="tb-result"></div>
+        <button id="tb-again" class="btn-ghost">다시 팀 짜기</button>
+      </div>
+      <div id="tb-err" class="tb-err" style="display:none;"></div>
     </section>
   </div>
   <script src="desktop.js"></script>

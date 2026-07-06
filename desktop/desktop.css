@@ -63,3 +63,32 @@ select:focus { outline: none; border-color: var(--gold); }
 .stat .row + .row { border-top: 1px solid rgba(255,255,255,0.05); }
 .stat .row span { color: var(--dim); } .stat .row b { color: #e8ecf6; }
 #game-state.on { color: #7CFC9A; }
+
+/* ── ⚔️ 팀 짜기(방장 전용) ─────────────────────────────────────────────── */
+#teambuild { max-width: 360px; }
+.card-title { display: flex; align-items: center; justify-content: center; gap: 6px; }
+#tb-pick, #tb-run, #tb-done { display: flex; flex-direction: column; gap: 11px; }
+.tb-row { display: flex; align-items: center; justify-content: space-between; }
+.tb-count { font-size: 12.5px; color: var(--dim); } .tb-count b { color: #ffe39a; font-size: 15px; }
+.tb-modes { display: flex; gap: 12px; font-size: 12px; color: #e8ecf6; }
+.tb-modes label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.tb-modes input { accent-color: var(--gold); }
+.tb-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 260px; overflow-y: auto; padding: 2px; }
+.tb-item { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border-radius: 9px; cursor: pointer; font-size: 12.5px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); transition: .1s; }
+.tb-item.on { background: rgba(240,200,90,0.13); border-color: rgba(240,200,90,0.55); color: #ffe39a; }
+.tb-item input { accent-color: var(--gold); flex-shrink: 0; }
+.tb-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-timer { text-align: center; padding: 14px 0 6px; }
+.tb-timer b { font-family: 'JetBrains Mono', monospace; font-size: 44px; color: var(--gold); text-shadow: 0 0 22px rgba(240,200,90,0.5); }
+.tb-timer span { display: block; font-size: 11.5px; color: var(--dim); margin-top: 2px; }
+.tb-result { display: flex; flex-direction: column; gap: 7px; }
+.tbr { display: flex; gap: 9px; align-items: baseline; padding: 9px 11px; border-radius: 10px; font-size: 12.5px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); }
+.tbr b { flex-shrink: 0; font-size: 12px; }
+.tbr.a b { color: #5fd7e3; } .tbr.a { border-color: rgba(95,215,227,0.35); }
+.tbr.b b { color: var(--gold); } .tbr.b { border-color: rgba(240,200,90,0.4); }
+.tbr.s b { color: var(--dim); }
+.tbr-ok { text-align: center; font-size: 11.5px; color: #7CFC9A; padding-top: 3px; }
+.tb-err { font-size: 12px; color: #ff9a9a; background: rgba(255,80,80,0.1); border: 1px solid rgba(255,90,90,0.35);
+  border-radius: 9px; padding: 9px 11px; }

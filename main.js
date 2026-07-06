@@ -11,7 +11,9 @@ const { execFile } = require('child_process');
 
 const WEB_URL = 'https://sohada2.github.io/aram/';
 const FIREBASE_DB = 'https://aramchaos-ca022-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FIREBASE_API_KEY = 'AIzaSyAzRirJzvaqu6jelqUUjV_Tik1MgsALEE4';   // aram/index.html firebaseConfig와 동일(홈페이지에 공개된 값)
 const TOGGLE_HOTKEY = 'Shift+F5';
+const { buildTeams, normName } = require('./teams');   // ⚔️ 홈페이지 makeTeams 1:1 이식
 
 let overlayWin = null, desktopWin = null, homeWin = null, tray = null;
 let inGame = false, userHid = false, lpMap = {}, latestPlayers = [];
@@ -112,6 +114,43 @@ const liveClientPlayerList = () => getJson({ host: '127.0.0.1', port: 2999, path
 const fetchLpPlayers = () => getJson(`${FIREBASE_DB}/season2/players.json`);
 const fetchSession   = () => getJson(`${FIREBASE_DB}/session.json`);
 const fetchPlayers   = () => getJson(`${FIREBASE_DB}/players.json`);   // 등록 플레이어(이름 목록)
+const fetchMatches   = () => getJson(`${FIREBASE_DB}/matches.json`);   // ⚔️ 팀짜기 승률 계산용(수 MB — 팀짤 때만)
+const fetchSeason    = () => getJson(`${FIREBASE_DB}/config/currentSeason.json`);
+
+// ── HTTPS 요청(JSON body) — 익명 인증·Firebase 쓰기용 ─────────────────────
+function reqJson(method, url, body) {
+  return new Promise(resolve => {
+    const u = new URL(url);
+    const data = body === undefined ? null : JSON.stringify(body);
+    const req = https.request({ hostname: u.hostname, path: u.pathname + u.search, method,
+      headers: data ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } : {} }, res => {
+      let d = ''; res.on('data', c => d += c);
+      res.on('end', () => { try { resolve({ status: res.statusCode, json: JSON.parse(d) }); } catch (_) { resolve({ status: res.statusCode, json: null }); } });
+    });
+    req.on('error', () => resolve({ status: 0, json: null }));
+    req.setTimeout(15000, () => { req.destroy(); resolve({ status: 0, json: null }); });
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
+// 🔑 Firebase 익명 인증 — 쓰기 규칙(auth != null)용. 홈페이지 signInAnonymously와 동일한 신뢰모델.
+let _fbTok = null, _fbTokAt = 0;
+async function fbToken() {
+  if (_fbTok && Date.now() - _fbTokAt < 50 * 60 * 1000) return _fbTok;   // idToken 수명 1h → 50분 캐시
+  const r = await reqJson('POST', `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`, { returnSecureToken: true });
+  if (r.json && r.json.idToken) { _fbTok = r.json.idToken; _fbTokAt = Date.now(); return _fbTok; }
+  return null;
+}
+// session 등 노드 전체 교체(set) — 홈페이지 set(ref(db,'session'), ...)과 동일 시맨틱
+async function fbSet(pathStr, value) {
+  const tok = await fbToken();
+  if (!tok) return { ok: false, err: '인증 실패(네트워크 확인)' };
+  const r = await reqJson('PUT', `${FIREBASE_DB}/${pathStr}.json?auth=${tok}`, value);
+  if (r.status === 200) return { ok: true };
+  if (r.status === 401 || r.status === 403) { _fbTok = null; }   // 토큰 만료/거부 → 다음 시도에 재발급
+  return { ok: false, err: `쓰기 실패(HTTP ${r.status})` };
+}
 
 const norm = s => String(s || '').replace(/\s+/g, '').toLowerCase();
 
@@ -217,6 +256,82 @@ async function pollSession() {
   broadcast('session', { session: sessionData, myName: config.myName || '', lpMap });
 }
 
+// ── ⚔️ 팀 짜기(방장 전용) — 홈페이지와 완전 연동 ─────────────────────────
+// 흐름 = 홈페이지 startItemPhase→makeTeams와 동일한 session 쓰기 2단계:
+//   ① session = {phase:'item', itemPhaseEnd: now+15s, players:[normName...]} → 홈페이지 참가자에게 아이템 타이머 배너 자동 표시
+//   ② 15초 후(스킵 가능) 같은 알고리즘으로 팀 계산 → session = 홈페이지 makeTeams와 동일 페이로드
+//      → 홈페이지 유저 = 기존 onValue 흐름 그대로 팀 발표·결과·관전자 배팅 / 오버레이 유저 = pollSession이 teamsFormedAt 감지
+let _tb = null;   // 진행 중 팀짜기 {names, mode, endAt, timer, prevSession, season, matches}
+function sendTb(payload) { if (desktopWin && !desktopWin.isDestroyed()) desktopWin.webContents.send('teambuild', payload); }
+
+async function startTeamBuild(names, mode) {
+  if (!config.isHost) return { ok: false, err: '방장만 팀을 짤 수 있어요 (홈 화면에서 방장 체크)' };
+  if (_tb) return { ok: false, err: '이미 팀 짜기가 진행 중이에요' };
+  names = (names || []).map(n => String(n)).filter(Boolean);
+  if (names.length < 4) return { ok: false, err: `일반 매치엔 최소 4명이 필요해요! (현재 ${names.length}명)` };
+  const prevSession = await fetchSession();                    // 전판 팀(회피용) — 덮어쓰기 전에 읽어둠
+  const seasonV = await fetchSeason();
+  const season = (typeof seasonV === 'number') ? seasonV : 2;
+  const itemPhaseEnd = Date.now() + 15000;
+  // ① 아이템 사용 단계 — 홈페이지 startItemPhase와 동일 쓰기(참가자 명단 실어 참가자에게만 타이머 노출)
+  const w = await fbSet('session', { phase: 'item', itemPhaseEnd, players: names.map(n => normName(n)) });
+  if (!w.ok) return { ok: false, err: w.err };
+  _tb = { names, mode: (mode === 'random' ? 'random' : 'balance'), endAt: itemPhaseEnd, prevSession, season, matches: null, finishing: false };
+  fetchMatches().then(m => { if (_tb) _tb.matches = m || {}; });   // 15초 동안 승률 데이터 미리 로드
+  _tb.timer = setInterval(() => {
+    if (!_tb) return;
+    const left = Math.max(0, Math.ceil((_tb.endAt - Date.now()) / 1000));
+    sendTb({ state: 'countdown', left });
+    if (Date.now() >= _tb.endAt) finishTeamBuild();
+  }, 250);
+  sendTb({ state: 'countdown', left: 15 });
+  return { ok: true };
+}
+
+async function finishTeamBuild() {
+  const tb = _tb;
+  if (!tb || tb.finishing) return;
+  tb.finishing = true;
+  clearInterval(tb.timer);
+  sendTb({ state: 'building' });
+  try {
+    const matches = tb.matches || (await fetchMatches()) || {};
+    const r = buildTeams({
+      names: tb.names, mode: tb.mode, matches, season: tb.season,
+      prevTeamA: (tb.prevSession && tb.prevSession.teamA) || [],
+      prevTeamB: (tb.prevSession && tb.prevSession.teamB) || [],
+      spectatorExclude: config.spectatorExclude || [],
+    });
+    // ② 팀 확정 — 홈페이지 makeTeams의 set(ref(db,'session'), {...})와 동일 페이로드
+    const ANNOUNCE_DURATION = 7400;   // 홈페이지 팀 발표(7초+페이드) 후 관전자 예측 시작
+    const spectatorPickStartAt = r.spectators.length > 0 ? Date.now() + ANNOUNCE_DURATION : null;
+    const payload = {
+      active: true,
+      teamA: r.teamA,
+      teamB: r.teamB,
+      teamSize: r.teamSize, mode: tb.mode, isEventMatch: false,
+      spectator: r.spectators[0] || null,
+      spectators: r.spectators.length > 0 ? r.spectators : null,
+      spectatorPickStartAt,
+      spectatorPick: null,
+      spectatorPicks: null,
+      spectatorBets: null,
+      manualEog: null,
+      teamsFormedAt: Date.now(),
+      mvp: { active: true },
+      manner: { active: true },
+    };
+    const w = await fbSet('session', payload);
+    _tb = null;
+    if (w.ok) sendTb({ state: 'done', teamA: r.teamA, teamB: r.teamB, spectators: r.spectators, teamSize: r.teamSize });
+    else sendTb({ state: 'error', err: '팀 결과 저장 실패 — ' + w.err });
+  } catch (e) {
+    _tb = null;
+    sendTb({ state: 'error', err: String((e && e.message) || e) });
+  }
+}
+function skipItemPhase() { if (_tb && !_tb.finishing) _tb.endAt = Date.now(); }   // 홈페이지 skipItemPhase와 동일(즉시 팀 구성)
+
 // ── 트레이 ──────────────────────────────────────────────────────────────
 function toggleDock() {
   config.dock = (config.dock === false);   // 뒤집기(기본 켜짐)
@@ -265,6 +380,8 @@ ipcMain.handle('get-players', async () => {        // 데스크톱 ID 선택용 
   const names = d ? [...new Set(Object.values(d).map(p => p && p.name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
   return { names, myName: config.myName || '', isHost: !!config.isHost };
 });
+ipcMain.handle('tb-start', (_e, { names, mode }) => startTeamBuild(names, mode));   // ⚔️ 팀 짜기 시작(방장)
+ipcMain.on('tb-skip', () => skipItemPhase());                                       // ⏭️ 아이템 시간 건너뛰기
 ipcMain.on('session-preview', () => {              // 팀 배정 뷰 미리보기(샘플)
   sampleActive = true; userHid = false; sessionData = SAMPLE_SESSION; showOverlay();
   if (overlayWin) {
