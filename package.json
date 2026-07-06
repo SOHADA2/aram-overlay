@@ -60,7 +60,8 @@
       {
         "provider": "github",
         "owner": "SOHADA2",
-        "repo": "aram-overlay"
+        "repo": "aram-overlay",
+        "releaseType": "release"
       }
     ],
     "compression": "maximum"
