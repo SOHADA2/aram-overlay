@@ -17,7 +17,7 @@
   --card-line:rgba(240,200,90,0.28);
   --hair:rgba(255,255,255,0.06);
   /* 폰트 */
-  --f-body:'Pretendard','Segoe UI',system-ui,sans-serif;
+  --f-body:'Noto Sans KR','Pretendard','Segoe UI',system-ui,sans-serif;
   --f-title:'Black Han Sans',sans-serif;
   --f-mono:'JetBrains Mono',monospace;
 }

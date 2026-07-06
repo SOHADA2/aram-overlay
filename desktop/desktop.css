@@ -50,7 +50,7 @@ html, body { height:100%; font-family:var(--f-body); color:#e8ecf6; background:#
 .login-box::before, .card::before { content:''; position:absolute; top:0; left:22px; right:22px; height:1px;
   background:linear-gradient(90deg, transparent, rgba(240,200,90,0.55), transparent); }
 .lb-label { font-size:11px; color:var(--dim); font-weight:700; letter-spacing:0.3px; }
-.lb-go { width:100%; font-size:15px; padding:14px; letter-spacing:1px; }
+.lb-go { width:100%; font-size:16.5px; font-weight:900; padding:15px; letter-spacing:0.5px; }
 .lb-hint { font-size:10.5px; color:var(--dim); text-align:center; line-height:1.5; } .lb-hint b { color:#ffe39a; }
 .entry-foot { text-align:center; font-size:10px; color:#6a6f82; margin-top:20px; line-height:1.5; }
 
