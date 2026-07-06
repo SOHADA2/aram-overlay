@@ -12,8 +12,8 @@
   /* 중립 */
   --dim:#8c86a0;  --ink:#e8ecf6;  --ink-soft:#cfd4e6;
   --win:#7CFC9A;  --lose:#ff9a9a;
-  /* 카드/라인 */
-  --card-bg:linear-gradient(160deg, rgba(24,20,36,0.82), rgba(14,11,22,0.9));
+  /* 카드/라인 — 시즌2 웜블랙(보라끼 제거·R>B) */
+  --card-bg:linear-gradient(160deg, rgba(30,25,15,0.85), rgba(15,12,7,0.92));
   --card-line:rgba(240,200,90,0.28);
   --hair:rgba(255,255,255,0.06);
   /* 폰트 */
