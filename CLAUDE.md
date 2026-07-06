@@ -42,7 +42,15 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 ## 🔖 버전 표시(홈페이지 실시간 동기화)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
-## 현재 상태(구현됨)
+## 🪟 창 구조 대개편 (v0.1.14~15·2026-07-06) ★새 세션 필독 — 아래 옛 설명보다 우선
+- **데스크톱 창(desktopWin) 폐지**: `createDesktop()`는 whenReady에서 **호출 안 함**(함수·desktop.js는 레거시로 남김·미사용). 로그인/방장/팀짜기가 전부 **우측 내 정보 패널(leftWin=sidepanel)**로 이전.
+- **메인 창 = 우측 내 정보 패널(leftWin)**: 클라 없으면 좌·우 **독립 창(플로팅)**으로 뜨고(`floatPanels()`·`standaloneBounds()`), 클라 켜면 도킹 스트림이 좌우로 붙임. `_floating` 플래그로 상태 관리(handleDockLine 유효=도킹/무효=플로팅). 트레이 클릭·second-instance = `showMainPanel()`(leftWin 앞으로).
+- **sidepanel = 로그인 + 방장 체크 + 팀짜기 + 프로필/기록/랭킹**: 미로그인 시 `#s-login`(아이디 select→입장)·로그인 후 헤더에 `[아이디][👑방장][계정변경][✕]`. 방장 체크(`set-host`→라이브계정 가동) 시 레일 최상단 `팀짜기`(#cat-team) 노출. 레일=팀짜기(방장만)→프로필→기록→랭킹. 팀짜기 UI=desktop.js 이식(tb-*·같은 IPC tbStart/tbSkip/onTeamBuild). **⚠️ `sendTb`/`broadcast`가 leftWin 포함하도록 수정됨**(desktopWin만 향하면 팀짜기 이벤트 안 옴).
+- **좌측 오버레이(overlayWin) 대기화면**: 팀 없을 때 "⚔️ 팀짜기 대기 중" + **내 LP·티어·최근폼 + 시즌 랭킹 TOP6**(`loadWaitingInfo`·getProfile/getRanking·45초 캐시·`.wi-*`).
+- **📍 내 팀 마커(slotWin)**: 클라 로비 팀 컬럼(1팀=좌/2팀=우, 비율 `cw*0.455 × ch*0.50`)을 **네모 테두리**로 강조(클릭 통과). 투명창 흰박스 버그 대응(`backgroundColor:'#00000000'`·`paintWhenInitiallyHidden`·did-finish-load 후 표시·`_repaintSlot` 1px 넛지·시작 시 미리 생성). `updateSlotMarker`는 handleDockLine + pollSession(팀배정 즉시)서 호출. ⚠️컬럼 좌표는 비율 추정—실기 미세조정 여지(사장님 스샷).
+- **도킹=이벤트훅**: `SetWinEventHook`(LOCATIONCHANGE/FOREGROUND/MINIMIZE)로 실시간 추종(160ms 폴링서 전환)·90ms 폴백·GetMessage 루프. `roundedCorners:false`로 각지게. 클라(또는 패널) 활성일 때만 위로(evalRaise·clientFg/panelFg).
+
+## 현재 상태(구현됨) — ⚠️아래 "창 3종/데스크톱" 설명은 v0.1.13 이하 옛 구조(위 대개편으로 대체됨)
 - **창 3종**: 오버레이(투명·항상위·프레임없음)/데스크톱(로그인·홈)/홈페이지오버레이(webview로 실제 홈 임베드·Shift+F6)
 - **데스크톱 = 게임 로그인 화면**: 히어로 배경+⚔️로고(Black Han Sans)+계정 선택 입장 → 방장 체크 → 상태
 - **⚔️ 아이콘**: `make-icon.mjs`로 교차검 렌더(assets/icon.png 256·icon-tray 64)
