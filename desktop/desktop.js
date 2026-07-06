@@ -12,6 +12,15 @@ window.api.onState(({ inGame }) => {
   else { b.textContent = '감지 대기'; b.classList.remove('on'); }
 });
 
+// 🔖 홈페이지 버전 표시(로그인·홈 양쪽) — 항상 홈페이지와 동일
+function setVersion(v) {
+  const t = v ? '버전 ' + v : '';
+  const a = $('ver-entry'), b = $('ver-home');
+  if (a) a.textContent = t;
+  if (b) b.textContent = t;
+}
+window.api.onVersion(setVersion);
+
 // 뷰 전환
 function showEntry() { $('entry').style.display = 'flex'; $('home').style.display = 'none'; $('teambuild').style.display = 'none'; }
 function showHome(name, isHost) {
@@ -101,8 +110,9 @@ window.api.onTeamBuild(d => {
 // 초기 로드: 등록 플레이어 목록 + 현재 설정
 (async () => {
   try {
-    const { names, myName, isHost } = await window.api.getPlayers();
+    const { names, myName, isHost, webVersion } = await window.api.getPlayers();
     _rosterNames = names;
+    setVersion(webVersion);
     esel.innerHTML = '<option value="">— 아이디 선택 —</option>' +
       names.map(n => `<option value="${n.replace(/"/g, '&quot;')}"${n === myName ? ' selected' : ''}>${n}</option>`).join('');
     $('entry-go').disabled = !esel.value;

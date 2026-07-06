@@ -47,6 +47,7 @@ html, body { height:100%; font-family:var(--f-body); color:#e8ecf6; background:#
 .home-sub-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .home-web { width:100%; }
 .home-foot { text-align:center; font-size:10px; color:#6a6f82; line-height:1.5; margin-top:4px; }
+.app-ver { text-align:center; font-size:9.5px; color:#565b6d; letter-spacing:0.4px; margin-top:6px; font-family:'JetBrains Mono',monospace; }
 
 /* 공통 폼/버튼(teambuild·홈 공유) */
 select { background:#1a1610; color:#e8ecf6; border:1px solid rgba(240,200,90,0.35); border-radius:10px; padding:12px; font-size:14px; width:100%; font-family:var(--f-body); }

@@ -15,6 +15,7 @@ const FIREBASE_DB = 'https://aramchaos-ca022-default-rtdb.asia-southeast1.fireba
 const FIREBASE_API_KEY = 'AIzaSyAzRirJzvaqu6jelqUUjV_Tik1MgsALEE4';   // aram/index.html firebaseConfig와 동일(홈페이지에 공개된 값)
 const TOGGLE_HOTKEY = 'Shift+F5';
 const { buildTeams, normName } = require('./teams');   // ⚔️ 홈페이지 makeTeams 1:1 이식
+const bridge = require('./bridge');                    // 🔌 내장 브릿지(LCU EOG 캡처) — aram-bridge 완전 대체
 
 let overlayWin = null, desktopWin = null, homeWin = null, tray = null;
 let inGame = false, userHid = false, lpMap = {}, latestPlayers = [];
@@ -120,6 +121,7 @@ const fetchSeason    = () => getJson(`${FIREBASE_DB}/config/currentSeason.json`)
 const fetchSettlement= () => getJson(`${FIREBASE_DB}/lastSettlement.json`);   // 💰 정산 결과(참여자 전파용)
 const fetchGoldAll   = () => getJson(`${FIREBASE_DB}/gold.json`);      // 🎒 아이템 페이즈 — 내 gold 노드 찾기용
 const fetchMyLp      = () => getJson(`${FIREBASE_DB}/season2/players.json`);   // 배치/승급전 판정용
+const fetchAppVersion= () => getJson(`${FIREBASE_DB}/config/appVersion.json`);  // 🔖 홈페이지 현재 버전(오버레이에 실시간 동기화 표시)
 
 // ── HTTPS 요청(JSON body) — 익명 인증·Firebase 쓰기용 ─────────────────────
 function reqJson(method, url, body) {
@@ -295,6 +297,13 @@ async function pollLp() {
     for (const k in data) { const d = data[k]; const n = norm(d.name || k); if (n) m[n] = { tier: d.tier || '', lp: d.lp || 0 }; }
     lpMap = m; broadcast('players', { players: latestPlayers, lpMap });
   }
+}
+
+// 🔖 홈페이지 버전 동기화 — config/appVersion(홈페이지가 로드 시 기록)을 읽어 데스크톱에 표시. 항상 홈과 일치.
+let webVersion = '';
+async function pollVersion() {
+  const v = await fetchAppVersion();
+  if (typeof v === 'string' && v && v !== webVersion) { webVersion = v; broadcast('version', webVersion); }
 }
 
 // 💰 정산 폴링 — 홈페이지 finalizeVotes가 lastSettlement에 publish. 새 정산이면 현재 LP(정산 반영 후) 함께 오버레이로.
@@ -482,7 +491,7 @@ ipcMain.on('set-host', (_e, v) => {                // 방장(팀 짜기 진행�
 ipcMain.handle('get-players', async () => {        // 데스크톱 ID 선택용 목록 + 현재 설정
   const d = await fetchPlayers();
   const names = d ? [...new Set(Object.values(d).map(p => p && p.name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
-  return { names, myName: config.myName || '', isHost: !!config.isHost };
+  return { names, myName: config.myName || '', isHost: !!config.isHost, webVersion };
 });
 ipcMain.handle('tb-start', (_e, { names, mode }) => startTeamBuild(names, mode));   // ⚔️ 팀 짜기 시작(방장)
 ipcMain.on('tb-skip', () => skipItemPhase());                                       // ⏭️ 아이템 시간 건너뛰기
@@ -560,13 +569,16 @@ else {
     makeTray();
     globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
     globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
-    pollGame(); pollLp(); pollSession(); pollSettlement(); pollDock();
+    pollGame(); pollLp(); pollSession(); pollSettlement(); pollDock(); pollVersion();
     setInterval(pollGame, 2500);
     setInterval(pollLp, 60000);
     setInterval(pollSession, 3000);
     setInterval(pollSettlement, 3000);  // 💰 정산 결과 감지
     setInterval(pollDock, 2500);        // 🖥️ 롤 클라 창 따라 도킹
+    setInterval(pollVersion, 5 * 60 * 1000);   // 🔖 홈페이지 버전 동기화(5분마다)
     setupAutoUpdate();                  // 🔄 자동 업데이트
+    // 🔌 내장 브릿지 시작 — LCU에 붙어 게임 페이즈·EOG 통계를 홈페이지가 읽는 bridge/* 경로에 기록(aram-bridge 대체)
+    bridge.start({ getOperatorName: () => config.myName || null, appVer: app.getVersion(), log: (m) => { try { console.log(m); } catch (_) {} } });
   });
 }
 
@@ -584,6 +596,6 @@ function setupAutoUpdate() {
   autoUpdater.checkForUpdates().catch(() => {});
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 30 * 60 * 1000);   // 30분마다 재확인
 }
-app.on('before-quit', () => { app._quitting = true; });   // 종료 시엔 close를 트레이 숨김으로 가로채지 않음
+app.on('before-quit', () => { app._quitting = true; try { bridge.stop(); } catch (_) {} });   // 종료: 트레이 숨김 해제 + 브릿지 노드 정리
 app.on('window-all-closed', (e) => { /* 트레이 상주 — 창 다 닫혀도 안 죽음 */ });
 app.on('will-quit', () => globalShortcut.unregisterAll());

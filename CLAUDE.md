@@ -19,6 +19,16 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - ⚠️ 이 셸 `ELECTRON_RUN_AS_NODE=1`로 bash서 electron.exe=node모드(ipcMain undefined)—테스트 시 unset. 팀원 무관.
 - 첫 실행 SmartScreen(추가정보→실행). vbs/bat 제거(npm start). packager/archiver 제거(electron-builder로 전환)·gen-ico.mjs로 ico.
 
+## 🔌 내장 브릿지 = aram-bridge 완전 대체 (v0.1.1·2026-07-06) ★새 세션 필독
+- **`bridge.js`(신규)** = aram-bridge `index.js` **1:1 이식**. 오버레이가 롤 클라(LCU)에 직접 붙어 **게임 페이즈·EOG 통계(KDA·딜량·골드·증강·멀티킬)**를 캡처해서, 홈페이지가 읽는 것과 **동일한 Firebase 경로**(`bridge/eogStats`·`bridge/voteStarted`·`bridge/champSelect`·`bridge/gamePhase`·`bridge/inGame`·`bridge/operators/{id}`·`bridge/heartbeat`·`bridge/connected`·`normal_matches/{gid}`)에 그대로 기록 → **홈페이지 코드 무변경으로 오버레이를 브릿지로 인식**(EOG 저장·투표 시작·진행자 표시·일반게임 기록·진행 배너 전부).
+- **이식 시 차이**: ①HTTP 상태페이지(7654)·진행자 드롭다운 제거 → 진행자 이름 = `config.myName` ②axios→Node https(의존성 0) ③Firebase 쓰기 = **인증 없는 PUT**(bridge/·normal_matches/ 무인증 쓰기 허용=실브릿지로 검증된 동작·홈페이지도 auth 안 씀=RTDB 오픈룰) ④operators에 `app:'overlay'` + `ver:'1.1.38'`(홈 `LATEST_BRIDGE_VER` 이상) → 홈페이지 `_bridgeOutdated`가 `app==='overlay'` 스킵(구버전 경고 안 뜸) ⑤`_findLockfile` PowerShell 폴백 **execSync→execFile(async)+15초 스로틀**(Electron 메인 blocking 금지·비표준 설치 대비) ⑥EOG는 **ETag CAS**(다중 오버레이/브릿지 동시=gameId로 중복 저장 자동 차단) 그대로 유지.
+- **로버스트**: 참가자 중 **누구든** 오버레이 켜면 그 게임 EOG 캡처(실브릿지는 방장 1명 필수였음). main.js `bridge.start({getOperatorName:()=>config.myName, appVer, log})` 시작·`before-quit`서 `bridge.stop()`(connected/operators/inGame 정리). 별 게이트 없이 항상 동작.
+- ⚠️ **실기기 미검증(1순위)**: 이 개발환경엔 롤 클라/LCU가 없어 **EOG 캡처 경로를 실제로 못 돌려봄**(문법·로직·이식 정합만 검증). 방장이 오버레이 켜고 실제 내전 1판 → 홈페이지에 EOG 저장·투표창·기록(KDA/딜량/증강)까지 뜨는지 **첫 확인 필수**. 문제 시 자동 업데이트로 즉시 핫픽스. **폴백**: 기존 aram-bridge exe도 그대로 동작(SOHADA2/aram-bridge 릴리즈에서 직접 다운로드 가능·홈 푸터 링크만 오버레이로 교체됨).
+- **홈페이지 연동(aram v2.45.564)**: ①최하단 다운로드 링크 브릿지→**내전 오버레이**(releases/latest의 setup.exe) ②`config/appVersion`에 현재 버전 기록(오버레이가 읽어 표시) ③`_bridgeOutdated` app:'overlay' 스킵.
+
+## 🔖 버전 표시(홈페이지 실시간 동기화)
+- 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
+
 ## 현재 상태(구현됨)
 - **창 3종**: 오버레이(투명·항상위·프레임없음)/데스크톱(로그인·홈)/홈페이지오버레이(webview로 실제 홈 임베드·Shift+F6)
 - **데스크톱 = 게임 로그인 화면**: 히어로 배경+⚔️로고(Black Han Sans)+계정 선택 입장 → 방장 체크 → 상태
