@@ -37,6 +37,7 @@
       "desktop/**",
       "overlay/**",
       "home/**",
+      "sidepanel/**",
       "assets/**",
       "package.json"
     ],

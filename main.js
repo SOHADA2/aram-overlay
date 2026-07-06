@@ -33,6 +33,7 @@ function saveConfig() { try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(confi
 // 🖥️ 롤 클라이언트 창에 도킹 — 지속 PowerShell 스트림(~160ms)으로 실시간 추종(찰싹 따라옴)
 let dockedBounds = null;   // 마지막 적용 좌표(중복 setBounds 방지)
 let dockedNow = false, dockProc = null, _dockBuf = '';
+let leftWin = null, leftDockedBounds = null, leftUserHid = false;   // 🖥️ 왼쪽 도킹 = 내 정보(프로필/기록/랭킹)
 const _dockScript = `
 $ErrorActionPreference='SilentlyContinue'
 Add-Type @'
@@ -70,16 +71,33 @@ function applyDock(pb) {                       // 물리좌표 → DIP 변환 �
   if (x + W > dispRight) x = Math.max(disp.workArea.x, dispRight - W);
   overlayWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
 }
+function applyDockLeft(pb) {                    // 클라 왼쪽 '바깥'에 붙임(내 정보 패널)
+  if (!leftWin || leftWin.isDestroyed()) return;
+  const sf = (screen.getPrimaryDisplay().scaleFactor) || 1;
+  const cx = pb.x / sf, cy = pb.y / sf, cw = pb.w / sf, ch = pb.h / sf;
+  const disp = screen.getDisplayMatching({ x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) });
+  const dispLeft = disp.workArea.x;
+  let W = Math.min(400, Math.round(cx - dispLeft));   // 클라 왼쪽 바깥 남은 공간
+  if (W < 300) W = 300;
+  let x = Math.round(cx - W);
+  if (x < dispLeft) x = dispLeft;                     // 화면 밖이면 붙임(살짝 겹칠 수 있음)
+  leftWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
+}
+function hideLeftPanel() { if (leftWin && !leftWin.isDestroyed() && leftWin.isVisible()) leftWin.hide(); leftDockedBounds = null; }
 function handleDockLine(line) {
-  if (config.dock === false) { setDockedFlag(false); return; }   // 도킹 끔
   const p = line.split(/\s+/).map(Number);
-  if (p.length !== 4 || !p.every(Number.isFinite)) { setDockedFlag(false); return; }  // 클라 없음(게임중·닫힘)→각짐 해제
-  const w = p[2] - p[0], h = p[3] - p[1];
-  if (w < 700 || h < 400) return;                                // 유령/최소화 창 무시
-  const sig = `${p[0]},${p[1]},${w},${h}`;
+  const valid = p.length === 4 && p.every(Number.isFinite) && (p[2] - p[0]) >= 700 && (p[3] - p[1]) >= 400;
+  if (config.dock === false || !valid) { setDockedFlag(false); hideLeftPanel(); return; }   // 도킹 끔/클라 없음
+  const w = p[2] - p[0], h = p[3] - p[1], sig = `${p[0]},${p[1]},${w},${h}`;
+  // ▶ 오른쪽 오버레이(팀·명단)
   if (sig !== dockedBounds) { dockedBounds = sig; applyDock({ x: p[0], y: p[1], w, h }); }
   setDockedFlag(true);
-  if (overlayWin && !overlayWin.isVisible() && !userHid) overlayWin.showInactive();   // 클라 뜨면 자동 표시
+  if (overlayWin && !overlayWin.isVisible() && !userHid) overlayWin.showInactive();
+  // ◀ 왼쪽 내 정보(로그인 + 패널 켬 상태에서만)
+  if (config.myName && config.sidePanel !== false && !leftUserHid) {
+    if (sig !== leftDockedBounds) { leftDockedBounds = sig; applyDockLeft({ x: p[0], y: p[1], w, h }); }
+    if (leftWin && !leftWin.isDestroyed() && !leftWin.isVisible()) leftWin.showInactive();
+  }
 }
 function startDockStream() {
   if (dockProc) return;
@@ -238,6 +256,20 @@ function createDesktop() {
   // ✕ 닫기 = 트레이 상주(앱 종료 아님) — 다시 트레이/도킹으로 열 수 있음
   desktopWin.on('close', (e) => { if (!app._quitting) { e.preventDefault(); desktopWin.hide(); } });
   desktopWin.on('closed', () => { desktopWin = null; });
+}
+// ◀ 왼쪽 도킹 내 정보 패널(프로필/기록/랭킹) — 오른쪽 오버레이와 같은 톤
+function createLeftPanel() {
+  leftWin = new BrowserWindow({
+    width: 360, height: 600, x: 24, y: 84, minWidth: 260, minHeight: 300,
+    frame: false, backgroundColor: '#0b0912', show: false,
+    icon: path.join(__dirname, 'assets', 'icon.png'),
+    alwaysOnTop: true, skipTaskbar: true, resizable: true, focusable: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  leftWin.setAlwaysOnTop(true, 'screen-saver');
+  leftWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  leftWin.loadFile('sidepanel/sidepanel.html');
+  leftWin.on('closed', () => { leftWin = null; });
 }
 // 데스크톱(메인) 창 표시 — 생성 안 됐으면 만들고, 숨어있으면 띄워서 앞으로
 function showDesktop() {
@@ -514,6 +546,13 @@ function toggleDock() {
   if (config.dock !== false) { dockedBounds = null; }   // 스트림이 다음 틱(~160ms)에 재적용
   refreshTrayMenu();
 }
+function toggleSidePanel() {                // ◀ 왼쪽 내 정보 패널 on/off
+  config.sidePanel = (config.sidePanel === false);   // 뒤집기(기본 켜짐)
+  saveConfig();
+  if (config.sidePanel !== false) { leftUserHid = false; leftDockedBounds = null; }   // 켜면 다음 틱에 재표시
+  else hideLeftPanel();
+  refreshTrayMenu();
+}
 let _updateReady = false;
 function refreshTrayMenu(updateReady) {
   if (!tray) return;
@@ -523,6 +562,7 @@ function refreshTrayMenu(updateReady) {
     { type: 'separator' },
     { label: `오버레이 토글 (${TOGGLE_HOTKEY})`, click: toggleOverlay },
     { label: '홈페이지 오버레이 토글 (Shift+F6)', click: toggleHome },
+    { label: '내 정보 패널(왼쪽)', type: 'checkbox', checked: config.sidePanel !== false, click: toggleSidePanel },
     { type: 'separator' },
     { label: '내전 홈페이지 (기본 브라우저)', click: () => shell.openExternal(WEB_URL) },
     { label: '메인 화면 열기', click: showDesktop },
@@ -552,6 +592,7 @@ ipcMain.on('update-later', () => { if (updateToastWin && !updateToastWin.isDestr
 ipcMain.on('open-web', () => shell.openExternal(WEB_URL));
 ipcMain.on('home-toggle', toggleHome);
 ipcMain.on('home-close', () => { if (homeWin) homeWin.hide(); });
+ipcMain.on('side-hide', () => { leftUserHid = true; hideLeftPanel(); });   // ◀ 내 정보 패널 닫기(트레이/도킹 재개로 다시 열림)
 ipcMain.on('set-myname', (_e, name) => {           // 내 이름(입장 ID) 저장 → 팀 판별
   config.myName = name || ''; saveConfig();
   broadcast('myname', config.myName);
@@ -712,6 +753,7 @@ else {
     config = loadConfig();
     createOverlay();
     createDesktop();   // ready-to-show에서 showDesktop() → 시작 시 메인 화면 앞으로
+    createLeftPanel(); // ◀ 왼쪽 내 정보 패널(도킹 시 표시)
     makeTray();
     globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
     globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
