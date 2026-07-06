@@ -5,40 +5,47 @@
 
 ---
 
-## 🎮 팀원용 — 설치 없이 실행
+## 🎮 팀원용 — 한 번 설치 → 이후 자동 업데이트
 
-1. 진행자에게 받은 **`아수라장 내전 v0.1.0.zip`** 을 압축 풀기
-2. 폴더 안 **`아수라장내전.exe`** 더블클릭
+1. [**Releases**](https://github.com/SOHADA2/aram-overlay/releases/latest) 에서 **`아수라장내전-Setup-X.X.X.exe`** 받기 (또는 진행자가 전달)
+2. 더블클릭 → 자동 설치(바탕화면 바로가기 생성)
 3. 롤을 켜면 오버레이가 **클라이언트 오른쪽에 자동으로** 붙는다
 
-- **입장**: 처음 뜨는 화면에서 본인 닉네임(홈페이지 등록명) 선택 → 입장
-- **끄기**: 트레이 아이콘(작업표시줄 우하단) 우클릭 → 종료. 창을 닫아도 트레이에 상주한다.
+- **🔄 자동 업데이트**: 새 버전이 나오면 앱이 **알아서 받아서 다음 실행 때 적용**된다(또는 트레이 → 「🔄 지금 업데이트」). 팀원은 재설치 불필요.
+- **입장**: 처음 화면에서 본인 닉네임(홈페이지 등록명) 선택 → 입장
+- **끄기**: 트레이 아이콘(작업표시줄 우하단) 우클릭 → 종료. 창을 닫아도 트레이에 상주.
 - **단축키**: `Shift+F5` 오버레이 토글 · `Shift+F6` 홈페이지 오버레이
-- ⚠️ **처음 실행 시 Windows 보안 경고**(SmartScreen)가 뜨면 **「추가 정보 → 실행」** — 서명 없는 무료 앱이라 정상이다.
-- ⚠️ 오버레이는 **테두리 없음(borderless) 창모드**에서 게임 위로 올라온다. 안 보이면 롤 설정 → 그래픽 → 창 모드를 "테두리 없음"으로.
+- ⚠️ 처음 설치 시 Windows 보안 경고(SmartScreen) → **「추가 정보 → 실행」**(서명 없는 무료 앱이라 정상)
+- ⚠️ 오버레이는 **테두리 없음(borderless) 창모드**에서 게임 위로 올라온다.
 
 ---
 
-## 🛠️ 개발 / 빌드 (진행자·개발용)
+## 🛠️ 개발 / 배포 (진행자·개발용)
 
 ```bash
 npm install        # 최초 1회
-npm start          # 개발 실행(소스 그대로)
-npm run dist       # 배포 빌드 → dist/아수라장 내전 v0.1.0.zip 생성(팀원 배포용)
+npm start          # 개발 실행(소스 그대로 — 자동 업데이트는 꺼짐)
 ```
 
-`npm run dist` = 아이콘(png→ico) + Electron 패키징(win x64) + zip 을 `build.mjs`가 한 번에 처리한다.
+### 새 버전 배포 = 태그 푸시 (GitHub Actions가 빌드·배포)
+```bash
+# 1) package.json version 올리기 (예: 0.1.0 → 0.1.1)
+# 2) 커밋 후 태그 푸시
+git commit -am "v0.1.1 …" && git tag v0.1.1 && git push origin master --tags
+```
+→ **GitHub Actions(windows 러너)가 자동으로** electron-builder 빌드 → **Releases에 Setup.exe + latest.yml 업로드** → 팀원 앱이 자동 감지·설치.
+- ⚠️ **로컬 빌드는 electron-builder의 winCodeSign 심볼릭링크가 Windows 권한(개발자 모드) 없이 실패** → 그래서 **CI(GitHub Actions)에서 빌드**한다(러너는 권한 있음). 로컬 빌드가 꼭 필요하면 Windows 개발자 모드 ON 후 `npm run dist`.
+- 자동 업데이트는 `electron-updater` + `build.publish=github(SOHADA2/aram-overlay)` 로 동작. `GH_TOKEN`은 Actions가 `secrets.GITHUB_TOKEN`으로 자동 주입.
 
 ### 구조
 ```
-main.js        Electron 메인: 창·트레이·단축키 + Firebase/게임 폴링 + 팀짜기·투표·정산 write
+main.js        Electron 메인: 창·트레이·단축키 + Firebase/게임 폴링 + 팀짜기·투표·정산 + 자동 업데이트
 preload.js     렌더러에 안전 API 노출(contextBridge)
 teams.js       ⚔️ 팀 짜기 — 홈페이지 makeTeams 1:1 이식(승률 밸런스·관전자·전판 회피)
 shared.css     두 창 공유 디자인 토큰(시즌2 웜블랙+골드·청록1팀/골드2팀)
-overlay/       인게임 오버레이(팀 배정·명단·투표·정산 뷰)
-desktop/       데스크톱 창(로그인·홈·팀 짜기)
-assets/        아이콘(icon.png → 빌드 시 icon.ico 생성)
-build.mjs      배포 빌드 스크립트
+overlay/ desktop/   인게임 오버레이 · 데스크톱 창(로그인·홈·팀 짜기)
+assets/        아이콘(icon.png → gen-ico.mjs로 icon.ico 생성)
+.github/workflows/release.yml   태그 → 빌드 → Releases
 ```
 
 ---

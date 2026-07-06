@@ -7,12 +7,62 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "dist": "node build.mjs"
+    "icon": "node gen-ico.mjs",
+    "dist": "npm run icon && electron-builder --win nsis",
+    "release": "npm run icon && electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
-    "@electron/packager": "^20.0.2",
-    "archiver": "^7.0.1",
     "electron": "^31.7.0",
+    "electron-builder": "^24.13.3",
     "png-to-ico": "^3.0.1"
+  },
+  "build": {
+    "appId": "gg.aram.overlay",
+    "productName": "아수라장 내전",
+    "copyright": "SOHADA2",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "teams.js",
+      "shared.css",
+      "desktop/**",
+      "overlay/**",
+      "home/**",
+      "assets/**",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "artifactName": "아수라장내전-Setup-${version}.exe",
+      "shortcutName": "아수라장 내전",
+      "uninstallDisplayName": "아수라장 내전 오버레이"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "SOHADA2",
+        "repo": "aram-overlay"
+      }
+    ],
+    "compression": "maximum"
   }
 }

@@ -7,17 +7,17 @@
 - **홈페이지·브릿지와 같은 Firebase 공유** → 앱 켠 사람=오버레이 / 안 켠 사람=홈페이지, 자동 연동
 - 리포: 로컬 git (⚠️ GitHub 미푸시 상태일 수 있음 — 다른 PC에서 이어가려면 `SOHADA2/aram-overlay`로 push 필요)
 
-## 실행 / 배포 (2026-07-06)
+## 실행 / 배포 (2026-07-06·🔄 자동 업데이트)
 ```bash
 npm install        # 최초 1회
-npm start          # 개발 실행(소스 그대로)
-npm run dist       # 📦 배포 빌드 → dist/아수라장 내전 vX.X.X.zip (팀원 배포용)
+npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
+# 배포 = 태그 푸시(아래) → GitHub Actions가 빌드/배포. 로컬 npm run dist는 개발자모드 필요
 ```
-- **배포 = `npm run dist`** → `build.mjs`가 png→ico + `@electron/packager`(win-x64) + `archiver` zip 을 원커맨드로. 팀원은 zip 풀고 `아수라장내전.exe` 더블클릭(설치 불필요). ~108MB.
-- ⚠️ **electron-builder는 못 씀** — winCodeSign 7z의 macOS 심볼릭링크가 Windows 권한(개발자모드/관리자) 없이 압축해제 실패 → packager로 우회. portable 단일 exe 원하면 개발자모드 켜고 electron-builder 재도입.
-- ⚠️ **이 셸 함정**: 환경변수 `ELECTRON_RUN_AS_NODE=1` 때문에 bash서 electron.exe가 node모드로 돌아 `ipcMain undefined` 에러(소스 정상). 테스트 시 `unset ELECTRON_RUN_AS_NODE`. 팀원 더블클릭엔 무관.
-- 코드 서명 없어 첫 실행 SmartScreen 경고(추가정보→실행). 끄기=트레이 우클릭 종료(창 닫아도 상주).
-- 개발 실행용 vbs/bat 제거(npm start로 대체). 루트=소스+build.mjs+make-icon.mjs, dist/는 gitignore.
+- **🔄 자동 업데이트(electron-updater + GitHub Releases)**: main.js `setupAutoUpdate()`가 시작+30분마다 새 버전 확인→백그라운드 다운로드→다음 실행/종료 시 자동 설치(+트레이 「지금 업데이트」). 팀원은 Setup.exe 한 번 설치 후 재설치 불필요.
+- **배포 = 태그 푸시** → `.github/workflows/release.yml`(windows 러너)이 `npm run release`(electron-builder --win nsis --publish always)로 빌드+**Releases 업로드**. `GH_TOKEN`=Actions `secrets.GITHUB_TOKEN` 자동. 절차: package.json version↑ → commit → `git tag vX.Y.Z && git push --tags`.
+- ⚠️ **로컬 electron-builder 빌드 불가**: winCodeSign 7z의 macOS dylib 심볼릭링크가 Windows 권한(개발자모드/관리자) 없이 압축해제 실패(매번 새 랜덤 hash라 캐시 우회도 안 됨) → **CI(GitHub Actions)에서만 빌드**. 로컬 필요 시 개발자모드 ON.
+- ⚠️ 이 셸 `ELECTRON_RUN_AS_NODE=1`로 bash서 electron.exe=node모드(ipcMain undefined)—테스트 시 unset. 팀원 무관.
+- 첫 실행 SmartScreen(추가정보→실행). vbs/bat 제거(npm start). packager/archiver 제거(electron-builder로 전환)·gen-ico.mjs로 ico.
 
 ## 현재 상태(구현됨)
 - **창 3종**: 오버레이(투명·항상위·프레임없음)/데스크톱(로그인·홈)/홈페이지오버레이(webview로 실제 홈 임베드·Shift+F6)

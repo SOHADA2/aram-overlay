@@ -4,6 +4,7 @@
 //   · 내전 LP/티어: 홈페이지와 같은 Firebase(공개 read)
 // 브릿지(aram-bridge) 없이도 오버레이는 단독 동작. 게임 감지=2999 응답 여부.
 const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, nativeImage, screen } = require('electron');
+const { autoUpdater } = require('electron-updater');   // 🔄 GitHub Releases 자동 업데이트
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
@@ -397,9 +398,11 @@ function toggleDock() {
   if (config.dock !== false) { dockedBounds = null; pollDock(); }
   refreshTrayMenu();
 }
-function refreshTrayMenu() {
+let _updateReady = false;
+function refreshTrayMenu(updateReady) {
   if (!tray) return;
-  tray.setContextMenu(Menu.buildFromTemplate([
+  if (updateReady) _updateReady = true;
+  const items = [
     { label: '롤 클라이언트에 붙이기(도킹)', type: 'checkbox', checked: config.dock !== false, click: toggleDock },
     { type: 'separator' },
     { label: `오버레이 토글 (${TOGGLE_HOTKEY})`, click: toggleOverlay },
@@ -409,7 +412,12 @@ function refreshTrayMenu() {
     { label: '메인 화면 열기', click: showDesktop },
     { type: 'separator' },
     { label: '종료', click: () => { app._quitting = true; app.quit(); } },
-  ]));
+  ];
+  if (_updateReady) items.unshift(
+    { label: '🔄 지금 업데이트 (재시작)', click: () => { app._quitting = true; try { autoUpdater.quitAndInstall(); } catch (_) { app.quit(); } } },
+    { type: 'separator' },
+  );
+  tray.setContextMenu(Menu.buildFromTemplate(items));
 }
 function makeTray() {
   let icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
@@ -496,7 +504,23 @@ else {
     setInterval(pollSession, 3000);
     setInterval(pollSettlement, 3000);  // 💰 정산 결과 감지
     setInterval(pollDock, 2500);        // 🖥️ 롤 클라 창 따라 도킹
+    setupAutoUpdate();                  // 🔄 자동 업데이트
   });
+}
+
+// 🔄 자동 업데이트 — 앱 시작 시 GitHub Releases에서 새 버전 확인·백그라운드 다운로드,
+//   다운로드 완료 시 트레이 알림 + 다음 실행(또는 종료 시)에 자동 설치. 팀원은 켜기만 하면 최신.
+function setupAutoUpdate() {
+  if (!app.isPackaged) return;   // 개발(npm start)에선 스킵
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-downloaded', (info) => {
+    if (tray) tray.displayBalloon?.({ title: '아수라장 내전', content: `새 버전(${info.version}) 준비 완료 — 앱을 껐다 켜면 적용돼요.` });
+    refreshTrayMenu(true);   // 트레이에 "지금 업데이트" 메뉴 노출
+  });
+  autoUpdater.on('error', () => {});   // 네트워크 오류 등은 조용히 무시(다음 시도)
+  autoUpdater.checkForUpdates().catch(() => {});
+  setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 30 * 60 * 1000);   // 30분마다 재확인
 }
 app.on('before-quit', () => { app._quitting = true; });   // 종료 시엔 close를 트레이 숨김으로 가로채지 않음
 app.on('window-all-closed', (e) => { /* 트레이 상주 — 창 다 닫혀도 안 죽음 */ });
