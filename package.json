@@ -3,12 +3,16 @@
   "version": "0.1.0",
   "description": "아수라장 내전 인게임 오버레이 (Electron) — 홈페이지/Firebase 연동",
   "main": "main.js",
-  "scripts": {
-    "start": "electron ."
-  },
   "author": "SOHADA2",
   "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "node build.mjs"
+  },
   "devDependencies": {
-    "electron": "^31.7.0"
+    "@electron/packager": "^20.0.2",
+    "archiver": "^7.0.1",
+    "electron": "^31.7.0",
+    "png-to-ico": "^3.0.1"
   }
 }

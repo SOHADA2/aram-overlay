@@ -7,13 +7,17 @@
 - **홈페이지·브릿지와 같은 Firebase 공유** → 앱 켠 사람=오버레이 / 안 켠 사람=홈페이지, 자동 연동
 - 리포: 로컬 git (⚠️ GitHub 미푸시 상태일 수 있음 — 다른 PC에서 이어가려면 `SOHADA2/aram-overlay`로 push 필요)
 
-## 실행
+## 실행 / 배포 (2026-07-06)
 ```bash
-cd <경로>\aram-overlay
-npm install            # 최초 1회(electron 내려받음·node_modules는 gitignore)
-# 실행: 내전 오버레이.vbs 더블클릭(콘솔 없음) 또는 npm start / 내전 오버레이 실행.bat(디버그용)
+npm install        # 최초 1회
+npm start          # 개발 실행(소스 그대로)
+npm run dist       # 📦 배포 빌드 → dist/아수라장 내전 vX.X.X.zip (팀원 배포용)
 ```
-끄기 = 트레이 아이콘 우클릭 → 종료.
+- **배포 = `npm run dist`** → `build.mjs`가 png→ico + `@electron/packager`(win-x64) + `archiver` zip 을 원커맨드로. 팀원은 zip 풀고 `아수라장내전.exe` 더블클릭(설치 불필요). ~108MB.
+- ⚠️ **electron-builder는 못 씀** — winCodeSign 7z의 macOS 심볼릭링크가 Windows 권한(개발자모드/관리자) 없이 압축해제 실패 → packager로 우회. portable 단일 exe 원하면 개발자모드 켜고 electron-builder 재도입.
+- ⚠️ **이 셸 함정**: 환경변수 `ELECTRON_RUN_AS_NODE=1` 때문에 bash서 electron.exe가 node모드로 돌아 `ipcMain undefined` 에러(소스 정상). 테스트 시 `unset ELECTRON_RUN_AS_NODE`. 팀원 더블클릭엔 무관.
+- 코드 서명 없어 첫 실행 SmartScreen 경고(추가정보→실행). 끄기=트레이 우클릭 종료(창 닫아도 상주).
+- 개발 실행용 vbs/bat 제거(npm start로 대체). 루트=소스+build.mjs+make-icon.mjs, dist/는 gitignore.
 
 ## 현재 상태(구현됨)
 - **창 3종**: 오버레이(투명·항상위·프레임없음)/데스크톱(로그인·홈)/홈페이지오버레이(webview로 실제 홈 임베드·Shift+F6)
