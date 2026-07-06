@@ -257,6 +257,30 @@ function toggleHome() {
   if (homeWin.isVisible()) homeWin.hide(); else homeWin.show();
 }
 
+// ── 🔄 업데이트 알림 토스트 (우하단·「지금 업데이트」 버튼 포함) ─────────────────
+//   Windows 네이티브 알림은 Electron으로 버튼을 못 붙여서, 같은 자리(우하단)에 테마 맞춘 커스텀 토스트를 띄운다.
+let updateToastWin = null;
+function showUpdateToast(version) {
+  const W = 340, H = 152, M = 16;
+  const wa = screen.getPrimaryDisplay().workArea;
+  const x = wa.x + wa.width - W - M, y = wa.y + wa.height - H - M;
+  if (updateToastWin && !updateToastWin.isDestroyed()) {
+    updateToastWin.setBounds({ x, y, width: W, height: H });
+    updateToastWin.webContents.send('update-info', { version });
+    updateToastWin.showInactive();
+    return;
+  }
+  updateToastWin = new BrowserWindow({
+    width: W, height: H, x, y, frame: false, transparent: true, resizable: false, movable: false,
+    alwaysOnTop: true, skipTaskbar: true, show: false, focusable: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  updateToastWin.setAlwaysOnTop(true, 'screen-saver');
+  updateToastWin.loadFile('desktop/update-toast.html');
+  updateToastWin.once('ready-to-show', () => { updateToastWin.showInactive(); updateToastWin.webContents.send('update-info', { version }); });
+  updateToastWin.on('closed', () => { updateToastWin = null; });
+}
+
 // ── 🔴 라이브 계정 (숨은 백그라운드 창) — 방장 오버레이가 진짜 홈페이지를 liveMode로 돌려 "경기 저장/정산"을 담당 ──
 //   왜 이 방식? 저장은 이 앱에서 제일 복잡·위험(LP·골드·시너지·강철심장·승급전). 오버레이에 재구현하면 계산이 갈라지고
 //   두 번째 저장 경로 = 이중 기록 위험. 그래서 홈페이지의 "검증된 저장 코드 + 원자적 락(saveLock + gameId 마커)"을 그대로 돌린다.
@@ -513,6 +537,8 @@ function makeTray() {
 
 // ── IPC ──────────────────────────────────────────────────────────────────
 ipcMain.on('overlay-hide', () => { hideOverlay(); userHid = true; });
+ipcMain.on('update-now', () => { app._quitting = true; try { autoUpdater.quitAndInstall(); } catch (_) { app.quit(); } });   // 🔄 지금 업데이트(재시작)
+ipcMain.on('update-later', () => { if (updateToastWin && !updateToastWin.isDestroyed()) updateToastWin.hide(); });          // 나중에 — 트레이 메뉴로 계속 가능
 ipcMain.on('open-web', () => shell.openExternal(WEB_URL));
 ipcMain.on('home-toggle', toggleHome);
 ipcMain.on('home-close', () => { if (homeWin) homeWin.hide(); });
@@ -679,8 +705,8 @@ function setupAutoUpdate() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('update-downloaded', (info) => {
-    if (tray) tray.displayBalloon?.({ title: '아수라장 내전', content: `새 버전(${info.version}) 준비 완료 — 앱을 껐다 켜면 적용돼요.` });
-    refreshTrayMenu(true);   // 트레이에 "지금 업데이트" 메뉴 노출
+    showUpdateToast(info.version);   // 🔄 우하단 커스텀 토스트(「지금 업데이트」 버튼 포함)
+    refreshTrayMenu(true);           // 트레이에도 "지금 업데이트" 메뉴 노출(백업 경로)
   });
   autoUpdater.on('error', () => {});   // 네트워크 오류 등은 조용히 무시(다음 시도)
   autoUpdater.checkForUpdates().catch(() => {});

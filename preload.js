@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('api', {
   onSession: (cb) => ipcRenderer.on('session', (_e, d) => cb(d)),
   onMyName: (cb) => ipcRenderer.on('myname', (_e, n) => cb(n)),
   onVersion: (cb) => ipcRenderer.on('version', (_e, v) => cb(v)),   // 🔖 홈페이지 버전(실시간 동기화)
+  // 🔄 업데이트 토스트
+  onUpdateInfo: (cb) => ipcRenderer.on('update-info', (_e, d) => cb(d)),
+  updateNow: () => ipcRenderer.send('update-now'),
+  updateLater: () => ipcRenderer.send('update-later'),
   hideOverlay: () => ipcRenderer.send('overlay-hide'),
   openWeb: () => ipcRenderer.send('open-web'),
   previewOverlay: () => ipcRenderer.send('overlay-preview'),
