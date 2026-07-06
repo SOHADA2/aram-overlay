@@ -34,6 +34,15 @@
 .s-login-box .slb-hint { font-size:9.5px; color:var(--dim); text-align:center; line-height:1.5; }
 /* 이 창은 배경 body 자체가 투명하지 않게(웜블랙) — desktop.css .bg 재사용 */
 body { background:#010A13; }   /* 헥스텍 딥블랙블루 */
+/* 🎨 스크롤바 톤앤매너(헥스텍 골드) — 기본 회색 스크롤바 제거 */
+#panel ::-webkit-scrollbar { width:8px; height:8px; }
+#panel ::-webkit-scrollbar-track { background:transparent; }
+#panel ::-webkit-scrollbar-thumb { background:rgba(200,170,110,0.32); border-radius:5px; border:2px solid transparent; background-clip:padding-box; }
+#panel ::-webkit-scrollbar-thumb:hover { background:rgba(200,170,110,0.55); background-clip:padding-box; }
+/* 스크롤 영역이 우측 스크롤바에 안 붙게 여백 + 우측 모서리 각지게 */
+#panel { border-radius:0; }
+#panel .cat-scroll { padding-right:6px; }
+#cat-team .cat-scroll { padding-right:8px; }
 
 /* ── ⚔️ 팀짜기 톤앤매너(헥스텍) 오버라이드 ── */
 #cat-team .cat-scroll { padding:11px 12px 14px; }

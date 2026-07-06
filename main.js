@@ -141,14 +141,15 @@ function _repaintSlot() {   // 투명창이 흰 박스로 안 그려지는 Win �
 function updateSlotMarker(p) {   // p=[L,T,R,B] 원시 px(클라 감지됨)
   const t = teamOf(sessionData, config.myName);
   const side = t === 'teamA' ? 1 : t === 'teamB' ? 2 : 0;
-  if (config.slot === false || inGame || !side) { hideSlotMarker(); return; }   // 로비+내 팀 있을 때만
+  // 로비 + 내 팀 있고 + 클라가 활성창일 때만(다른 창 위에 안 뜨게)
+  if (config.slot === false || inGame || !side || !clientFg) { hideSlotMarker(); return; }
   if (!slotWin || slotWin.isDestroyed()) createSlotWin();
   const sf = (screen.getPrimaryDisplay().scaleFactor) || 1;
   const cx = p[0] / sf, cy = p[1] / sf, cw = (p[2] - p[0]) / sf, ch = (p[3] - p[1]) / sf;
-  // 팀 컬럼(비율): 1팀=왼쪽 절반 / 2팀=오른쪽 절반, 헤더~슬롯 영역을 감쌈
-  const w = Math.round(cw * 0.455), h = Math.round(ch * 0.50);
-  const x = Math.round(side === 1 ? cx + cw * 0.025 : cx + cw * 0.52);
-  const y = Math.round(cy + ch * 0.135);
+  // 팀 컬럼(비율): 클라 우측 ~20%는 친구목록이라 제외. 로비 영역(좌 ~80%)을 1팀/2팀으로 분할
+  const w = Math.round(cw * 0.37), h = Math.round(ch * 0.40);
+  const x = Math.round(side === 1 ? cx + cw * 0.02 : cx + cw * 0.42);   // 1팀=왼쪽 / 2팀=가운데
+  const y = Math.round(cy + ch * 0.235);                                // 팀 헤더 바로 위
   if (side !== _slotTeam) { _slotTeam = side; try { slotWin.webContents.send('slot-team', side); } catch (_) {} }
   const sig = `${x},${y},${w},${h},${side}`;
   if (sig !== _slotSig) { _slotSig = sig; slotWin.setBounds({ x, y, width: w, height: h }); }
