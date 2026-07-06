@@ -42,7 +42,16 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 ## 🔖 버전 표시(홈페이지 실시간 동기화)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
-## 🪟 창 구조 대개편 (v0.1.14~15·2026-07-06) ★새 세션 필독 — 아래 옛 설명보다 우선
+## 🪟 창 구조 대개편 (v0.1.14~17·2026-07-06) ★새 세션 필독 — 아래 옛 설명보다 우선
+> **현재 배포 = v0.1.17** (CI Releases). 이 세션(v0.1.10~17) 요약은 맨 아래 "세션 이력" 참고.
+
+### ⚠️ v0.1.16~17 갱신 (위 항목보다 우선하는 최신 동작)
+- **📍 마커 = 작은 코너 배지**(네모 테두리서 전환): 팀 컬럼 **우상단**에 「◆ 내 팀」 작은 배지(`slot/slot.html`·bw128×bh38). 위치=`updateSlotMarker`서 `colRight = side1? cx+cw*0.39 : cx+cw*0.79`, `y=cy+ch*0.195`(친구목록 **펼침** 기준). ⚠️**친구목록 접힘/창모드면 팀 칸 폭이 달라져 어긋남**(클라 UI 유동적—완벽 고정 불가·필요시 사장님이 비율값 조정). **`clientFg`일 때만 표시**(다른 창 위에 안 뜨게)·게임 중 숨김.
+- **🪟 패널 z-레이어 = 클라 추종(hide 방식)**: `applyRaise` 재작성. **도킹 중**엔 `clientFg||panelFg`(클라 or 우리 패널 활성)면 표시+위로, **아니면(다른 앱 활성) `win.hide()`로 숨김**(그 뒤로). 클라 다시 클릭→dock line fg=1→표시. **플로팅(클라 없음)일 땐 항상 표시**(숨김 안 함). `evalRaise` 300ms 드롭 디바운스. `handleDockLine`은 show 직접 안 하고 `evalRaise()` 호출(가시성은 applyRaise가 관리). ⚠️숨김 방식이라 다른 앱 보면 패널이 **사라짐**(트레이 '내 정보 패널 열기'=`showMainPanel`로 복구). 사장님이 "가려지되 보이게(owned window)" 원하면 `SetWindowLongPtr(GWLP_HWNDPARENT)` 방식 필요(미구현·네이티브).
+- **🎒 아이템 뷰 = 효과 아코디언**(overlay.js `renderItem`): 전투아이템/강철심장/시너지 각 칸을 접힘(이름+짧은효과+상태)/펼침(효과상세+액션버튼) 아코디언. 홈 `_synEffTxt`(SYN_PROC/effType) + `EMBLEM_EFFECTS`/`emblemPerLine` 이식(`synEffTxt`/`synEffShort`/`emEffLinesHtml`). `_itOpen` Set으로 펼침상태 유지.
+- **팀 배정 뷰 = 세로 스택**: `.ta-teams` flex-column(1팀 위·2팀 아래). 상단 "내가 들어갈 팀 🔷 1팀" 대형 배너 + 상대팀 흐리게(`.dim`) + 내 팀 라벨.
+
+
 - **데스크톱 창(desktopWin) 폐지**: `createDesktop()`는 whenReady에서 **호출 안 함**(함수·desktop.js는 레거시로 남김·미사용). 로그인/방장/팀짜기가 전부 **우측 내 정보 패널(leftWin=sidepanel)**로 이전.
 - **메인 창 = 우측 내 정보 패널(leftWin)**: 클라 없으면 좌·우 **독립 창(플로팅)**으로 뜨고(`floatPanels()`·`standaloneBounds()`), 클라 켜면 도킹 스트림이 좌우로 붙임. `_floating` 플래그로 상태 관리(handleDockLine 유효=도킹/무효=플로팅). 트레이 클릭·second-instance = `showMainPanel()`(leftWin 앞으로).
 - **sidepanel = 로그인 + 방장 체크 + 팀짜기 + 프로필/기록/랭킹**: 미로그인 시 `#s-login`(아이디 select→입장)·로그인 후 헤더에 `[아이디][👑방장][계정변경][✕]`. 방장 체크(`set-host`→라이브계정 가동) 시 레일 최상단 `팀짜기`(#cat-team) 노출. 레일=팀짜기(방장만)→프로필→기록→랭킹. 팀짜기 UI=desktop.js 이식(tb-*·같은 IPC tbStart/tbSkip/onTeamBuild). **⚠️ `sendTb`/`broadcast`가 leftWin 포함하도록 수정됨**(desktopWin만 향하면 팀짜기 이벤트 안 옴).
@@ -89,7 +98,11 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - **검증(실데이터 560매치·2026-07-06)**: 점수함수=홈 원본(index.html서 추출 실행)과 18명 전원 일치 ✅ · 인원분배 4/5/7/10/11/13 전 케이스 ✅ · 밸런스 점수차 0.0099 vs 랜덤 0.2259 ✅ · 전판회피 재현 0/50 ✅ · session 16필드+아이템페이즈 필드 대조 ✅. ⚠️**실기(오버레이서 팀짜기→홈페이지 폰에서 타이머·발표 뜨는지) 미검증 — 사장님 확인이 1순위.**
 
 ## ⏭️ 다음/미구현
-- **실기 확인(1순위)**: 방장 체크→팀 짜기→홈페이지 기기에서 아이템 타이머·팀 발표·관전자 배팅 정상 노출
+- **🆕 v0.1.10~17 실기 확인(1순위·이 세션)**: ①우측 패널 로그인→방장 체크→팀짜기 정상(카운트다운·발표가 우측 패널+홈페이지 둘 다) ②패널 z-레이어(다른 앱 켜면 숨고 클라 클릭 시 재표시)—숨김이 너무 과하거나 시작 시 깜빡이면 조정 ③마커 배지 위치(친구목록 상태별 어긋남—사장님 스샷 주면 비율값 튜닝) ④아이템 아코디언 효과 표시·팀 세로스택·좌패널 LP정보·도킹 실시간 추종. **다 실기 미검증**(개발환경에 롤/Firebase 없음).
+- **마커 위치 한계**: 친구목록 펼침/접힘·창모드로 팀 칸 폭이 변해 고정 비율로 완벽정렬 불가. 원하면 `config.slotFrac` 같은 사용자 조정값 추가 검토.
+- **패널 숨김 vs owned-window**: 현재 "다른 앱 활성=hide". "가려지되 z만 뒤로(안 사라짐)"는 `SetWindowLongPtr(GWLP_HWNDPARENT=-8)`로 클라를 owner 지정 필요(dock 스트림에 클라 HWND 실어 보내고 electron `getNativeWindowHandle`로)—네이티브라 미구현. 사장님 요청 시.
+- 데스크톱 창 잔재 기능 미이전: 「미리보기·홈 오버레이(Shift+F6)」 버튼은 트레이에만(원하면 우측 패널에 추가). desktop.js/desktopWin=레거시(미사용).
+- **실기 확인**: 방장 체크→팀 짜기→홈페이지 기기에서 아이템 타이머·팀 발표·관전자 배팅 정상 노출
 - 홈 `_lobbyBroadcastPrep`(참가자 선택 중 "준비 중" 하단 배너) 미이식 — 원하면 체크 변경 시 /lobby write 추가
 - 관전 제외 설정 UI 없음(`config.spectatorExclude` 배열은 지원·기본 빈값. 홈은 host localStorage 기반)
 - makeTeams 부수효과(비밀퀘스트 토큰 `checkQuestEvent` 등)는 홈 호스트 로컬 기능이라 미이식(협의 필요)
