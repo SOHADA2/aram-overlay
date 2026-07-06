@@ -257,6 +257,40 @@ function toggleHome() {
   if (homeWin.isVisible()) homeWin.hide(); else homeWin.show();
 }
 
+// ── 🔴 라이브 계정 (숨은 백그라운드 창) — 방장 오버레이가 진짜 홈페이지를 liveMode로 돌려 "경기 저장/정산"을 담당 ──
+//   왜 이 방식? 저장은 이 앱에서 제일 복잡·위험(LP·골드·시너지·강철심장·승급전). 오버레이에 재구현하면 계산이 갈라지고
+//   두 번째 저장 경로 = 이중 기록 위험. 그래서 홈페이지의 "검증된 저장 코드 + 원자적 락(saveLock + gameId 마커)"을 그대로 돌린다.
+//   방장(config.isHost)일 때만 뜸. 이미 다른 라이브 계정이 있으면 홈페이지가 스스로 물러남(handleLiveKicked). 창은 숨김·backgroundThrottling off.
+let liveWin = null, _liveArmed = false;
+function startLiveAccount() {
+  if (!config.isHost) return;
+  if (liveWin && !liveWin.isDestroyed()) return;
+  _liveArmed = false;
+  liveWin = new BrowserWindow({
+    show: false, width: 960, height: 720, skipTaskbar: true,
+    webPreferences: { backgroundThrottling: false, contextIsolation: true, nodeIntegration: false },
+  });
+  liveWin.setMenuBarVisibility(false);
+  liveWin.webContents.on('did-finish-load', () => {   // 첫 로드 → liveMode 심고 재로드 → 홈페이지가 라이브 계정으로 부팅
+    if (_liveArmed) return; _liveArmed = true;
+    liveWin.webContents.executeJavaScript("try{localStorage.setItem('liveMode','1')}catch(e){}")
+      .then(() => { if (liveWin && !liveWin.isDestroyed()) liveWin.reload(); }).catch(() => {});
+  });
+  liveWin.webContents.on('did-fail-load', (_e, code) => {   // 네트워크 실패 → 8초 후 재시도
+    if (code === -3) return;   // ERR_ABORTED(재로드 등) 무시
+    setTimeout(() => { if (liveWin && !liveWin.isDestroyed()) liveWin.loadURL(WEB_URL).catch(() => {}); }, 8000);
+  });
+  liveWin.on('closed', () => { liveWin = null; });
+  liveWin.loadURL(WEB_URL);
+}
+function stopLiveAccount() {
+  if (!liveWin || liveWin.isDestroyed()) { liveWin = null; return; }
+  const w = liveWin; liveWin = null;
+  try { w.webContents.executeJavaScript("try{localStorage.removeItem('liveMode')}catch(e){}"); } catch (_) {}
+  try { w.close(); } catch (_) {}   // close = beforeunload 발생 → 홈페이지가 config/liveOwner 락 반납(다음 라이브 즉시 인계)
+  setTimeout(() => { try { if (!w.isDestroyed()) w.destroy(); } catch (_) {} }, 1500);   // 안전망: 안 닫히면 강제 파괴(락은 60초 stale로도 회수됨)
+}
+
 // ── 오버레이 표시/숨김 ────────────────────────────────────────────────────
 function showOverlay() { if (overlayWin && !overlayWin.isVisible()) overlayWin.showInactive(); } // 게임 포커스 뺏지 않게
 function hideOverlay() { if (overlayWin && overlayWin.isVisible()) overlayWin.hide(); }
@@ -364,7 +398,8 @@ async function startTeamBuild(names, mode) {
   const season = (typeof seasonV === 'number') ? seasonV : 2;
   const itemPhaseEnd = Date.now() + 15000;
   // ① 아이템 사용 단계 — 홈페이지 startItemPhase와 동일 쓰기(참가자 명단 실어 참가자에게만 타이머 노출)
-  const w = await fbSet('session', { phase: 'item', itemPhaseEnd, players: names.map(n => normName(n)) });
+  // extBuild:true = 오버레이가 팀 구성 담당 → (숨은) 라이브 웹뷰는 이 페이즈에 makeTeams 하지 않음(이중 팀구성 방지)
+  const w = await fbSet('session', { phase: 'item', itemPhaseEnd, players: names.map(n => normName(n)), extBuild: true });
   if (!w.ok) return { ok: false, err: w.err };
   _tb = { names, mode: (mode === 'random' ? 'random' : 'balance'), endAt: itemPhaseEnd, prevSession, season, matches: null, finishing: false };
   fetchMatches().then(m => { if (_tb) _tb.matches = m || {}; });   // 15초 동안 승률 데이터 미리 로드
@@ -486,8 +521,9 @@ ipcMain.on('set-myname', (_e, name) => {           // 내 이름(입장 ID) 저�
   broadcast('myname', config.myName);
   broadcast('session', { session: sessionData, myName: config.myName, lpMap });
 });
-ipcMain.on('set-host', (_e, v) => {                // 방장(팀 짜기 진행자) 여부
+ipcMain.on('set-host', (_e, v) => {                // 방장(팀 짜기 진행자) 여부 — 방장이면 라이브 계정(저장 담당) 자동 가동
   config.isHost = !!v; saveConfig();
+  if (config.isHost) startLiveAccount(); else stopLiveAccount();
 });
 ipcMain.handle('get-players', async () => {        // 데스크톱 ID 선택용 목록 + 현재 설정
   const d = await fetchPlayers();
@@ -632,6 +668,7 @@ else {
     setupAutoUpdate();                  // 🔄 자동 업데이트
     // 🔌 내장 브릿지 시작 — LCU에 붙어 게임 페이즈·EOG 통계를 홈페이지가 읽는 bridge/* 경로에 기록(aram-bridge 대체)
     bridge.start({ getOperatorName: () => config.myName || null, appVer: app.getVersion(), log: (m) => { try { console.log(m); } catch (_) {} } });
+    if (config.isHost) startLiveAccount();   // 🔴 방장이면 라이브 계정(경기 저장 담당) 가동
   });
 }
 
@@ -649,6 +686,6 @@ function setupAutoUpdate() {
   autoUpdater.checkForUpdates().catch(() => {});
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 30 * 60 * 1000);   // 30분마다 재확인
 }
-app.on('before-quit', () => { app._quitting = true; try { bridge.stop(); } catch (_) {} });   // 종료: 트레이 숨김 해제 + 브릿지 노드 정리
+app.on('before-quit', () => { app._quitting = true; try { bridge.stop(); } catch (_) {} try { stopLiveAccount(); } catch (_) {} });   // 종료: 트레이 숨김 해제 + 브릿지·라이브계정 정리
 app.on('window-all-closed', (e) => { /* 트레이 상주 — 창 다 닫혀도 안 죽음 */ });
 app.on('will-quit', () => globalShortcut.unregisterAll());
