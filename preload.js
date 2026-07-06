@@ -28,4 +28,7 @@ contextBridge.exposeInMainWorld('api', {
   // 🎒 아이템 페이즈
   onItemPhase: (cb) => ipcRenderer.on('itemphase', (_e, d) => cb(d)),
   itemToggle: (id) => ipcRenderer.invoke('item-toggle', { id }),
+  itemBuy: (id) => ipcRenderer.invoke('item-buy', { id }),                 // 🛒 구매
+  emblemEquip: (id) => ipcRenderer.invoke('emblem-equip', { id }),        // ⚒️ 강철심장 장착(id 또는 null=해제)
+  synergyEquip: (sid, tier) => ipcRenderer.invoke('synergy-equip', { sid, tier }),  // 🃏 시너지 활성화
 });

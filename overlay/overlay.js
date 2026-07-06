@@ -209,44 +209,112 @@ function renderSettle() {
 
 // ── 🎒 아이템 사용(팀 구성 직전 15초) ────────────────────────────────────
 // 홈페이지에서 미리 산 전투 아이템을 여기서 활성화. items_s2 토글(main.js가 상호배제·조건 검증·Firebase write).
+// 홈페이지 아이템 페이즈 pill과 동일한 전투 아이템 3종(구매/활성화). LP2배권은 릴레이 전용이라 여기 없음.
 const COMBAT_ITEMS = [
-  { id: 's1_gamble',       name: '도박권',        ic: '🎲', desc: '승 +40 / 패 −30 LP' },
-  { id: 's1_lp2x',         name: 'LP 2배권',      ic: '⚡', desc: '승리 시 획득 LP 2배' },
-  { id: 's1_promo_shield', name: '승급전 방어권', ic: '🛡️', desc: '승급전 패배 무효' },
-  { id: 's1_promo_win',    name: '승급전 승리권', ic: '⚔️', desc: '승급전 승리 = 2승' },
+  { id: 's1_gamble',       name: '도박권',        ic: '🎲', desc: '승 +40 / 패 −30 LP', price: 60 },
+  { id: 's1_promo_shield', name: '승급전 방어권', ic: '🛡️', desc: '승급전 패배 무효',   price: 100 },
+  { id: 's1_promo_win',    name: '승급전 승리권', ic: '⚔️', desc: '승급전 승리 = 2승',   price: 100 },
 ];
+// 가챠 시너지 12종 — 카드 소유(champCards_s2)로 2★/3★ 판정. sid/멤버는 홈 GACHA_SYNERGY_GROUPS와 동일.
+const SYN_GROUPS = [
+  { sid: 'warrior',    name: '검을 뽑아라',  ic: '⚔️',  members: ['DrMundo', 'Gangplank', 'Yasuo'] },
+  { sid: 'marksman',   name: '탄환 세례',   ic: '🎯',  members: ['Akshan', 'Jhin', 'Vayne'] },
+  { sid: 'assassin',   name: '그림자 주자', ic: '🌑',  members: ['Fizz', 'Khazix', 'Naafiri'] },
+  { sid: 'ionia',      name: '검무',        ic: '🌸',  members: ['Jhin', 'Yasuo'] },
+  { sid: 'shurima',    name: '나는 왕이다', ic: '👑',  members: ['Akshan', 'Amumu', 'Naafiri', 'Rammus'] },
+  { sid: 'tank',       name: '강철 심장',   ic: '🛡️', members: ['Amumu', 'Malphite', 'Poppy', 'Rammus'] },
+  { sid: 'demacia',    name: '여명의 의지', ic: '☀️',  members: ['Morgana', 'Poppy', 'Vayne'] },
+  { sid: 'bilgewater', name: '해적의 보물', ic: '🏴‍☠️', members: ['Fizz', 'Gangplank'] },
+  { sid: 'support',    name: '신성한 개입', ic: '💚',  members: ['Lulu', 'Morgana'] },
+  { sid: 'mage',       name: '유레카',      ic: '🎲',  members: ['Brand', 'Malzahar', 'Mel'] },
+  { sid: 'void',       name: '공허 균열',   ic: '🌀',  members: ['Khazix', 'Malzahar'] },
+];
+const _TPOW = { stable: 1, precise: 3, overload: 6 };
+const _emLevel = em => (em.slots || []).filter(s => s && s.ok).length;
+const _emPower = em => (em.slots || []).reduce((s, x) => s + (x && x.ok ? (_TPOW[x.t] || 0) : 0), 0);
+const _emGrade = p => p >= 25 ? '프리즘' : p >= 10 ? '골드' : p >= 1 ? '실버' : '기본';
+
 function itemActive() { return !!(itemData && itemSecsLeft() > 0); }
 function itemSecsLeft() { return Math.max(0, 15 - Math.floor((Date.now() - _itemSeenAt) / 1000)); }
-function _myItems() { return (itemData && itemData.gold && itemData.gold.data && itemData.gold.data.items_s2) || []; }
+function _gd() { return (itemData && itemData.gold && itemData.gold.data) || {}; }
+function _eqEmblemId(d) {   // 현재 장착 강철심장 id(명시적 장착 없으면 성능 1위=레거시 자동장착)
+  const arr = (Array.isArray(d.emblems_s2) ? d.emblems_s2 : []).filter(Boolean);
+  if (d.emblemEquipped_s2 != null) return d.emblemEquipped_s2;
+  const top = arr.slice().sort((a, b) => _emPower(b) - _emPower(a))[0];
+  return top ? top.id : null;
+}
 function renderItem() {
   el('it-sec').textContent = itemSecsLeft();
-  const items = _myItems();
+  const d = _gd();
+  const items = Array.isArray(d.items_s2) ? d.items_s2 : [];
   const cnt = id => items.filter(it => it && it.id === id).length;
-  const on = id => items.some(it => it && it.id === id && it.active);
-  el('it-body').innerHTML = COMBAT_ITEMS.map(ci => {
+  const on  = id => items.some(it => it && it.id === id && it.active);
+
+  // ① 전투 아이템(보유=활성화 토글 / 미보유=구매)
+  const itemsHtml = COMBAT_ITEMS.map(ci => {
     const owned = cnt(ci.id), act = on(ci.id);
-    const cls = owned ? (act ? 'on' : 'own') : 'empty';
-    const st = owned ? (act ? '✓ 켜짐' : '켜기') : '미보유';
-    return `<button class="it-chip ${cls}" data-id="${ci.id}" ${owned ? '' : 'disabled'}>`
-      + `<span class="it-ic">${ci.ic}</span>`
-      + `<span class="it-info"><b>${ci.name}${owned > 1 ? ` <em>×${owned}</em>` : ''}</b><small>${ci.desc}</small></span>`
-      + `<span class="it-st">${st}</span></button>`;
+    if (owned) return `<button class="it-chip ${act ? 'on' : 'own'}" data-act="toggle" data-id="${ci.id}">`
+      + `<span class="it-ic">${ci.ic}</span><span class="it-info"><b>${ci.name}${owned > 1 ? ` <em>×${owned}</em>` : ''}</b><small>${ci.desc}</small></span>`
+      + `<span class="it-st">${act ? '✓ 켜짐' : '켜기'}</span></button>`;
+    return `<button class="it-chip buy" data-act="buy" data-id="${ci.id}">`
+      + `<span class="it-ic">${ci.ic}</span><span class="it-info"><b>${ci.name}</b><small>${ci.desc}</small></span>`
+      + `<span class="it-st st-buy">${ci.price}G 구매</span></button>`;
   }).join('');
-  el('it-body').querySelectorAll('.it-chip:not([disabled])').forEach(b => b.onclick = async () => {
-    if (_itemBusy) return; _itemBusy = true; b.classList.add('busy');
-    el('it-err').style.display = 'none';
-    const r = await window.api.itemToggle(b.dataset.id);
-    _itemBusy = false; b.classList.remove('busy');
-    if (!r || !r.ok) { el('it-err').textContent = '⚠️ ' + ((r && r.err) || '실패'); el('it-err').style.display = ''; }
-    else {   // 낙관적 로컬 반영(다음 폴링이 확정) — 같은 id/충돌 끄고 이 id 하나 켬
-      const wasOn = on(b.dataset.id);
-      const conflict = { s1_gamble: ['s1_lp2x'], s1_lp2x: ['s1_gamble'], s1_promo_shield: ['s1_promo_win'], s1_promo_win: ['s1_promo_shield'] }[b.dataset.id] || [];
-      const off = new Set([b.dataset.id, ...conflict]);
-      items.forEach(it => { if (off.has(it.id)) it.active = false; });
-      if (!wasOn) { const t = items.find(it => it.id === b.dataset.id); if (t) t.active = true; }
-      renderItem();
-    }
-  });
+
+  // ② 강철심장(장착)
+  const emblems = (Array.isArray(d.emblems_s2) ? d.emblems_s2 : []).filter(Boolean).slice().sort((a, b) => _emPower(b) - _emPower(a));
+  const eqId = _eqEmblemId(d);
+  const emHtml = emblems.length ? emblems.map(em => {
+    const p = _emPower(em), lv = _emLevel(em), g = _emGrade(p), eq = em.id === eqId;
+    return `<button class="it-chip ${eq ? 'on' : 'own'}" data-act="emblem" data-id="${em.id}">`
+      + `<span class="it-ic">⚒️</span><span class="it-info"><b>${em.nick ? esc(em.nick) : '+' + lv} <em class="g-${g}">${g}</em></b><small>성능 ${p} · Lv${lv}</small></span>`
+      + `<span class="it-st">${eq ? '✓ 장착' : '장착'}</span></button>`;
+  }).join('') : `<div class="it-empty">보유한 강철심장이 없어요</div>`;
+
+  // ③ 시너지(활성화) — 카드 소유분만
+  const cards = d.champCards_s2 || {};
+  const ownsTier = (g, t) => g.members.every(s => { const c = cards[s] || {}; return t === 3 ? (c.s3 || 0) >= 1 : ((c.s2 || 0) >= 1 || (c.s3 || 0) >= 1); });
+  const asyn = d.activeSynergy_s2 || null;
+  const synList = SYN_GROUPS.map(g => { const t = ownsTier(g, 3) ? 3 : ownsTier(g, 2) ? 2 : 0; return t ? { g, t } : null; }).filter(Boolean);
+  const synHtml = synList.length ? synList.map(({ g, t }) => {
+    const act = asyn && asyn.sid === g.sid && asyn.tier === t;
+    return `<button class="it-chip ${act ? 'on' : 'own'}" data-act="synergy" data-sid="${g.sid}" data-tier="${t}">`
+      + `<span class="it-ic">${g.ic}</span><span class="it-info"><b>${g.name} <em>${'★'.repeat(t)}</em></b><small>${g.members.length}종 세트</small></span>`
+      + `<span class="it-st">${act ? '✓ 활성' : '활성화'}</span></button>`;
+  }).join('') : `<div class="it-empty">활성화할 시너지가 없어요 (카드 미완성)</div>`;
+
+  el('it-body').innerHTML = `<div class="it-sec-h">🎒 전투 아이템</div>${itemsHtml}`
+    + `<div class="it-sec-h">⚒️ 강철심장</div>${emHtml}`
+    + `<div class="it-sec-h">🃏 시너지</div>${synHtml}`;
+  el('it-body').querySelectorAll('.it-chip').forEach(b => b.onclick = () => onItemAction(b));
+}
+
+async function onItemAction(b) {
+  if (_itemBusy) return; _itemBusy = true; b.classList.add('busy');
+  el('it-err').style.display = 'none';
+  const d = _gd(), act = b.dataset.act;
+  let r;
+  try {
+    if (act === 'toggle') r = await window.api.itemToggle(b.dataset.id);
+    else if (act === 'buy') r = await window.api.itemBuy(b.dataset.id);
+    else if (act === 'emblem') { const clicked = Number(b.dataset.id), cur = _eqEmblemId(d); r = await window.api.emblemEquip(clicked === cur ? null : clicked); if (r && r.ok) d.emblemEquipped_s2 = (clicked === cur ? null : clicked); }
+    else if (act === 'synergy') { const sid = b.dataset.sid, t = Number(b.dataset.tier); r = await window.api.synergyEquip(sid, t); if (r && r.ok) { const cur = d.activeSynergy_s2; d.activeSynergy_s2 = (cur && cur.sid === sid && cur.tier === t) ? null : { sid, tier: t }; } }
+  } catch (e) { r = { ok: false, err: String((e && e.message) || e) }; }
+  _itemBusy = false; b.classList.remove('busy');
+  if (!r || !r.ok) { el('it-err').textContent = '⚠️ ' + ((r && r.err) || '실패'); el('it-err').style.display = ''; return; }
+  // 낙관적 로컬 반영(다음 3초 폴링이 확정)
+  if (act === 'toggle') {
+    const items = Array.isArray(d.items_s2) ? d.items_s2 : [];
+    const wasOn = items.some(it => it && it.id === b.dataset.id && it.active);
+    const conflict = { s1_gamble: ['s1_lp2x'], s1_lp2x: ['s1_gamble'], s1_promo_shield: ['s1_promo_win'], s1_promo_win: ['s1_promo_shield'] }[b.dataset.id] || [];
+    const off = new Set([b.dataset.id, ...conflict]);
+    items.forEach(it => { if (off.has(it.id)) it.active = false; });
+    if (!wasOn) { const t = items.find(it => it.id === b.dataset.id); if (t) t.active = true; }
+  } else if (act === 'buy') {
+    if (!Array.isArray(d.items_s2)) d.items_s2 = [];
+    d.items_s2.push({ id: b.dataset.id, active: false });
+  }
+  renderItem();
 }
 
 function render() {

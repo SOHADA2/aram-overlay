@@ -15,6 +15,7 @@ const FIREBASE_DB = 'https://aramchaos-ca022-default-rtdb.asia-southeast1.fireba
 const FIREBASE_API_KEY = 'AIzaSyAzRirJzvaqu6jelqUUjV_Tik1MgsALEE4';   // aram/index.html firebaseConfig와 동일(홈페이지에 공개된 값)
 const TOGGLE_HOTKEY = 'Shift+F5';
 const { buildTeams, normName } = require('./teams');   // ⚔️ 홈페이지 makeTeams 1:1 이식
+const { availableGoldS2 } = require('./gold');         // 💰 아이템 구매 골드 검증(홈 calcPlayerGoldEarned S2 이식)
 const bridge = require('./bridge');                    // 🔌 내장 브릿지(LCU EOG 캡처) — aram-bridge 완전 대체
 
 let overlayWin = null, desktopWin = null, homeWin = null, tray = null;
@@ -537,6 +538,58 @@ ipcMain.handle('item-toggle', async (_e, { id }) => {
     items.forEach(it => { if (it.id === id) it.active = false; });   // 끄기: 같은 id 전부 off
   }
   const r = await fbUpdate(`gold/${mg.key}`, { items_s2: items });
+  return { ok: r.ok, err: r.err };
+});
+// 🛒 아이템 구매 — 홈 quickBuyItem 이식(골드 검증 후 items_s2 append + goldSpent_s2 += price). 아이템 페이즈 구매 3종.
+const BUYABLE_ITEMS = { s1_promo_shield: { name: '승급전 방어권', price: 100 }, s1_promo_win: { name: '승급전 승리권', price: 100 }, s1_gamble: { name: '도박권', price: 60 } };
+let _matchesCache = null, _matchesCacheAt = 0;
+async function getMatchesCached() {   // 골드 계산용 matches(수 MB) — 2분 캐시(반복 계산 시 재요청 방지)
+  if (_matchesCache && Date.now() - _matchesCacheAt < 120000) return _matchesCache;
+  const m = await fetchMatches();
+  if (m) { _matchesCache = m; _matchesCacheAt = Date.now(); }
+  return _matchesCache || {};
+}
+ipcMain.handle('item-buy', async (_e, { id }) => {
+  const def = BUYABLE_ITEMS[id];
+  if (!def) return { ok: false, err: '구매할 수 없는 아이템이에요' };
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };
+  const matches = await getMatchesCached();
+  const avail = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  if (avail < def.price) return { ok: false, err: `골드 부족 (보유 ${avail}G · 필요 ${def.price}G)` };
+  const items = Array.isArray(mg.data.items_s2) ? mg.data.items_s2.map(x => ({ ...x })) : [];
+  items.push({ id, active: false });
+  const spent = (typeof mg.data.goldSpent_s2 === 'number' ? mg.data.goldSpent_s2 : 0) + def.price;
+  const r = await fbUpdate(`gold/${mg.key}`, { items_s2: items, goldSpent_s2: spent });
+  return { ok: r.ok, err: r.err, gold: avail - def.price };
+});
+// ⚒️ 강철심장 장착 — 홈 emblemEquip 이식. emblemEquipped_s2 = id(또는 null=해제).
+ipcMain.handle('emblem-equip', async (_e, { id }) => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const arr = Array.isArray(mg.data.emblems_s2) ? mg.data.emblems_s2 : [];
+  if (id != null && !arr.some(e => e && e.id === id)) return { ok: false, err: '보유하지 않은 강철심장이에요' };
+  const r = await fbUpdate(`gold/${mg.key}`, { emblems_s2: arr, emblem_s2: null, emblemEquipped_s2: (id == null ? null : id) });
+  return { ok: r.ok, err: r.err };
+});
+// 🃏 시너지 활성화 — 홈 equipSynFromMain 이식. 소유(카드) 검증 후 activeSynergy_s2 = {sid,tier}(또는 null=해제).
+const SYN_MEMBERS = {
+  warrior: ['DrMundo', 'Gangplank', 'Yasuo'], marksman: ['Akshan', 'Jhin', 'Vayne'], assassin: ['Fizz', 'Khazix', 'Naafiri'],
+  ionia: ['Jhin', 'Yasuo'], shurima: ['Akshan', 'Amumu', 'Naafiri', 'Rammus'], tank: ['Amumu', 'Malphite', 'Poppy', 'Rammus'],
+  demacia: ['Morgana', 'Poppy', 'Vayne'], bilgewater: ['Fizz', 'Gangplank'], support: ['Lulu', 'Morgana'],
+  mage: ['Brand', 'Malzahar', 'Mel'], void: ['Khazix', 'Malzahar'],
+};
+ipcMain.handle('synergy-equip', async (_e, { sid, tier }) => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const members = SYN_MEMBERS[sid];
+  if (!members) return { ok: false, err: '알 수 없는 시너지' };
+  const cards = mg.data.champCards_s2 || {};
+  const owned = members.every(slug => { const c = cards[slug] || {}; return tier === 3 ? (c.s3 || 0) >= 1 : ((c.s2 || 0) >= 1 || (c.s3 || 0) >= 1); });
+  if (!owned) return { ok: false, err: '시너지 카드를 다 모으지 않았어요' };
+  const cur = mg.data.activeSynergy_s2 || null;
+  const newVal = (cur && cur.sid === sid && cur.tier === tier) ? null : { sid, tier };
+  const r = await fbUpdate(`gold/${mg.key}`, { activeSynergy_s2: newVal });
   return { ok: r.ok, err: r.err };
 });
 ipcMain.on('session-preview', () => {              // 팀 배정 뷰 미리보기(샘플)
