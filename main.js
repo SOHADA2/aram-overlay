@@ -30,7 +30,8 @@ let CONFIG_PATH = '';
 function loadConfig() { try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (_) { return {}; } }
 function saveConfig() { try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(config)); } catch (_) {} }
 
-// 🖥️ 롤 클라이언트 창에 도킹 — 지속 PowerShell 스트림(~160ms)으로 실시간 추종(찰싹 따라옴)
+// 🖥️ 롤 클라이언트 창에 도킹 — SetWinEventHook(LOCATIONCHANGE)로 이동 즉시 추종(찰싹·덜렁임 없음)
+// 이벤트 기반이라 클라를 드래그하면 프레임 단위로 따라옴 + 90ms 폴백(놓친 이벤트·켜짐/꺼짐 감지)
 let dockedBounds = null;   // 마지막 적용 좌표(중복 setBounds 방지)
 let dockedNow = false, dockProc = null, _dockBuf = '';
 let leftWin = null, leftDockedBounds = null, leftUserHid = false;   // 🖥️ 왼쪽 도킹 = 내 정보(프로필/기록/랭킹)
@@ -44,17 +45,44 @@ public class Win{
  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+ [DllImport("user32.dll")] public static extern IntPtr SetWinEventHook(uint a,uint b,IntPtr m,WinEventProc cb,uint p,uint t,uint f);
+ [DllImport("user32.dll")] public static extern IntPtr SetTimer(IntPtr h,IntPtr id,uint ms,IntPtr fn);
+ [DllImport("user32.dll")] public static extern int GetMessage(out MSG m,IntPtr h,uint a,uint b);
+ [DllImport("user32.dll")] public static extern bool TranslateMessage(ref MSG m);
+ [DllImport("user32.dll")] public static extern IntPtr DispatchMessage(ref MSG m);
+ public delegate void WinEventProc(IntPtr hook,uint ev,IntPtr hwnd,int idO,int idC,uint th,uint tm);
  public struct RECT{public int L,T,R,B;}
- public static string Find(){
+ public struct POINT{public int X,Y;}
+ public struct MSG{public IntPtr hwnd;public uint msg;public IntPtr wp;public IntPtr lp;public uint time;public POINT pt;}
+ static IntPtr target=IntPtr.Zero;
+ static string last=null;
+ static WinEventProc cb;
+ static string Snap(){
   IntPtr h=FindWindow(null,"League of Legends");
+  target=h;
   if(h==IntPtr.Zero||!IsWindowVisible(h)||IsIconic(h)) return "";
-  RECT r; GetWindowRect(h,out r);
-  int fg=(GetForegroundWindow()==h)?1:0;   // 클라가 지금 활성창인가
+  RECT r; if(!GetWindowRect(h,out r)) return "";
+  int fg=(GetForegroundWindow()==h)?1:0;
   return r.L+" "+r.T+" "+r.R+" "+r.B+" "+fg;
+ }
+ static void Emit(){ string s=Snap(); if(s!=last){ last=s; Console.Out.WriteLine(s); Console.Out.Flush(); } }
+ static void OnEvent(IntPtr hook,uint ev,IntPtr hwnd,int idO,int idC,uint th,uint tm){
+  if(ev==0x800B){ if(idO!=0 || hwnd!=target) return; }   // 위치변경=대상 창 본체만(오버헤드 최소)
+  Emit();
+ }
+ public static void Run(){
+  cb=new WinEventProc(OnEvent);
+  SetWinEventHook(0x0003,0x0003,IntPtr.Zero,cb,0,0,0);   // FOREGROUND(전경 전환)
+  SetWinEventHook(0x0016,0x0017,IntPtr.Zero,cb,0,0,0);   // MINIMIZE START/END
+  SetWinEventHook(0x800B,0x800B,IntPtr.Zero,cb,0,0,0);   // LOCATIONCHANGE(이동/크기=실시간 추종)
+  SetTimer(IntPtr.Zero,IntPtr.Zero,90,IntPtr.Zero);      // 폴백 90ms(놓친 이벤트·클라 켜짐/꺼짐)
+  Emit();
+  MSG m;
+  while(GetMessage(out m,IntPtr.Zero,0,0)>0){ if(m.msg==0x0113) Emit(); TranslateMessage(ref m); DispatchMessage(ref m); }
  }
 }
 '@
-while($true){ [Console]::Out.WriteLine([Win]::Find()); [Console]::Out.Flush(); Start-Sleep -Milliseconds 160 }`;
+[Win]::Run()`;
 const _dockB64 = Buffer.from(_dockScript, 'utf16le').toString('base64');
 
 function setDockedFlag(v) {                    // 도킹 상태 → 오버레이에 알려 모서리 각지게(각/둥금 전환)

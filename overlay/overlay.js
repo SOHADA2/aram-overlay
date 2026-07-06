@@ -13,7 +13,7 @@ let sessionData = null, myName = '', roster = [], lpMap = {}, inGame = false, ph
 el('close').addEventListener('click', () => window.api.hideOverlay());
 
 let settleData = null;   // 💰 최근 정산 {settle, lpNow}
-let itemData = null, _itemPhaseKey = 0, _itemSeenAt = 0, _itemBusy = false;   // 🎒 아이템 페이즈
+let itemData = null, _itemPhaseKey = 0, _itemSeenAt = 0, _itemBusy = false, _itOpen = new Set();   // 🎒 아이템 페이즈(_itOpen=펼친 아코디언)
 window.api.onState(({ inGame: ig, label }) => { inGame = !!ig; phaseLabel = label || (ig ? '게임 중' : '대기'); render(); });
 window.api.onPlayers(({ players, lpMap: m }) => { roster = players || []; if (m) lpMap = m; render(); });
 window.api.onSession(({ session, myName: mn, lpMap: m }) => { sessionData = session || null; if (mn !== undefined) myName = mn || ''; if (m) lpMap = m; render(); });
@@ -22,13 +22,13 @@ window.api.onDocked(v => { document.body.classList.toggle('docked', !!v); });   
 window.api.onSettlement(d => { settleData = d || null; render(); });
 window.api.onItemPhase(d => {
   itemData = d || null;
-  if (d && d.endAt !== _itemPhaseKey) { _itemPhaseKey = d.endAt; _itemSeenAt = Date.now(); }   // 새 페이즈 = 로컬 15초 시작
+  if (d && d.endAt !== _itemPhaseKey) { _itemPhaseKey = d.endAt; _itemSeenAt = Date.now(); _itOpen.clear(); }   // 새 페이즈 = 로컬 15초 시작(아코디언 초기화)
   render();
 });
 setInterval(() => { if (itemActive()) { const l = itemSecsLeft(); const e = el('it-sec'); if (e) e.textContent = l; if (l <= 0) render(); } }, 500);
 
 function showView(v) {
-  el('view-team').style.display   = v === 'team'   ? 'block' : 'none';
+  el('view-team').style.display   = v === 'team'   ? 'flex'  : 'none';
   el('view-item').style.display   = v === 'item'   ? 'block' : 'none';
   el('view-vote').style.display   = v === 'vote'   ? 'block' : 'none';
   el('view-settle').style.display = v === 'settle' ? 'block' : 'none';
@@ -53,9 +53,11 @@ function renderTeam() {
   const A = sessionData.teamA || [], B = sessionData.teamB || [], mt = myTeam();
   const band = el('tv-band');
   band.className = 'tv-band' + (mt === 1 ? ' t1' : mt === 2 ? ' t2' : '');
-  band.innerHTML = mt === 1 ? '내 팀 · <b>🔷 1팀</b>' : mt === 2 ? '내 팀 · <b>🔶 2팀</b>' : '데스크톱 창에서 <b>내 이름</b>을 설정하세요';
-  el('team1').className = 'ta-team blue' + (mt === 1 ? ' mine' : '');
-  el('team2').className = 'ta-team red' + (mt === 2 ? ' mine' : '');
+  band.innerHTML = mt === 1 ? '<span class="tv-lead">내가 들어갈 팀</span><b class="tv-team">🔷 1팀</b>'
+    : mt === 2 ? '<span class="tv-lead">내가 들어갈 팀</span><b class="tv-team">🔶 2팀</b>'
+    : '데스크톱 창에서 <b>내 이름</b>을 설정하세요';
+  el('team1').className = 'ta-team blue' + (mt === 1 ? ' mine' : mt === 2 ? ' dim' : '');
+  el('team2').className = 'ta-team red' + (mt === 2 ? ' mine' : mt === 1 ? ' dim' : '');
   el('t1-count').textContent = A.length + '명';
   el('t2-count').textContent = B.length + '명';
   el('t1-players').innerHTML = A.length ? A.map(playerRow).join('') : '<li><span class="num"></span><span class="nm" style="color:#5f6478">—</span></li>';
@@ -216,24 +218,82 @@ const COMBAT_ITEMS = [
   { id: 's1_promo_shield', name: '승급전 방어권', ic: '🛡️', desc: '승급전 패배 무효',   price: 100 },
   { id: 's1_promo_win',    name: '승급전 승리권', ic: '⚔️', desc: '승급전 승리 = 2승',   price: 100 },
 ];
-// 가챠 시너지 12종 — 카드 소유(champCards_s2)로 2★/3★ 판정. sid/멤버는 홈 GACHA_SYNERGY_GROUPS와 동일.
+// 가챠 시너지 11종 — 카드 소유(champCards_s2)로 2★/3★ 판정. sid/멤버/효과는 홈 GACHA_SYNERGY_GROUPS와 동일.
+const SYN_PROC = { 2: 30, 3: 50 };   // 발동 확률 (2★ 30% / 3★ 50%)
 const SYN_GROUPS = [
-  { sid: 'warrior',    name: '검을 뽑아라',  ic: '⚔️',  members: ['DrMundo', 'Gangplank', 'Yasuo'] },
-  { sid: 'marksman',   name: '탄환 세례',   ic: '🎯',  members: ['Akshan', 'Jhin', 'Vayne'] },
-  { sid: 'assassin',   name: '그림자 주자', ic: '🌑',  members: ['Fizz', 'Khazix', 'Naafiri'] },
-  { sid: 'ionia',      name: '검무',        ic: '🌸',  members: ['Jhin', 'Yasuo'] },
-  { sid: 'shurima',    name: '나는 왕이다', ic: '👑',  members: ['Akshan', 'Amumu', 'Naafiri', 'Rammus'] },
-  { sid: 'tank',       name: '강철 심장',   ic: '🛡️', members: ['Amumu', 'Malphite', 'Poppy', 'Rammus'] },
-  { sid: 'demacia',    name: '여명의 의지', ic: '☀️',  members: ['Morgana', 'Poppy', 'Vayne'] },
-  { sid: 'bilgewater', name: '해적의 보물', ic: '🏴‍☠️', members: ['Fizz', 'Gangplank'] },
-  { sid: 'support',    name: '신성한 개입', ic: '💚',  members: ['Lulu', 'Morgana'] },
-  { sid: 'mage',       name: '유레카',      ic: '🎲',  members: ['Brand', 'Malzahar', 'Mel'] },
-  { sid: 'void',       name: '공허 균열',   ic: '🌀',  members: ['Khazix', 'Malzahar'] },
+  { sid: 'warrior',    name: '검을 뽑아라',  ic: '⚔️',  members: ['DrMundo', 'Gangplank', 'Yasuo'], effType: 'win_lp', v2: 2, v3: 3, cond: '킬 8+' },
+  { sid: 'marksman',   name: '탄환 세례',   ic: '🎯',  members: ['Akshan', 'Jhin', 'Vayne'], effType: 'win_lp', v2: 2, v3: 3, cond: '딜량 25,000+' },
+  { sid: 'assassin',   name: '그림자 주자', ic: '🌑',  members: ['Fizz', 'Khazix', 'Naafiri'], effType: 'win_lp', v2: 2, v3: 3, cond: '킬 6+ & 데스 4+' },
+  { sid: 'ionia',      name: '검무',        ic: '🌸',  members: ['Jhin', 'Yasuo'], effType: 'win_lp', v2: 1, v3: 2, cond: 'KDA 4.0+' },
+  { sid: 'shurima',    name: '나는 왕이다', ic: '👑',  members: ['Akshan', 'Amumu', 'Naafiri', 'Rammus'], effType: 'win_lp', v2: 3, v3: 4, cond: '킬+어시 23+' },
+  { sid: 'tank',       name: '강철 심장',   ic: '🛡️', members: ['Amumu', 'Malphite', 'Poppy', 'Rammus'], effType: 'lp_block', v2: 2, v3: 3, special: 'unbreakable', goldV2: 40, goldV3: 40, cond: '데스 8+' },
+  { sid: 'demacia',    name: '여명의 의지', ic: '☀️',  members: ['Morgana', 'Poppy', 'Vayne'], effType: 'lp_block', v2: 2, v3: 3, cond: 'KDA 2.2+' },
+  { sid: 'bilgewater', name: '해적의 보물', ic: '🏴‍☠️', members: ['Fizz', 'Gangplank'], effType: 'win_gold', v2: 40, v3: 60, cond: '골드 14,000+' },
+  { sid: 'support',    name: '신성한 개입', ic: '💚',  members: ['Lulu', 'Morgana'], effType: 'win_gold', v2: 40, v3: 60, lossV2: 15, lossV3: 25, cond: '어시 15+' },
+  { sid: 'mage',       name: '유레카',      ic: '🎲',  members: ['Brand', 'Malzahar', 'Mel'], effType: 'risk_win', v2: 5, v3: 6, lossV: 6, cond: '딜량 25,000+' },
+  { sid: 'void',       name: '공허 균열',   ic: '🌀',  members: ['Khazix', 'Malzahar'], effType: 'risk_block', failV2: 6, failV3: 10 },
 ];
+// 시너지 효과 문구 (홈 _synEffTxt 이식) — 전체 설명
+function synEffTxt(g, tier) {
+  const proc = SYN_PROC[tier] || 30, v = tier === 3 ? g.v3 : g.v2;
+  switch (g.effType) {
+    case 'win_lp':   return `${g.cond ? g.cond + ' 달성 후 ' : ''}승리 시 ${proc}% 확률로 LP +${v} 추가 획득`;
+    case 'lp_block': { const cp = g.cond ? `${g.cond} · ` : ''; if (g.special === 'unbreakable') { const gl = tier === 3 ? g.goldV3 : g.goldV2; return `${cp}패배해도 ${proc}% 확률로 LP를 ${v} 덜 잃고 골드 +${gl}G`; } return `${cp}패배해도 ${proc}% 확률로 LP를 ${v} 덜 잃음`; }
+    case 'win_gold': { const cp = g.cond ? `${g.cond} 달성 후 ` : ''; const lg = g.lossV2 != null ? (tier === 3 ? g.lossV3 : g.lossV2) : 0; return `${cp}승리 시 ${proc}% 확률로 골드 +${v}${lg ? ` · 패배 시 위로금 +${lg}G(무조건)` : ''}`; }
+    case 'risk_win':  return `[양날의 검] 승리 시 ${g.cond ? g.cond + ' 달성하면 ' : ''}${proc}% 확률 LP +${v} · 패배 시 조건없이 ${proc}% 확률 LP −${g.lossV}`;
+    case 'risk_block': { const f = tier === 3 ? g.failV3 : g.failV2; return `[도박] 패배 시 ${proc}% 확률로 잃을 LP 전부 방어 · 실패하면 LP −${f} 추가 손실 (승리 시 효과 없음)`; }
+  }
+  return '';
+}
+// 시너지 효과 짧은 요약 (아코디언 접힘 상태 한 줄)
+function synEffShort(g, tier) {
+  const v = tier === 3 ? g.v3 : g.v2;
+  switch (g.effType) {
+    case 'win_lp':   return `승리 LP +${v}`;
+    case 'lp_block': return `패배 방어 LP ${v}${g.special === 'unbreakable' ? ' +골드' : ''}`;
+    case 'win_gold': return `승리 골드 +${v}${g.lossV2 != null ? ' +위로금' : ''}`;
+    case 'risk_win': return `LP +${v} / 패배 −${g.lossV}`;
+    case 'risk_block': return `패배 LP 전액 방어 / 실패 −${tier === 3 ? g.failV3 : g.failV2}`;
+  }
+  return '';
+}
 const _TPOW = { stable: 1, precise: 3, overload: 6 };
 const _emLevel = em => (em.slots || []).filter(s => s && s.ok).length;
 const _emPower = em => (em.slots || []).reduce((s, x) => s + (x && x.ok ? (_TPOW[x.t] || 0) : 0), 0);
 const _emGrade = p => p >= 25 ? '프리즘' : p >= 10 ? '골드' : p >= 1 ? '실버' : '기본';
+// 🔨 강철심장 걸작 효과 정의 (홈 EMBLEM_EFFECTS 이식 — 표시용)
+const EMBLEM_EFFECTS = {
+  matchG:   { icon: '🪙', name: '경기 골드', color: '#cbd5e1', base: 5,  cap: 0,  fmt: v => `+${v}G` },
+  winG:     { icon: '🏆', name: '승리 골드', color: '#ffd24a', base: 8,  cap: 0,  fmt: v => `+${v}G` },
+  attend:   { icon: '📅', name: '출석 골드', color: '#34d399', base: 15, cap: 0,  fmt: v => `+${v}G` },
+  mvpG:     { icon: '⭐', name: 'MVP 골드',  color: '#a78bfa', base: 15, cap: 0,  fmt: v => `+${v}G` },
+  magollaG: { icon: '🎰', name: '막고라 배당', color: '#f472b6', base: 5, cap: 60, fmt: v => `+${v}%` },
+  winLP:    { icon: '⚡', name: '승리 LP',   color: '#60a5fa', base: 2, cap: 6, fmt: v => `+${v}LP` },
+  lossLP:   { icon: '🛡️', name: '패배 방어', color: '#7dd3fc', base: 2, cap: 6, fmt: v => `-${v}LP` },
+  lottoTkt: { icon: '🎫', name: '해골 감소', color: '#7dd3fc', base: 1, cap: 1, fmt: v => `-${Math.round(v * 100)}%` },
+  yuumiCut: { icon: '🐱', name: '유미 파견', color: '#c4b5fd', base: 4, cap: 30, perCap: 10, fmt: v => `-${v}분` },
+  yuumiCool:{ icon: '💤', name: '유미 휴식', color: '#a5b4fc', base: 4, cap: 30, perCap: 10, fmt: v => `-${v}분` },
+};
+const _LOTTO_PER = 0.70 / 3, _EM_LPK = 0.025, _EM_LPCAP = 0.70;
+function emPerLine(eid, power) {
+  const d = EMBLEM_EFFECTS[eid]; if (!d) return 0;
+  if (eid === 'lottoTkt') return _LOTTO_PER;
+  if (eid === 'winLP' || eid === 'lossLP') return d.base;   // 효과량 고정(성능은 발동확률에)
+  const v = Math.round(d.base * (1 + power * 0.1));
+  return d.perCap ? Math.min(d.perCap, v) : v;
+}
+function emLpChance(power) { return power > 0 ? Math.min(_EM_LPCAP, power * _EM_LPK) : 0; }
+// 걸작 줄 효과 목록 HTML (홈 _emEffLines 이식)
+function emEffLinesHtml(em) {
+  const pw = _emPower(em), lpc = Math.round(emLpChance(pw) * 100);
+  const lines = Array.isArray(em && em.lines) ? em.lines.filter(eid => EMBLEM_EFFECTS[eid]) : [];
+  if (!lines.length) return `<div class="it-eff-empty">걸작 미제작 · 홈페이지 대장간에서 제작</div>`;
+  return lines.map(eid => {
+    const ef = EMBLEM_EFFECTS[eid], per = emPerLine(eid, pw);
+    const pct = (eid === 'winLP' || eid === 'lossLP') ? `<span class="it-eff-pct">발동 ${lpc}%</span>` : '';
+    return `<div class="it-eff-row"><span class="it-eff-nm">${ef.icon} ${esc(ef.name)}</span>${pct}<span class="it-eff-v" style="color:${ef.color}">${ef.fmt(per)}</span></div>`;
+  }).join('');
+}
 
 function itemActive() { return !!(itemData && itemSecsLeft() > 0); }
 function itemSecsLeft() { return Math.max(0, 15 - Math.floor((Date.now() - _itemSeenAt) / 1000)); }
@@ -244,6 +304,19 @@ function _eqEmblemId(d) {   // 현재 장착 강철심장 id(명시적 장착 �
   const top = arr.slice().sort((a, b) => _emPower(b) - _emPower(a))[0];
   return top ? top.id : null;
 }
+// 아코디언 1칸 HTML — 접힘(아이콘+이름+짧은효과+상태) / 펼침(효과 상세 + 액션 버튼)
+function accHtml(akey, ic, title, short, badge, effHtml, btnHtml) {
+  const open = _itOpen.has(akey) ? ' open' : '';
+  return `<div class="it-acc${open}" data-akey="${akey}">`
+    + `<div class="it-achd" data-k="${akey}"><span class="it-ic">${ic}</span>`
+    + `<span class="it-info"><b>${title}</b><small>${esc(short)}</small></span>${badge}<span class="it-chev">▾</span></div>`
+    + `<div class="it-acbody">${effHtml}${btnHtml}</div></div>`;
+}
+function toggleAcc(k) {
+  if (_itOpen.has(k)) _itOpen.delete(k); else _itOpen.add(k);
+  const acc = el('it-body').querySelector(`.it-acc[data-akey="${k}"]`);
+  if (acc) acc.classList.toggle('open', _itOpen.has(k));
+}
 function renderItem() {
   el('it-sec').textContent = itemSecsLeft();
   const d = _gd();
@@ -253,41 +326,44 @@ function renderItem() {
 
   // ① 전투 아이템(보유=활성화 토글 / 미보유=구매)
   const itemsHtml = COMBAT_ITEMS.map(ci => {
-    const owned = cnt(ci.id), act = on(ci.id);
-    if (owned) return `<button class="it-chip ${act ? 'on' : 'own'}" data-act="toggle" data-id="${ci.id}">`
-      + `<span class="it-ic">${ci.ic}</span><span class="it-info"><b>${ci.name}${owned > 1 ? ` <em>×${owned}</em>` : ''}</b><small>${ci.desc}</small></span>`
-      + `<span class="it-st">${act ? '✓ 켜짐' : '켜기'}</span></button>`;
-    return `<button class="it-chip buy" data-act="buy" data-id="${ci.id}">`
-      + `<span class="it-ic">${ci.ic}</span><span class="it-info"><b>${ci.name}</b><small>${ci.desc}</small></span>`
-      + `<span class="it-st st-buy">${ci.price}G 구매</span></button>`;
+    const owned = cnt(ci.id), act = on(ci.id), akey = `item:${ci.id}`;
+    const badge = owned ? (act ? '<span class="it-badge on">✓ 켜짐</span>' : '<span class="it-badge own">보유</span>') : `<span class="it-badge buy">${ci.price}G</span>`;
+    const btn = owned
+      ? `<button class="it-act ${act ? 'act-on' : ''}" data-act="toggle" data-id="${ci.id}">${act ? '✓ 활성화됨 (탭해서 끄기)' : '활성화하기'}</button>`
+      : `<button class="it-act act-buy" data-act="buy" data-id="${ci.id}">${ci.price}G 구매하기</button>`;
+    const eff = `<div class="it-eff"><div class="it-eff-row"><span class="it-eff-nm">효과</span><span class="it-eff-v">${esc(ci.desc)}</span></div></div>`;
+    return accHtml(akey, ci.ic, `${esc(ci.name)}${owned > 1 ? ` ×${owned}` : ''}`, ci.desc, badge, eff, btn);
   }).join('');
 
-  // ② 강철심장(장착)
+  // ② 강철심장(장착) — 걸작 효과 목록 펼침
   const emblems = (Array.isArray(d.emblems_s2) ? d.emblems_s2 : []).filter(Boolean).slice().sort((a, b) => _emPower(b) - _emPower(a));
   const eqId = _eqEmblemId(d);
   const emHtml = emblems.length ? emblems.map(em => {
-    const p = _emPower(em), lv = _emLevel(em), g = _emGrade(p), eq = em.id === eqId;
-    return `<button class="it-chip ${eq ? 'on' : 'own'}" data-act="emblem" data-id="${em.id}">`
-      + `<span class="it-ic">⚒️</span><span class="it-info"><b>${em.nick ? esc(em.nick) : '+' + lv} <em class="g-${g}">${g}</em></b><small>성능 ${p} · Lv${lv}</small></span>`
-      + `<span class="it-st">${eq ? '✓ 장착' : '장착'}</span></button>`;
+    const p = _emPower(em), lv = _emLevel(em), g = _emGrade(p), eq = em.id === eqId, akey = `em:${em.id}`;
+    const title = `${em.nick ? esc(em.nick) : '강철심장 +' + lv} <em class="g-${g}">${g}</em>`;
+    const badge = eq ? '<span class="it-badge on">✓ 장착</span>' : '<span class="it-badge own">장착</span>';
+    const btn = `<button class="it-act ${eq ? 'act-on' : ''}" data-act="emblem" data-id="${em.id}">${eq ? '✓ 장착됨 (탭해서 해제)' : '이걸로 장착하기'}</button>`;
+    return accHtml(akey, '⚒️', title, `성능 ${p} · Lv${lv}`, badge, `<div class="it-eff">${emEffLinesHtml(em)}</div>`, btn);
   }).join('') : `<div class="it-empty">보유한 강철심장이 없어요</div>`;
 
-  // ③ 시너지(활성화) — 카드 소유분만
+  // ③ 시너지(활성화) — 카드 소유분만, 효과 펼침
   const cards = d.champCards_s2 || {};
   const ownsTier = (g, t) => g.members.every(s => { const c = cards[s] || {}; return t === 3 ? (c.s3 || 0) >= 1 : ((c.s2 || 0) >= 1 || (c.s3 || 0) >= 1); });
   const asyn = d.activeSynergy_s2 || null;
   const synList = SYN_GROUPS.map(g => { const t = ownsTier(g, 3) ? 3 : ownsTier(g, 2) ? 2 : 0; return t ? { g, t } : null; }).filter(Boolean);
   const synHtml = synList.length ? synList.map(({ g, t }) => {
-    const act = asyn && asyn.sid === g.sid && asyn.tier === t;
-    return `<button class="it-chip ${act ? 'on' : 'own'}" data-act="synergy" data-sid="${g.sid}" data-tier="${t}">`
-      + `<span class="it-ic">${g.ic}</span><span class="it-info"><b>${g.name} <em>${'★'.repeat(t)}</em></b><small>${g.members.length}종 세트</small></span>`
-      + `<span class="it-st">${act ? '✓ 활성' : '활성화'}</span></button>`;
+    const act = asyn && asyn.sid === g.sid && asyn.tier === t, akey = `syn:${g.sid}:${t}`;
+    const badge = act ? '<span class="it-badge on">✓ 활성</span>' : '<span class="it-badge own">활성화</span>';
+    const btn = `<button class="it-act ${act ? 'act-on' : ''}" data-act="synergy" data-sid="${g.sid}" data-tier="${t}">${act ? '✓ 활성화됨 (탭해서 끄기)' : '이걸로 활성화하기'}</button>`;
+    const eff = `<div class="it-eff"><div class="it-eff-full" style="color:#cdbe91">${esc(synEffTxt(g, t))}</div><div class="it-eff-cond">${g.members.length}종 세트 완성</div></div>`;
+    return accHtml(akey, g.ic, `${esc(g.name)} <em>${'★'.repeat(t)}</em>`, synEffShort(g, t), badge, eff, btn);
   }).join('') : `<div class="it-empty">활성화할 시너지가 없어요 (카드 미완성)</div>`;
 
   el('it-body').innerHTML = `<div class="it-sec-h">🎒 전투 아이템</div>${itemsHtml}`
     + `<div class="it-sec-h">⚒️ 강철심장</div>${emHtml}`
     + `<div class="it-sec-h">🃏 시너지</div>${synHtml}`;
-  el('it-body').querySelectorAll('.it-chip').forEach(b => b.onclick = () => onItemAction(b));
+  el('it-body').querySelectorAll('.it-achd').forEach(h => h.onclick = () => toggleAcc(h.dataset.k));
+  el('it-body').querySelectorAll('.it-act').forEach(b => b.onclick = (e) => { e.stopPropagation(); onItemAction(b); });
 }
 
 async function onItemAction(b) {
