@@ -37,9 +37,8 @@ header #close:hover { background:#e0483a; color:#fff; }
 .ta-team.mine.blue .ta-label::after { background:rgba(56,217,192,0.22); color:#7ff0e2; }
 .ta-team.mine.red  .ta-label::after { background:rgba(232,200,74,0.22); color:#ffe39a; }
 
-/* 좌우 나란히 — 좁아지면 자동으로 세로 스택(반응형) */
-.ta-teams { display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:start; }
-@media (max-width:330px) { .ta-teams { grid-template-columns:1fr; } }
+/* 세로 스택(1팀 위·2팀 아래) — 좁고 긴 도킹 패널에 꽉 차게 */
+.ta-teams { display:flex; flex-direction:column; gap:9px; }
 
 .ta-team { position:relative; border-radius:13px; overflow:hidden; min-width:0;
   background:linear-gradient(160deg, rgba(20,17,10,0.96), rgba(11,9,5,0.98)); border:1px solid; }

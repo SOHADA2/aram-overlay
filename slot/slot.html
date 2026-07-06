@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; background:transparent; overflow:hidden; -webkit-user-select:none;
+      display:flex; flex-direction:column; align-items:center; justify-content:flex-start; }
+    #badge { font-family:'Black Han Sans',sans-serif; font-size:15px; letter-spacing:0.5px; white-space:nowrap;
+      padding:8px 16px; border-radius:12px; color:#04140f;
+      background:linear-gradient(180deg,#12e4d0,#0aa596);
+      box-shadow:0 6px 20px rgba(0,0,0,0.55), 0 0 22px rgba(10,200,185,0.55);
+      animation:bob 1.3s ease-in-out infinite; }
+    #arrow { margin-top:2px; font-size:22px; line-height:1; color:#12e4d0; text-shadow:0 2px 8px rgba(0,0,0,0.65);
+      animation:down 1.3s ease-in-out infinite; }
+    @keyframes bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-3px); } }
+    @keyframes down { 0%,100% { transform:translateY(0); opacity:0.65; } 50% { transform:translateY(4px); opacity:1; } }
+    body.t2 #badge { background:linear-gradient(180deg,#ffdf7a,#c89b3c); color:#1a1206;
+      box-shadow:0 6px 20px rgba(0,0,0,0.55), 0 0 22px rgba(200,170,110,0.55); }
+    body.t2 #arrow { color:#ffdf7a; }
+  </style>
+</head>
+<body class="t1">
+  <div id="badge">🔷 여기가 내 팀 · 입장!</div>
+  <div id="arrow">▼</div>
+  <script>
+    window.api.onSlotTeam(t => {
+      document.body.className = t === 2 ? 't2' : 't1';
+      document.getElementById('badge').textContent = (t === 2 ? '🔶' : '🔷') + ' 여기가 내 팀 · 입장!';
+    });
+  </script>
+</body>
+</html>

@@ -35,6 +35,7 @@ function saveConfig() { try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(confi
 let dockedBounds = null;   // 마지막 적용 좌표(중복 setBounds 방지)
 let dockedNow = false, dockProc = null, _dockBuf = '';
 let leftWin = null, leftDockedBounds = null, leftUserHid = false;   // 🖥️ 왼쪽 도킹 = 내 정보(프로필/기록/랭킹)
+let slotWin = null, _slotSig = '', _slotTeam = 0;   // 📍 클라 로비 위 '내 팀 여기' 마커
 const _dockScript = `
 $ErrorActionPreference='SilentlyContinue'
 Add-Type @'
@@ -114,6 +115,36 @@ function applyDockLeft(pb) {                    // 내 정보 패널 = 클라 '�
   leftWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
 }
 function hideLeftPanel() { if (leftWin && !leftWin.isDestroyed() && leftWin.isVisible()) leftWin.hide(); leftDockedBounds = null; }
+// 📍 클라 로비 위 '내 팀 여기' 마커 — 클릭 통과(setIgnoreMouseEvents) 작은 배지+화살표
+function createSlotWin() {
+  slotWin = new BrowserWindow({
+    width: 200, height: 66, show: false, frame: false, transparent: true,
+    resizable: false, focusable: false, skipTaskbar: true, alwaysOnTop: false, roundedCorners: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  slotWin.setIgnoreMouseEvents(true, { forward: true });   // 클릭 통과 → 클라 조작 방해 X
+  slotWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  slotWin.loadFile('slot/slot.html');
+  slotWin.on('closed', () => { slotWin = null; });
+}
+function hideSlotMarker() { if (slotWin && !slotWin.isDestroyed() && slotWin.isVisible()) slotWin.hide(); _slotSig = ''; }
+function updateSlotMarker(p) {   // p=[L,T,R,B] 원시 px(클라 감지됨)
+  const t = teamOf(sessionData, config.myName);
+  const side = t === 'teamA' ? 1 : t === 'teamB' ? 2 : 0;
+  if (config.slot === false || inGame || !side) { hideSlotMarker(); return; }   // 로비+내 팀 있을 때만
+  if (!slotWin || slotWin.isDestroyed()) createSlotWin();
+  const sf = (screen.getPrimaryDisplay().scaleFactor) || 1;
+  const cx = p[0] / sf, cy = p[1] / sf, cw = (p[2] - p[0]) / sf, ch = (p[3] - p[1]) / sf;
+  const colCx = side === 1 ? cx + cw * 0.26 : cx + cw * 0.74;   // 1팀=왼쪽 컬럼 / 2팀=오른쪽 컬럼 중앙
+  const x = Math.round(colCx - 100), y = Math.round(cy + ch * 0.105);   // 팀 헤더 위쪽
+  const sig = `${x},${y},${side}`;
+  if (sig !== _slotSig) {
+    _slotSig = sig;
+    slotWin.setBounds({ x, y, width: 200, height: 66 });
+    if (side !== _slotTeam) { _slotTeam = side; try { slotWin.webContents.send('slot-team', side); } catch (_) {} }
+  }
+  if (!slotWin.isVisible()) slotWin.showInactive();
+}
 // 🪟 클라와 같은 층위 — 롤 클라(또는 우리 패널)가 활성일 때만 패널을 위로, 아니면 뒤로(다른 앱에 안 가림)
 let clientFg = false, panelFg = false, _lastRaise = null, _dropTimer = null;
 let _ovFocus = false, _lfFocus = false;
@@ -121,7 +152,7 @@ function applyRaise() {
   if (inGame) return;   // 게임 중(전체화면)엔 pollGame이 오버레이를 위로 올림
   const raise = !!(clientFg || panelFg);
   if (raise === _lastRaise) return; _lastRaise = raise;
-  for (const win of [overlayWin, leftWin]) if (win && !win.isDestroyed()) { try { win.setAlwaysOnTop(raise, raise ? 'screen-saver' : 'normal'); } catch (_) {} }
+  for (const win of [overlayWin, leftWin, slotWin]) if (win && !win.isDestroyed()) { try { win.setAlwaysOnTop(raise, raise ? 'screen-saver' : 'normal'); } catch (_) {} }
 }
 function evalRaise() {   // 올릴 땐 즉시, 내릴 땐 살짝 텀(클라↔패널 클릭 전환 깜빡임 방지)
   if (clientFg || panelFg) { if (_dropTimer) { clearTimeout(_dropTimer); _dropTimer = null; } applyRaise(); }
@@ -131,7 +162,7 @@ function setPanelFg() { const v = _ovFocus || _lfFocus; if (v !== panelFg) { pan
 function handleDockLine(line) {
   const p = line.split(/\s+/).map(Number);
   const valid = p.length >= 4 && p.slice(0, 4).every(Number.isFinite) && (p[2] - p[0]) >= 700 && (p[3] - p[1]) >= 400;
-  if (config.dock === false || !valid) { setDockedFlag(false); hideLeftPanel(); if (clientFg) { clientFg = false; evalRaise(); } return; }   // 도킹 끔/클라 없음
+  if (config.dock === false || !valid) { setDockedFlag(false); hideLeftPanel(); hideSlotMarker(); if (clientFg) { clientFg = false; evalRaise(); } return; }   // 도킹 끔/클라 없음
   const fg = p[4] === 1;                            // 롤 클라가 지금 활성창인가
   if (fg !== clientFg) { clientFg = fg; evalRaise(); }
   const w = p[2] - p[0], h = p[3] - p[1], sig = `${p[0]},${p[1]},${w},${h}`;
@@ -144,6 +175,8 @@ function handleDockLine(line) {
     if (sig !== leftDockedBounds) { leftDockedBounds = sig; applyDockLeft({ x: p[0], y: p[1], w, h }); }
     if (leftWin && !leftWin.isDestroyed() && !leftWin.isVisible()) leftWin.showInactive();
   }
+  // 📍 내 팀 마커 = 로비 팀 컬럼 위
+  updateSlotMarker(p);
 }
 function startDockStream() {
   if (dockProc) return;
@@ -437,7 +470,7 @@ async function pollGame() {
     inGame = nowIn;
     // 게임 중(전체화면)만 위로, 로비/클라에선 같은 층위(클라 활성 시에만 evalRaise가 올림)
     try { if (overlayWin && !overlayWin.isDestroyed()) overlayWin.setAlwaysOnTop(inGame, inGame ? 'screen-saver' : 'normal'); } catch (_) {}
-    if (inGame) { if (!userHid) showOverlay(); }
+    if (inGame) { if (!userHid) showOverlay(); hideSlotMarker(); }   // 게임 중엔 마커 숨김
     else { hideOverlay(); userHid = false; latestPlayers = []; _lastRaise = null; evalRaise(); }   // 게임 종료 → 로비 층위 재적용
     broadcast('state', { inGame, label: inGame ? '게임 중' : '대기' });
   }
