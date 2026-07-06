@@ -18,6 +18,7 @@ window.api.onState(({ inGame: ig, label }) => { inGame = !!ig; phaseLabel = labe
 window.api.onPlayers(({ players, lpMap: m }) => { roster = players || []; if (m) lpMap = m; render(); });
 window.api.onSession(({ session, myName: mn, lpMap: m }) => { sessionData = session || null; if (mn !== undefined) myName = mn || ''; if (m) lpMap = m; render(); });
 window.api.onMyName(name => { myName = name || ''; render(); });
+window.api.onDocked(v => { document.body.classList.toggle('docked', !!v); });   // 🖥️ 도킹 중=각진 모서리
 window.api.onSettlement(d => { settleData = d || null; render(); });
 window.api.onItemPhase(d => {
   itemData = d || null;

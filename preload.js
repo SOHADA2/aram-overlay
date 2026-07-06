@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   onSession: (cb) => ipcRenderer.on('session', (_e, d) => cb(d)),
   onMyName: (cb) => ipcRenderer.on('myname', (_e, n) => cb(n)),
   onVersion: (cb) => ipcRenderer.on('version', (_e, v) => cb(v)),   // 🔖 홈페이지 버전(실시간 동기화)
+  onDocked: (cb) => ipcRenderer.on('docked', (_e, v) => cb(v)),     // 🖥️ 클라 도킹 중이면 각진 모서리
   // 🔄 업데이트 토스트
   onUpdateInfo: (cb) => ipcRenderer.on('update-info', (_e, d) => cb(d)),
   updateNow: () => ipcRenderer.send('update-now'),

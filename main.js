@@ -8,7 +8,7 @@ const { autoUpdater } = require('electron-updater');   // 🔄 GitHub Releases �
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 
 const WEB_URL = 'https://sohada2.github.io/aram/';
 const FIREBASE_DB = 'https://aramchaos-ca022-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -30,9 +30,10 @@ let CONFIG_PATH = '';
 function loadConfig() { try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (_) { return {}; } }
 function saveConfig() { try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(config)); } catch (_) {} }
 
-// 🖥️ 롤 클라이언트 창에 도킹(오른쪽 가장자리에 붙이기·GGQ 스타일)
-let dockedBounds = null;   // 마지막으로 맞춘 클라 물리좌표(중복 setBounds 방지)
-const _psScript = `
+// 🖥️ 롤 클라이언트 창에 도킹 — 지속 PowerShell 스트림(~160ms)으로 실시간 추종(찰싹 따라옴)
+let dockedBounds = null;   // 마지막 적용 좌표(중복 setBounds 방지)
+let dockedNow = false, dockProc = null, _dockBuf = '';
+const _dockScript = `
 $ErrorActionPreference='SilentlyContinue'
 Add-Type @'
 using System;using System.Runtime.InteropServices;
@@ -50,20 +51,12 @@ public class Win{
  }
 }
 '@
-[Win]::Find()`;
-const _psB64 = Buffer.from(_psScript, 'utf16le').toString('base64');
-function findClientBounds() {                 // 롤 클라 창의 물리 픽셀 사각형 반환(없으면 null)
-  return new Promise(resolve => {
-    execFile('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', _psB64],
-      { timeout: 4000, windowsHide: true }, (err, stdout) => {
-        if (err || !stdout) return resolve(null);
-        const p = stdout.trim().split(/\s+/).map(Number);
-        const w = p[2] - p[0], h = p[3] - p[1];
-        if (p.length === 4 && p.every(Number.isFinite) && w >= 700 && h >= 400)   // 유령/최소화 창(136x39 등) 무시
-          resolve({ x: p[0], y: p[1], w, h });
-        else resolve(null);
-      });
-  });
+while($true){ [Console]::Out.WriteLine([Win]::Find()); [Console]::Out.Flush(); Start-Sleep -Milliseconds 160 }`;
+const _dockB64 = Buffer.from(_dockScript, 'utf16le').toString('base64');
+
+function setDockedFlag(v) {                    // 도킹 상태 → 오버레이에 알려 모서리 각지게(각/둥금 전환)
+  if (v === dockedNow) return; dockedNow = v;
+  if (overlayWin && !overlayWin.isDestroyed()) overlayWin.webContents.send('docked', v);
 }
 function applyDock(pb) {                       // 물리좌표 → DIP 변환 후 클라 오른쪽 '바깥'에 붙임
   if (!overlayWin || !pb) return;
@@ -72,19 +65,35 @@ function applyDock(pb) {                       // 물리좌표 → DIP 변환 �
   const disp = screen.getDisplayMatching({ x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) });
   const dispRight = disp.workArea.x + disp.workArea.width;
   let W = Math.min(400, Math.round(dispRight - (cx + cw)));   // 클라 오른쪽 바깥 남은 공간(최대 400)
-  if (W < 300) W = 300;                                       // 공간 부족하면 300(살짝 겹칠 수 있음)
-  let x = Math.round(cx + cw);                                // 클라 오른쪽 '바깥'
-  if (x + W > dispRight) x = Math.max(disp.workArea.x, dispRight - W);   // 화면 밖이면 안으로 당김
+  if (W < 300) W = 300;
+  let x = Math.round(cx + cw);
+  if (x + W > dispRight) x = Math.max(disp.workArea.x, dispRight - W);
   overlayWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
 }
-async function pollDock() {
-  if (config.dock === false) return;           // 도킹 끈 상태면 자유 배치
-  const pb = await findClientBounds();
-  if (!pb) return;                             // 클라 안 떠 있으면 그대로 둠
-  const sig = `${pb.x},${pb.y},${pb.w},${pb.h}`;
-  if (sig !== dockedBounds) { dockedBounds = sig; applyDock(pb); }
-  if (overlayWin && !overlayWin.isVisible() && !userHid) overlayWin.showInactive();  // 클라 뜨면 자동 표시
+function handleDockLine(line) {
+  if (config.dock === false) { setDockedFlag(false); return; }   // 도킹 끔
+  const p = line.split(/\s+/).map(Number);
+  if (p.length !== 4 || !p.every(Number.isFinite)) { setDockedFlag(false); return; }  // 클라 없음(게임중·닫힘)→각짐 해제
+  const w = p[2] - p[0], h = p[3] - p[1];
+  if (w < 700 || h < 400) return;                                // 유령/최소화 창 무시
+  const sig = `${p[0]},${p[1]},${w},${h}`;
+  if (sig !== dockedBounds) { dockedBounds = sig; applyDock({ x: p[0], y: p[1], w, h }); }
+  setDockedFlag(true);
+  if (overlayWin && !overlayWin.isVisible() && !userHid) overlayWin.showInactive();   // 클라 뜨면 자동 표시
 }
+function startDockStream() {
+  if (dockProc) return;
+  try {
+    dockProc = spawn('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', _dockB64], { windowsHide: true });
+    dockProc.stdout.on('data', chunk => {
+      _dockBuf += chunk.toString(); let i;
+      while ((i = _dockBuf.indexOf('\n')) >= 0) { const ln = _dockBuf.slice(0, i).trim(); _dockBuf = _dockBuf.slice(i + 1); handleDockLine(ln); }
+    });
+    dockProc.on('exit', () => { dockProc = null; if (!app._quitting) setTimeout(startDockStream, 2000); });  // 죽으면 재기동
+    dockProc.on('error', () => { dockProc = null; });
+  } catch (_) { dockProc = null; }
+}
+function stopDockStream() { if (dockProc) { try { dockProc.kill(); } catch (_) {} dockProc = null; } }
 
 // 팀 배정 미리보기용 샘플 session
 const SAMPLE_SESSION = {
@@ -502,7 +511,7 @@ function isItemPhase(s) {
 function toggleDock() {
   config.dock = (config.dock === false);   // 뒤집기(기본 켜짐)
   saveConfig();
-  if (config.dock !== false) { dockedBounds = null; pollDock(); }
+  if (config.dock !== false) { dockedBounds = null; }   // 스트림이 다음 틱(~160ms)에 재적용
   refreshTrayMenu();
 }
 let _updateReady = false;
@@ -706,12 +715,11 @@ else {
     makeTray();
     globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
     globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
-    pollGame(); pollLp(); pollSession(); pollSettlement(); pollDock(); pollVersion();
+    pollGame(); pollLp(); pollSession(); pollSettlement(); pollVersion(); startDockStream();
     setInterval(pollGame, 2500);
     setInterval(pollLp, 60000);
     setInterval(pollSession, 3000);
     setInterval(pollSettlement, 3000);  // 💰 정산 결과 감지
-    setInterval(pollDock, 2500);        // 🖥️ 롤 클라 창 따라 도킹
     setInterval(pollVersion, 5 * 60 * 1000);   // 🔖 홈페이지 버전 동기화(5분마다)
     setupAutoUpdate();                  // 🔄 자동 업데이트
     // 🔌 내장 브릿지 시작 — LCU에 붙어 게임 페이즈·EOG 통계를 홈페이지가 읽는 bridge/* 경로에 기록(aram-bridge 대체)
@@ -734,6 +742,6 @@ function setupAutoUpdate() {
   autoUpdater.checkForUpdates().catch(() => {});
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 30 * 60 * 1000);   // 30분마다 재확인
 }
-app.on('before-quit', () => { app._quitting = true; try { bridge.stop(); } catch (_) {} try { stopLiveAccount(); } catch (_) {} });   // 종료: 트레이 숨김 해제 + 브릿지·라이브계정 정리
+app.on('before-quit', () => { app._quitting = true; try { bridge.stop(); } catch (_) {} try { stopLiveAccount(); } catch (_) {} try { stopDockStream(); } catch (_) {} });   // 종료: 브릿지·라이브계정·도킹 스트림 정리
 app.on('window-all-closed', (e) => { /* 트레이 상주 — 창 다 닫혀도 안 죽음 */ });
 app.on('will-quit', () => globalShortcut.unregisterAll());
