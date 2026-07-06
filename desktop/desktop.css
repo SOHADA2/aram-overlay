@@ -15,8 +15,16 @@ html, body { height:100%; font-family:var(--f-body); color:#e8ecf6; background:#
     radial-gradient(ellipse 74% 30% at 40% -2%, rgba(240,192,96,0.18), transparent 66%),
     radial-gradient(ellipse 90% 34% at 50% 104%, rgba(120,86,24,0.20), transparent 62%),
     radial-gradient(ellipse 120% 88% at 50% 0%, #131210 0%, #0b0b0c 44%, #050505 100%); }
-.bg::after { content:''; position:absolute; inset:0; opacity:0.6;
-  background-image:repeating-linear-gradient(135deg, transparent, transparent 22px, rgba(240,200,90,0.016) 22px, rgba(240,200,90,0.016) 23px); }
+/* 🌌 육각 회로 격자 + 골드 펄스 (홈페이지 hexfield 이식) — 헥스텍 정체성 */
+.bg .hexfield { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; opacity:0.9;
+  -webkit-mask-image:radial-gradient(ellipse 122% 100% at 50% 28%, #000 52%, transparent 100%);
+  mask-image:radial-gradient(ellipse 122% 100% at 50% 28%, #000 52%, transparent 100%); }
+.hexfield .hex-grid-path { fill:none; stroke:rgba(202,202,218,0.06); stroke-width:1; }
+.hexfield .route-wire { fill:none; stroke:rgba(240,192,96,0.12); stroke-width:1.1; }
+.hexfield .route-node { fill:rgba(240,192,96,0.2); }
+.hexfield .route-pulse { fill:none; stroke:#ffd76a; stroke-width:1.8; stroke-linecap:round;
+  stroke-dasharray:9 91; filter:drop-shadow(0 0 5px rgba(240,192,96,0.85)); animation:hexFlow linear infinite; }
+@keyframes hexFlow { from { stroke-dashoffset:100; } to { stroke-dashoffset:0; } }
 
 /* 한 화면만 표시 — 창을 꽉 채우고 내부에서 중앙 정렬(넘칠 때만 스크롤) */
 .wrap { position:relative; z-index:1; height:100%; display:flex; flex-direction:column; overflow:hidden; }
@@ -27,13 +35,20 @@ html, body { height:100%; font-family:var(--f-body); color:#e8ecf6; background:#
 /* ── 🎮 로그인(입장) = 게임 접속 화면 ── */
 .entry { gap:0; }
 .hero { text-align:center; margin-bottom:24px; }
-.hero-crest { font-size:46px; line-height:1; margin-bottom:12px; filter:drop-shadow(0 0 26px rgba(240,200,90,0.6)); }
-.hero-title { font-family:var(--f-title); font-size:33px; letter-spacing:1.5px; color:var(--gold);
+.hero-eyebrow { font-size:10px; letter-spacing:4px; color:var(--dim); margin-bottom:11px; opacity:0.85; }
+.hero-crest { font-size:46px; line-height:1; margin-bottom:10px; filter:drop-shadow(0 0 26px rgba(240,200,90,0.6)); }
+.hero-title { font-family:var(--f-title); font-size:34px; letter-spacing:1.5px; color:var(--gold);
   text-shadow:0 0 30px rgba(230,180,70,0.55), 0 3px 6px rgba(0,0,0,0.5); }
-.hero-sub { font-size:11px; color:var(--dim); margin-top:8px; letter-spacing:0.5px; }
-.login-box { display:flex; flex-direction:column; gap:11px; padding:20px 18px; border-radius:16px;
+.hero-s2 { display:inline-block; margin-top:10px; font-family:var(--f-mono); font-size:9.5px; font-weight:700; letter-spacing:2.5px;
+  color:#ffe6a2; background:linear-gradient(180deg, rgba(240,200,90,0.14), rgba(240,200,90,0.06));
+  border:1px solid rgba(240,200,90,0.42); border-radius:20px; padding:3px 13px 4px; box-shadow:0 0 16px rgba(240,200,90,0.12); }
+.hero-sub { font-size:11px; color:var(--dim); margin-top:11px; letter-spacing:0.5px; }
+.login-box { position:relative; display:flex; flex-direction:column; gap:11px; padding:20px 18px; border-radius:16px;
   background:linear-gradient(165deg, rgba(32,26,15,0.92), rgba(14,11,6,0.95));
   border:1px solid rgba(240,200,90,0.32); box-shadow:0 18px 50px rgba(0,0,0,0.55), inset 0 1px 0 rgba(240,200,90,0.06); }
+/* 카드 상단 골드 헤어라인(홈페이지 카드 감성) */
+.login-box::before, .card::before { content:''; position:absolute; top:0; left:22px; right:22px; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(240,200,90,0.55), transparent); }
 .lb-label { font-size:11px; color:var(--dim); font-weight:700; letter-spacing:0.3px; }
 .lb-go { width:100%; font-size:15px; padding:14px; letter-spacing:1px; }
 .lb-hint { font-size:10.5px; color:var(--dim); text-align:center; line-height:1.5; } .lb-hint b { color:#ffe39a; }
@@ -52,7 +67,7 @@ html, body { height:100%; font-family:var(--f-body); color:#e8ecf6; background:#
 /* 공통 폼/버튼(teambuild·홈 공유) */
 select { background:#1a1610; color:#e8ecf6; border:1px solid rgba(240,200,90,0.35); border-radius:10px; padding:12px; font-size:14px; width:100%; font-family:var(--f-body); }
 select:focus { outline:none; border-color:var(--gold); }
-.card { width:100%; max-width:340px; max-height:100%; margin:auto; display:flex; flex-direction:column; gap:11px;
+.card { position:relative; width:100%; max-width:340px; max-height:100%; margin:auto; display:flex; flex-direction:column; gap:11px;
   background:linear-gradient(165deg, rgba(30,25,15,0.85), rgba(15,12,7,0.92));
   border:1px solid rgba(240,200,90,0.28); border-radius:16px; padding:18px; overflow-y:auto;
   box-shadow:0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(240,200,90,0.05); }

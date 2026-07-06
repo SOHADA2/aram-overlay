@@ -1,6 +1,40 @@
 // ── 데스크톱(로그인/홈) — 입장(ID 선택) → 방장 체크 ──────────────────────
 const $ = id => document.getElementById(id);
 
+// 🌌 시즌2 헥스텍 배경 — 홈페이지 _buildHexfield 이식(육각 회로 격자 + 골드 펄스). 작은 창이라 펄스 3개로 가볍게.
+(function buildHexfield() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const VB_W = 900, VB_H = 1300, R = 30, w = R * 0.8660254, dy = 1.5 * R, dx = 2 * w;
+  const cols = Math.ceil(VB_W / dx) + 2, rows = Math.ceil(VB_H / dy) + 2;
+  const V = (cx, cy) => ({ top: [cx, cy - R], ur: [cx + w, cy - R / 2], lr: [cx + w, cy + R / 2], bot: [cx, cy + R], ll: [cx - w, cy + R / 2], ul: [cx - w, cy - R / 2] });
+  const cxcy = (i, j) => [i * dx + ((j & 1) ? w : 0), j * dy];
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'hexfield'); svg.setAttribute('preserveAspectRatio', 'xMidYMid slice'); svg.setAttribute('viewBox', `0 0 ${VB_W} ${VB_H}`);
+  const kkey = p => Math.round(p[0]) + ',' + Math.round(p[1]);
+  const coord = {}, adj = {};
+  const addEdge = (a, b) => { const ka = kkey(a), kb = kkey(b); coord[ka] = a; coord[kb] = b; (adj[ka] = adj[ka] || new Set()).add(kb); (adj[kb] = adj[kb] || new Set()).add(ka); };
+  let gridD = '';
+  for (let j = -1; j < rows; j++) for (let i = -1; i < cols; i++) {
+    const [cx, cy] = cxcy(i, j); const v = V(cx, cy);
+    gridD += `M${v.top}L${v.ur}L${v.lr}L${v.bot}L${v.ll}L${v.ul}Z`;
+    addEdge(v.top, v.ur); addEdge(v.ur, v.lr); addEdge(v.lr, v.bot); addEdge(v.bot, v.ll); addEdge(v.ll, v.ul); addEdge(v.ul, v.top);
+  }
+  const grid = document.createElementNS(NS, 'path'); grid.setAttribute('class', 'hex-grid-path'); grid.setAttribute('d', gridD); svg.appendChild(grid);
+  const cx0 = VB_W * 0.5, cy0 = VB_H * 0.32, rxv = VB_W * 0.40, ryv = VB_H * 0.40;
+  const central = key => { const c = coord[key]; const nx = (c[0] - cx0) / rxv, ny = (c[1] - cy0) / ryv; return nx * nx + ny * ny <= 1; };
+  const starts = Object.keys(adj).filter(central);
+  const walk = steps => { let cur = starts[Math.floor(Math.random() * starts.length)], prev = null; const path = [coord[cur]]; for (let s = 0; s < steps; s++) { const nbrs = [...adj[cur]].filter(x => x !== prev); if (!nbrs.length) break; const nx = nbrs[Math.floor(Math.random() * nbrs.length)]; prev = cur; cur = nx; path.push(coord[cur]); } return path; };
+  if (starts.length) for (let n = 0; n < 3; n++) {
+    const path = walk(6 + Math.floor(Math.random() * 6)); if (path.length < 3) continue;
+    const d = 'M' + path.map(p => p.join(',')).join('L');
+    const wire = document.createElementNS(NS, 'path'); wire.setAttribute('class', 'route-wire'); wire.setAttribute('d', d); svg.appendChild(wire);
+    const pulse = document.createElementNS(NS, 'path'); pulse.setAttribute('class', 'route-pulse'); pulse.setAttribute('d', d); pulse.setAttribute('pathLength', '100');
+    pulse.style.animationDuration = (4.5 + Math.random() * 3).toFixed(2) + 's'; pulse.style.animationDelay = (Math.random() * 3).toFixed(2) + 's'; svg.appendChild(pulse);
+    path.forEach(p => { const c = document.createElementNS(NS, 'circle'); c.setAttribute('class', 'route-node'); c.setAttribute('cx', p[0]); c.setAttribute('cy', p[1]); c.setAttribute('r', '1.7'); svg.appendChild(c); });
+  }
+  const bg = document.querySelector('.bg'); if (bg) bg.appendChild(svg);
+})();
+
 $('open-web').addEventListener('click', () => window.api.openWeb());
 $('preview-team').addEventListener('click', () => window.api.previewSession());
 $('home-overlay').addEventListener('click', () => window.api.homeToggle());
