@@ -37,15 +37,106 @@ const $ = id => document.getElementById(id);
 
 $('s-close').addEventListener('click', () => window.api.sideClose());
 
+// ── 로그인 상태(로그인 ↔ 내 정보) ─────────────────────────────────────────
+let _rosterNames = [], _myName = '', _isHost = false;
+function showLogin() {
+  $('s-login').style.display = 'flex'; $('s-app').style.display = 'none';
+  $('s-ttl').style.display = ''; $('s-me').style.display = 'none'; $('s-host-box').style.display = 'none'; $('s-change').style.display = 'none';
+}
+function showLogged() {
+  $('s-login').style.display = 'none'; $('s-app').style.display = 'flex';
+  $('s-ttl').style.display = 'none';
+  $('s-me').style.display = ''; $('s-me').textContent = _myName;
+  $('s-host-box').style.display = ''; $('s-host').checked = _isHost;
+  $('s-change').style.display = '';
+  $('s-rail-team').style.display = _isHost ? '' : 'none';
+  switchCat(_isHost && _curCat === 'team' ? 'team' : 'profile');
+}
+
 // ── 레일 전환 ────────────────────────────────────────────────────────────
 let _curCat = 'profile';
+function renderCat(cat, silent) {
+  if (cat === 'profile') renderProfile(silent);
+  else if (cat === 'records') renderRecords(silent);
+  else if (cat === 'ranking') renderRanking(silent);
+  else if (cat === 'team') tbRenderList();   // 진행 중 단계(run/done)는 건드리지 않음
+}
 function switchCat(cat) {
   _curCat = cat;
   document.querySelectorAll('.rail-btn').forEach(b => b.classList.toggle('on', b.dataset.cat === cat));
   document.querySelectorAll('.cat-view').forEach(v => { v.style.display = (v.id === 'cat-' + cat) ? 'flex' : 'none'; });
-  if (cat === 'profile') renderProfile(); else if (cat === 'records') renderRecords(); else if (cat === 'ranking') renderRanking();
+  renderCat(cat, false);
 }
 document.querySelectorAll('.rail-btn').forEach(b => b.addEventListener('click', () => switchCat(b.dataset.cat)));
+
+// ── 로그인(입장) + 방장 체크 ──────────────────────────────────────────────
+const esel = $('s-entry-name');
+esel.addEventListener('change', () => { $('s-entry-go').disabled = !esel.value; });
+$('s-entry-go').addEventListener('click', () => {
+  if (!esel.value) return;
+  _myName = esel.value; window.api.setMyName(_myName);
+  showLogged();
+});
+$('s-change').addEventListener('click', showLogin);
+$('s-host').addEventListener('change', () => {
+  _isHost = $('s-host').checked;
+  window.api.setHost(_isHost);
+  $('s-rail-team').style.display = _isHost ? '' : 'none';
+  if (_isHost) switchCat('team'); else if (_curCat === 'team') switchCat('profile');
+});
+
+// ── ⚔️ 팀 짜기(방장 전용) — 홈페이지와 완전 연동(desktop.js 이식) ───────────
+const _tbChecked = new Set(JSON.parse(localStorage.getItem('tbChecked') || '[]'));
+function tbRenderList() {
+  const list = $('tb-list');
+  list.innerHTML = _rosterNames.map(n => {
+    const e = n.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    return `<label class="tb-item${_tbChecked.has(n) ? ' on' : ''}"><input type="checkbox" data-name="${e}"${_tbChecked.has(n) ? ' checked' : ''}><span>${e}</span></label>`;
+  }).join('');
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
+    const name = cb.dataset.name;
+    if (cb.checked) _tbChecked.add(name); else _tbChecked.delete(name);
+    cb.closest('.tb-item').classList.toggle('on', cb.checked);
+    localStorage.setItem('tbChecked', JSON.stringify([..._tbChecked]));
+    tbSync();
+  }));
+  tbSync();
+}
+function tbSync() {
+  const n = _tbChecked.size;
+  $('tb-num').textContent = n;
+  $('tb-go').disabled = n < 4;
+  $('tb-go').textContent = n < 4 ? `⚔️ 팀 구성 (최소 4명 · 현재 ${n}명)` : `⚔️ 팀 구성 — ${n}명 (아이템 15초 후 발표)`;
+}
+function tbShow(step) {
+  $('tb-pick').style.display = step === 'pick' ? '' : 'none';
+  $('tb-run').style.display = step === 'run' ? '' : 'none';
+  $('tb-done').style.display = step === 'done' ? '' : 'none';
+  if (step !== 'error') $('tb-err').style.display = 'none';
+}
+$('tb-go').addEventListener('click', async () => {
+  const mode = document.querySelector('input[name=tb-mode]:checked')?.value || 'balance';
+  $('tb-go').disabled = true;
+  const r = await window.api.tbStart([..._tbChecked], mode);
+  if (!r || !r.ok) { $('tb-err').textContent = '⚠️ ' + ((r && r.err) || '시작 실패'); $('tb-err').style.display = ''; $('tb-go').disabled = false; return; }
+  tbShow('run');
+});
+$('tb-skip').addEventListener('click', () => window.api.tbSkip());
+$('tb-again').addEventListener('click', () => { tbShow('pick'); tbRenderList(); });
+window.api.onTeamBuild(d => {
+  if (!d) return;
+  if (d.state === 'countdown') { tbShow('run'); $('tb-left').textContent = d.left; }
+  else if (d.state === 'building') { $('tb-left').textContent = '0'; }
+  else if (d.state === 'done') {
+    tbShow('done');
+    const row = (label, arr, cls) => `<div class="tbr ${cls}"><b>${label}</b><span>${arr.map(n => n.replace(/</g, '&lt;')).join(' · ')}</span></div>`;
+    $('tb-result').innerHTML = row('1팀', d.teamA, 'a') + row('2팀', d.teamB, 'b') +
+      (d.spectators && d.spectators.length ? row('👁 관전', d.spectators, 's') : '') +
+      `<div class="tbr-ok">✅ 팀 발표 완료 — 홈페이지·오버레이 모두에 떴어요</div>`;
+  }
+  else if (d.state === 'error') { tbShow('pick'); $('tb-err').textContent = '⚠️ ' + d.err; $('tb-err').style.display = ''; $('tb-go').disabled = false; }
+});
+window.api.onVersion(v => { const e = $('s-ver'); if (e) e.textContent = v ? '버전 ' + v : ''; });
 
 // ── 렌더(desktop.js와 동일) ──────────────────────────────────────────────────
 const escH = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -58,10 +149,10 @@ function champCard(cls, label, c) {
   return `<div class="pf-champ"><div class="pf-champ-l ${cls}">${label}</div>`
     + `<div class="pf-champ-row"><img class="pf-cimg" src="${ddImg(c.champ)}" onerror="this.style.visibility='hidden'"><div class="pf-champ-info"><b>${escH(c.champ)}</b><small>${c.games}판 ${c.wins}승 ${c.games - c.wins}패 · ${wr}%</small></div></div></div>`;
 }
-async function renderProfile() {
-  const el = $('pf-body'); el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
+async function renderProfile(silent) {
+  const el = $('pf-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
   const r = await window.api.getProfile();
-  if (!r || !r.ok) { el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '프로필을 불러오지 못했어요 (데스크톱 창에서 아이디를 먼저 선택)')}</div>`; return; }
+  if (!r || !r.ok) { if (!silent) el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '프로필을 불러오지 못했어요')}</div>`; return; }
   if (r.ddVer) _ddVer = r.ddVer;
   const p = r.profile, lp = p.lp, a = p.arena;
   const lpHtml = lp
@@ -79,10 +170,10 @@ async function renderProfile() {
     + `<div class="pf-champs">${champCard('most', '🔥 MOST', p.champs.most)}${champCard('best', '⭐ BEST', p.champs.best)}</div>`
     + (em || syn || bd ? `<div class="pf-loadout">${em}${syn}${bd}</div>` : '');
 }
-async function renderRecords() {
-  const el = $('rc-body'); el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
+async function renderRecords(silent) {
+  const el = $('rc-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
   const r = await window.api.getRecords();
-  if (!r || !r.ok) { el.innerHTML = '<div class="cat-empty">기록을 불러오지 못했어요</div>'; return; }
+  if (!r || !r.ok) { if (!silent) el.innerHTML = '<div class="cat-empty">기록을 불러오지 못했어요</div>'; return; }
   if (r.ddVer) _ddVer = r.ddVer;
   if (!r.records.length) { el.innerHTML = '<div class="cat-empty">시즌2 경기 기록이 아직 없어요</div>'; return; }
   el.innerHTML = r.records.map(m => {
@@ -95,10 +186,10 @@ async function renderRecords() {
     return `<div class="rc-row ${m.mine ? (m.won ? 'mine-w' : 'mine-l') : ''}"><div class="rc-top">${champ}${res}${kda}<span class="rc-size">${m.size}:${m.size}</span></div><div class="rc-teams">${tA}<span class="rc-vs">vs</span>${tB}</div></div>`;
   }).join('');
 }
-async function renderRanking() {
-  const el = $('rk-body'); el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
+async function renderRanking(silent) {
+  const el = $('rk-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
   const r = await window.api.getRanking();
-  if (!r || !r.ok || !r.ranking.length) { el.innerHTML = '<div class="cat-empty">랭킹 정보가 아직 없어요</div>'; return; }
+  if (!r || !r.ok || !r.ranking.length) { if (!silent) el.innerHTML = '<div class="cat-empty">랭킹 정보가 아직 없어요</div>'; return; }
   const me = r.myName;
   el.innerHTML = r.ranking.map(p => {
     const medal = p.rank <= 3 ? ['🥇', '🥈', '🥉'][p.rank - 1] : `<span class="rk-num">${p.rank}</span>`;
@@ -106,5 +197,18 @@ async function renderRanking() {
   }).join('');
 }
 
-switchCat('profile');
-setInterval(() => switchCat(_curCat), 60000);   // 1분마다 현재 탭 갱신
+// 초기 로드: 등록 플레이어 + 로그인 상태
+(async () => {
+  try {
+    const { names, myName, isHost, webVersion } = await window.api.getPlayers();
+    _rosterNames = names || [];
+    if (webVersion) { const e = $('s-ver'); if (e) e.textContent = '버전 ' + webVersion; }
+    esel.innerHTML = '<option value="">— 아이디 선택 —</option>' +
+      _rosterNames.map(n => `<option value="${n.replace(/"/g, '&quot;')}"${n === myName ? ' selected' : ''}>${n}</option>`).join('');
+    $('s-entry-go').disabled = !esel.value;
+    _myName = myName || ''; _isHost = !!isHost;
+    if (_myName) showLogged(); else showLogin();
+  } catch (_) { showLogin(); }
+})();
+// 현재 탭만 조용히 갱신(깜빡임 없이) — 1분마다. 팀짜기 탭은 진행 방해 않게 제외
+setInterval(() => { if ($('s-app').style.display !== 'none' && _curCat !== 'team') renderCat(_curCat, true); }, 60000);

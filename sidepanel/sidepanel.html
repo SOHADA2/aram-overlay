@@ -5,7 +5,7 @@
   <title>내 정보 · 아수라장 내전</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=JetBrains+Mono:wght@600&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../shared.css">
   <link rel="stylesheet" href="../desktop/desktop.css">
   <link rel="stylesheet" href="sidepanel.css">
@@ -14,20 +14,66 @@
   <div class="bg"></div>
   <div id="panel">
     <header id="sbar">
-      <span class="s-ttl">🗡️ 내 정보</span>
+      <span class="s-ttl" id="s-ttl">🗡️ 아수라장 내전</span>
+      <span class="s-me" id="s-me" style="display:none;"></span>
+      <label class="s-host" id="s-host-box" style="display:none;"><input type="checkbox" id="s-host"><span>👑 방장</span></label>
+      <button id="s-change" class="s-mini" style="display:none;">변경</button>
+      <span class="s-sp"></span>
       <button id="s-close" title="닫기">✕</button>
     </header>
-    <div class="app-shell" style="display:flex;">
+
+    <!-- 🎮 로그인(입장) — 아이디 선택 -->
+    <section id="s-login" class="s-login" style="display:none;">
+      <div class="slh"><div class="slh-crest">⚔️</div><div class="slh-title">아수라장 내전</div><div class="slh-sub">SEASON 2 · 내 아이디로 입장</div></div>
+      <div class="s-login-box">
+        <div class="slb-label">계정 선택</div>
+        <select id="s-entry-name"><option value="">— 아이디 선택 —</option></select>
+        <button id="s-entry-go" class="ui-btn-gold slb-go" disabled>입장</button>
+        <div class="slb-hint">홈페이지에 등록된 <b>본인 닉네임</b>을 고르세요</div>
+      </div>
+      <div class="app-ver" id="s-ver"></div>
+    </section>
+
+    <!-- 로그인 후 — 레일(팀짜기·프로필·기록·랭킹) + 콘텐츠 -->
+    <div class="app-shell" id="s-app" style="display:none;">
       <nav class="rail">
         <div class="rail-logo">⚔️</div>
+        <button class="rail-btn" data-cat="team" id="s-rail-team" style="display:none;"><span class="ri">⚔️</span><span class="rl">팀짜기</span></button>
         <button class="rail-btn on" data-cat="profile"><span class="ri">👤</span><span class="rl">프로필</span></button>
         <button class="rail-btn" data-cat="records"><span class="ri">📋</span><span class="rl">기록</span></button>
         <button class="rail-btn" data-cat="ranking"><span class="ri">🏆</span><span class="rl">랭킹</span></button>
       </nav>
       <div class="cat">
+        <!-- ⚔️ 팀짜기(방장 전용) -->
+        <section class="cat-view" id="cat-team">
+          <div class="cat-hd">⚔️ 팀 짜기 <span class="cat-hd-sub">방장</span></div>
+          <div class="cat-scroll ui-scroll">
+            <div id="tb-pick">
+              <div class="tb-row">
+                <span class="tb-count"><b id="tb-num">0</b>명 선택</span>
+                <span class="tb-modes">
+                  <label><input type="radio" name="tb-mode" value="balance" checked> 밸런스</label>
+                  <label><input type="radio" name="tb-mode" value="random"> 랜덤</label>
+                </span>
+              </div>
+              <div id="tb-list" class="tb-list"></div>
+              <button id="tb-go" class="btn-gold" disabled>⚔️ 팀 구성 (아이템 15초 후 발표)</button>
+              <div class="foot-hint">홈페이지 팀원에겐 <b>아이템 타이머 → 팀 발표</b>가 자동으로 떠요.<br>11명 이상·홀수면 관전자 자동 선정.</div>
+            </div>
+            <div id="tb-run" style="display:none;">
+              <div class="tb-timer"><b id="tb-left">15</b><span>초 — 아이템 사용 시간</span></div>
+              <button id="tb-skip" class="btn-ghost">⏭️ 건너뛰고 바로 구성</button>
+            </div>
+            <div id="tb-done" style="display:none;">
+              <div id="tb-result" class="tb-result"></div>
+              <button id="tb-again" class="btn-ghost">다시 팀 짜기</button>
+            </div>
+            <div id="tb-err" class="tb-err" style="display:none;"></div>
+          </div>
+        </section>
         <section class="cat-view" id="cat-profile" style="display:flex;"><div class="cat-hd">내 프로필</div><div id="pf-body" class="cat-scroll ui-scroll"></div></section>
         <section class="cat-view" id="cat-records"><div class="cat-hd">최근 기록</div><div id="rc-body" class="cat-scroll ui-scroll"></div></section>
-        <section class="cat-view" id="cat-ranking"><div class="cat-hd">랭킹</div><div id="rk-body" class="cat-scroll ui-scroll"></div></section>
+        <section class="cat-view" id="cat-ranking"><div class="cat-hd">랭킹 <span class="cat-hd-sub">SEASON 2</span></div><div id="rk-body" class="cat-scroll ui-scroll"></div></section>
       </div>
     </div>
   </div>

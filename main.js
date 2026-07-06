@@ -36,6 +36,7 @@ let dockedBounds = null;   // 마지막 적용 좌표(중복 setBounds 방지)
 let dockedNow = false, dockProc = null, _dockBuf = '';
 let leftWin = null, leftDockedBounds = null, leftUserHid = false;   // 🖥️ 왼쪽 도킹 = 내 정보(프로필/기록/랭킹)
 let slotWin = null, _slotSig = '', _slotTeam = 0;   // 📍 클라 로비 위 '내 팀 여기' 마커
+let _floating = false;   // 클라 없음 = 패널을 독립 창으로 띄운 상태
 const _dockScript = `
 $ErrorActionPreference='SilentlyContinue'
 Add-Type @'
@@ -162,16 +163,21 @@ function setPanelFg() { const v = _ovFocus || _lfFocus; if (v !== panelFg) { pan
 function handleDockLine(line) {
   const p = line.split(/\s+/).map(Number);
   const valid = p.length >= 4 && p.slice(0, 4).every(Number.isFinite) && (p[2] - p[0]) >= 700 && (p[3] - p[1]) >= 400;
-  if (config.dock === false || !valid) { setDockedFlag(false); hideLeftPanel(); hideSlotMarker(); if (clientFg) { clientFg = false; evalRaise(); } return; }   // 도킹 끔/클라 없음
+  if (config.dock === false || !valid) {   // 도킹 끔 or 클라 없음 → 독립 창(플로팅)으로
+    hideSlotMarker(); floatPanels();
+    if (clientFg) { clientFg = false; evalRaise(); }
+    return;
+  }
+  _floating = false;                               // 클라 있음 → 도킹 모드
   const fg = p[4] === 1;                            // 롤 클라가 지금 활성창인가
   if (fg !== clientFg) { clientFg = fg; evalRaise(); }
   const w = p[2] - p[0], h = p[3] - p[1], sig = `${p[0]},${p[1]},${w},${h}`;
   // ◀ 팀·명단 오버레이 = 클라 왼쪽
   if (sig !== dockedBounds) { dockedBounds = sig; applyDock({ x: p[0], y: p[1], w, h }); }
   setDockedFlag(true);
-  if (overlayWin && !overlayWin.isVisible() && !userHid) overlayWin.showInactive();
-  // ▶ 내 정보 = 클라 오른쪽 (로그인 + 패널 켬 상태에서만)
-  if (config.myName && config.sidePanel !== false && !leftUserHid) {
+  if (overlayWin && !overlayWin.isVisible() && !userHid && !inGame) overlayWin.showInactive();
+  // ▶ 내 정보 = 클라 오른쪽 (로그인 전에도 표시 → 패널에서 로그인)
+  if (config.sidePanel !== false && !leftUserHid) {
     if (sig !== leftDockedBounds) { leftDockedBounds = sig; applyDockLeft({ x: p[0], y: p[1], w, h }); }
     if (leftWin && !leftWin.isDestroyed() && !leftWin.isVisible()) leftWin.showInactive();
   }
@@ -354,13 +360,43 @@ function createLeftPanel() {
   leftWin.on('blur', () => { _lfFocus = false; setPanelFg(); });
   leftWin.on('closed', () => { leftWin = null; _lfFocus = false; setPanelFg(); });
 }
-// 데스크톱(메인) 창 표시 — 생성 안 됐으면 만들고, 숨어있으면 띄워서 앞으로
+// 데스크톱(메인) 창 표시 — 생성 안 됐으면 만들고, 숨어있으면 띄워서 앞으로 (레거시·트레이 폴백용)
 function showDesktop() {
   if (!desktopWin || desktopWin.isDestroyed()) { createDesktop(); return; }
   if (desktopWin.isMinimized()) desktopWin.restore();
   desktopWin.show();
   desktopWin.moveTop();
   desktopWin.focus();
+}
+// ── 독립 창(플로팅) 배치 — 클라 없을 때 좌우에 띄움 ──────────────────────
+function standaloneBounds(which) {
+  const wa = screen.getPrimaryDisplay().workArea;
+  const h = Math.min(760, wa.height - 100);
+  const y = Math.round(wa.y + (wa.height - h) / 2);
+  return which === 'left'
+    ? { x: wa.x + 40, y, width: 430, height: h }               // ◀ 팀·명단 오버레이
+    : { x: wa.x + wa.width - 420, y, width: 380, height: h };   // ▶ 내 정보(메인)
+}
+function floatPanels() {   // 클라 없음/도킹 끔 → 독립 창으로 표시(첫 전환 때만 위치 세팅)
+  if (inGame) { hideLeftPanel(); return; }   // 게임 중엔 내 정보 패널 숨김(오버레이는 pollGame이 관리)
+  const reposition = !_floating;
+  _floating = true;
+  if (overlayWin && !overlayWin.isDestroyed() && !userHid && !sampleActive) {
+    if (reposition) overlayWin.setBounds(standaloneBounds('left'));
+    if (!overlayWin.isVisible()) overlayWin.showInactive();
+  }
+  if (leftWin && !leftWin.isDestroyed() && config.sidePanel !== false && !leftUserHid) {
+    if (reposition) leftWin.setBounds(standaloneBounds('right'));
+    if (!leftWin.isVisible()) leftWin.showInactive();
+  }
+  setDockedFlag(false);
+}
+function showMainPanel() {   // 트레이/재실행 → 내 정보 패널(메인)을 앞으로
+  if (!leftWin || leftWin.isDestroyed()) createLeftPanel();
+  if (config.sidePanel === false) { config.sidePanel = true; saveConfig(); refreshTrayMenu(); }
+  leftUserHid = false;
+  if (!leftWin.isVisible()) { leftWin.setBounds(standaloneBounds('right')); leftWin.showInactive(); }
+  leftWin.show(); leftWin.moveTop(); leftWin.focus();
 }
 
 // 🌐 홈페이지 오버레이 — 게임 위에 진짜 홈페이지(팀짜기·투표·정산)를 띄운다(webview로 임베드)
@@ -650,7 +686,7 @@ function refreshTrayMenu(updateReady) {
     { label: '내 정보 패널(왼쪽)', type: 'checkbox', checked: config.sidePanel !== false, click: toggleSidePanel },
     { type: 'separator' },
     { label: '내전 홈페이지 (기본 브라우저)', click: () => shell.openExternal(WEB_URL) },
-    { label: '메인 화면 열기', click: showDesktop },
+    { label: '내 정보 패널 열기', click: showMainPanel },
     { type: 'separator' },
     { label: '종료', click: () => { app._quitting = true; app.quit(); } },
   ];
@@ -664,10 +700,10 @@ function makeTray() {
   let icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
   if (!icon.isEmpty()) icon = icon.resize({ width: 18, height: 18 });
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip('아수라장 내전 — 클릭하면 메인 화면');
+  tray.setToolTip('아수라장 내전 — 클릭하면 내 정보 패널');
   refreshTrayMenu();
-  tray.on('click', showDesktop);          // 좌클릭도 메인 화면(윈도우 트레이 관례)
-  tray.on('double-click', showDesktop);
+  tray.on('click', showMainPanel);          // 좌클릭 = 내 정보 패널
+  tray.on('double-click', showMainPanel);
 }
 
 // ── IPC ──────────────────────────────────────────────────────────────────
@@ -832,13 +868,13 @@ ipcMain.on('overlay-preview', () => {          // 게임 없이 오버레이 모
 const _gotLock = app.requestSingleInstanceLock();
 if (!_gotLock) { app.quit(); }
 else {
-  app.on('second-instance', () => showDesktop());   // 사장님이 런처를 또 누르면 메인 화면 표시
+  app.on('second-instance', () => showMainPanel());   // 런처를 또 누르면 내 정보 패널 앞으로
   app.whenReady().then(() => {
     CONFIG_PATH = path.join(app.getPath('userData'), 'aram-overlay-config.json');
     config = loadConfig();
     createOverlay();
-    createDesktop();   // ready-to-show에서 showDesktop() → 시작 시 메인 화면 앞으로
-    createLeftPanel(); // ◀ 왼쪽 내 정보 패널(도킹 시 표시)
+    createLeftPanel(); // ▶ 내 정보 패널(로그인·방장·팀짜기) = 메인 창
+    floatPanels();     // 클라 없으면 좌우 독립 창으로 표시(클라 켜면 도킹 스트림이 붙임)
     makeTray();
     globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
     globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이

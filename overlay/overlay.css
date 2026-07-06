@@ -68,7 +68,8 @@ header #close:hover { background:#e0483a; color:#fff; }
 .ta-players li.me .nm::after { content:' (나)'; font-size:9px; color:var(--gold); font-weight:800; }
 
 /* ── 참가자 명단 뷰 ── */
-.status { padding:22px 12px; font-size:11.5px; color:var(--dim); line-height:1.7; text-align:center; }
+.status { padding:30px 12px; font-family:'Black Han Sans',sans-serif; font-size:16px; letter-spacing:0.5px; color:var(--gold); line-height:1.5; text-align:center; }
+.status .status-sub { display:inline-block; margin-top:8px; font-family:'Noto Sans KR',sans-serif; font-size:11px; font-weight:400; letter-spacing:0; color:var(--dim); line-height:1.7; }
 .section-h { padding:2px 3px 7px; font-size:10px; font-weight:800; letter-spacing:.3px; color:var(--gold); }
 .section-h span { color:var(--dim); font-weight:600; }
 .players { list-style:none; }
