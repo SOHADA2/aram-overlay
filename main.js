@@ -59,28 +59,28 @@ function setDockedFlag(v) {                    // 도킹 상태 → 오버레이
   if (v === dockedNow) return; dockedNow = v;
   if (overlayWin && !overlayWin.isDestroyed()) overlayWin.webContents.send('docked', v);
 }
-function applyDock(pb) {                       // 물리좌표 → DIP 변환 후 클라 오른쪽 '바깥'에 붙임
+function applyDock(pb) {                       // 팀/명단 오버레이 = 클라 '왼쪽' 바깥에 붙임
   if (!overlayWin || !pb) return;
   const sf = (screen.getPrimaryDisplay().scaleFactor) || 1;
   const cx = pb.x / sf, cy = pb.y / sf, cw = pb.w / sf, ch = pb.h / sf;
   const disp = screen.getDisplayMatching({ x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) });
-  const dispRight = disp.workArea.x + disp.workArea.width;
-  let W = Math.min(400, Math.round(dispRight - (cx + cw)));   // 클라 오른쪽 바깥 남은 공간(최대 400)
+  const dispLeft = disp.workArea.x;
+  let W = Math.min(400, Math.round(cx - dispLeft));   // 클라 왼쪽 바깥 남은 공간(최대 400)
   if (W < 300) W = 300;
-  let x = Math.round(cx + cw);
-  if (x + W > dispRight) x = Math.max(disp.workArea.x, dispRight - W);
+  let x = Math.round(cx - W);
+  if (x < dispLeft) x = dispLeft;                     // 화면 밖이면 붙임(살짝 겹칠 수 있음)
   overlayWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
 }
-function applyDockLeft(pb) {                    // 클라 왼쪽 '바깥'에 붙임(내 정보 패널)
+function applyDockLeft(pb) {                    // 내 정보 패널 = 클라 '오른쪽' 바깥에 붙임
   if (!leftWin || leftWin.isDestroyed()) return;
   const sf = (screen.getPrimaryDisplay().scaleFactor) || 1;
   const cx = pb.x / sf, cy = pb.y / sf, cw = pb.w / sf, ch = pb.h / sf;
   const disp = screen.getDisplayMatching({ x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) });
-  const dispLeft = disp.workArea.x;
-  let W = Math.min(400, Math.round(cx - dispLeft));   // 클라 왼쪽 바깥 남은 공간
+  const dispRight = disp.workArea.x + disp.workArea.width;
+  let W = Math.min(400, Math.round(dispRight - (cx + cw)));   // 클라 오른쪽 바깥 남은 공간
   if (W < 300) W = 300;
-  let x = Math.round(cx - W);
-  if (x < dispLeft) x = dispLeft;                     // 화면 밖이면 붙임(살짝 겹칠 수 있음)
+  let x = Math.round(cx + cw);
+  if (x + W > dispRight) x = Math.max(disp.workArea.x, dispRight - W);   // 화면 밖이면 안으로 당김
   leftWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
 }
 function hideLeftPanel() { if (leftWin && !leftWin.isDestroyed() && leftWin.isVisible()) leftWin.hide(); leftDockedBounds = null; }
@@ -233,10 +233,9 @@ function createOverlay() {
   overlayWin = new BrowserWindow({
     width: 456, height: 452, x: 24, y: 84, minWidth: 260, minHeight: 220,
     transparent: true, frame: false, resizable: true, movable: true,   // 크기 조절 가능(반응형)
-    alwaysOnTop: true, skipTaskbar: true, show: false, focusable: true,
+    alwaysOnTop: false, skipTaskbar: true, show: false, focusable: true,   // 로비=클라와 같은 층위, 게임 중만 위로(pollGame)
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
-  overlayWin.setAlwaysOnTop(true, 'screen-saver');          // borderless-전체화면 게임 위로
   overlayWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   overlayWin.loadFile('overlay/overlay.html');
   overlayWin.on('closed', () => { overlayWin = null; });
@@ -261,12 +260,11 @@ function createDesktop() {
 function createLeftPanel() {
   leftWin = new BrowserWindow({
     width: 360, height: 600, x: 24, y: 84, minWidth: 260, minHeight: 300,
-    frame: false, backgroundColor: '#0b0912', show: false,
+    frame: false, backgroundColor: '#010A13', show: false,
     icon: path.join(__dirname, 'assets', 'icon.png'),
-    alwaysOnTop: true, skipTaskbar: true, resizable: true, focusable: true,
+    alwaysOnTop: false, skipTaskbar: true, resizable: true, focusable: true,   // 클라와 같은 층위(로비 정보 패널)
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
-  leftWin.setAlwaysOnTop(true, 'screen-saver');
   leftWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   leftWin.loadFile('sidepanel/sidepanel.html');
   leftWin.on('closed', () => { leftWin = null; });
@@ -385,6 +383,8 @@ async function pollGame() {
   }
   if (nowIn !== inGame) {              // 상태 전환
     inGame = nowIn;
+    // 게임 중(전체화면)만 위로, 로비/클라에선 같은 층위(항상최상위 X)
+    try { if (overlayWin && !overlayWin.isDestroyed()) overlayWin.setAlwaysOnTop(inGame, inGame ? 'screen-saver' : 'normal'); } catch (_) {}
     if (inGame) { if (!userHid) showOverlay(); }
     else { hideOverlay(); userHid = false; latestPlayers = []; }
     broadcast('state', { inGame, label: inGame ? '게임 중' : '대기' });

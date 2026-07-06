@@ -5,17 +5,17 @@
    각 창은 자기 배경(오버레이=투명/데스크톱=불투명)만 따로. 새 화면은 이 토큰을 재사용할 것.
    ════════════════════════════════════════════════════════════════════════ */
 :root {
-  /* 팀 색 — 홈페이지와 동일(1팀 청록 / 2팀 골드) */
-  --teal:#38d9c0;  --teal-soft:rgba(56,217,192,0.13);  --teal-line:rgba(56,217,192,0.5);
-  --gold:#e8c84a;  --gold-soft:rgba(232,200,74,0.13);  --gold-line:rgba(232,200,74,0.5);
-  --gold-btn2:#e0a82e;   /* 골드 버튼 그라데이션 하단 */
-  /* 중립 */
-  --dim:#8c86a0;  --ink:#e8ecf6;  --ink-soft:#cfd4e6;
-  --win:#7CFC9A;  --lose:#ff9a9a;
-  /* 카드/라인 — 시즌2 웜블랙(보라끼 제거·R>B) */
-  --card-bg:linear-gradient(160deg, rgba(30,25,15,0.85), rgba(15,12,7,0.92));
-  --card-line:rgba(240,200,90,0.28);
-  --hair:rgba(255,255,255,0.06);
+  /* 🎨 롤 클라이언트 헥스텍 팔레트에 맞춤(다크블루+골드+청록+탄) */
+  --teal:#0AC8B9;  --teal-soft:rgba(10,200,185,0.14);  --teal-line:rgba(10,200,185,0.55);
+  --gold:#C8AA6E;  --gold-soft:rgba(200,170,110,0.14);  --gold-line:rgba(120,90,40,0.62);
+  --gold-btn2:#C89B3C;   /* 골드 버튼 그라데이션 하단(헥스텍 골드) */
+  /* 중립 — 헥스텍 탄/그레이 */
+  --dim:#A09B8C;  --ink:#F0E6D2;  --ink-soft:#CDBE91;
+  --win:#0AC8B9;  --lose:#E84057;
+  /* 카드/라인 — 헥스텍 딥블루 */
+  --card-bg:linear-gradient(160deg, rgba(10,22,40,0.92), rgba(3,11,20,0.96));
+  --card-line:rgba(120,90,40,0.55);
+  --hair:rgba(200,170,110,0.09);
   /* 폰트 */
   --f-body:'Noto Sans KR','Pretendard','Segoe UI',system-ui,sans-serif;
   --f-title:'Black Han Sans',sans-serif;
