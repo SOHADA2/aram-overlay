@@ -16,6 +16,7 @@ const FIREBASE_API_KEY = 'AIzaSyAzRirJzvaqu6jelqUUjV_Tik1MgsALEE4';   // aram/in
 const TOGGLE_HOTKEY = 'Shift+F5';
 const { buildTeams, normName } = require('./teams');   // ⚔️ 홈페이지 makeTeams 1:1 이식
 const { availableGoldS2 } = require('./gold');         // 💰 아이템 구매 골드 검증(홈 calcPlayerGoldEarned S2 이식)
+const { computeProfile, computeRecords, computeRanking } = require('./profile');   // 📊 프로필/기록/랭킹(홈 프로필 정보 이식)
 const bridge = require('./bridge');                    // 🔌 내장 브릿지(LCU EOG 캡처) — aram-bridge 완전 대체
 
 let overlayWin = null, desktopWin = null, homeWin = null, tray = null;
@@ -555,6 +556,27 @@ ipcMain.handle('get-players', async () => {        // 데스크톱 ID 선택용 
   const d = await fetchPlayers();
   const names = d ? [...new Set(Object.values(d).map(p => p && p.name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
   return { names, myName: config.myName || '', isHost: !!config.isHost, webVersion };
+});
+
+// 🖼️ 챔피언 초상화용 ddragon 버전(1회 조회·캐시)
+let _ddVer = '14.24.1';
+(async () => { try { const v = await getJson('https://ddragon.leagueoflegends.com/api/versions.json'); if (Array.isArray(v) && v[0]) _ddVer = v[0]; } catch (_) {} })();
+// 📊 프로필 — 내 gold + matches + LP로 대시보드 계산(강철심장·시너지·챔프·전적·LP·단짝)
+ipcMain.handle('profile-data', async () => {
+  if (!config.myName) return { ok: false, err: '닉네임을 먼저 선택하세요' };
+  const [mg, matches, lpAll] = await Promise.all([fetchMyGold(), getMatchesCached(), fetchLpPlayers()]);
+  const prof = computeProfile(config.myName, (mg && mg.data) || {}, matches, lpAll);
+  return { ok: true, profile: prof, ddVer: _ddVer };
+});
+// 📋 기록 — 최근 시즌2 경기
+ipcMain.handle('records-data', async () => {
+  const matches = await getMatchesCached();
+  return { ok: true, records: computeRecords(config.myName || '', matches), ddVer: _ddVer, myName: config.myName || '' };
+});
+// 🏆 랭킹 — 시즌2 LP 순
+ipcMain.handle('ranking-data', async () => {
+  const lpAll = await fetchLpPlayers();
+  return { ok: true, ranking: computeRanking(lpAll), myName: config.myName || '' };
 });
 ipcMain.handle('tb-start', (_e, { names, mode }) => startTeamBuild(names, mode));   // ⚔️ 팀 짜기 시작(방장)
 ipcMain.on('tb-skip', () => skipItemPhase());                                       // ⏭️ 아이템 시간 건너뛰기

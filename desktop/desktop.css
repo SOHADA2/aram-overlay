@@ -104,6 +104,74 @@ select:focus { outline:none; border-color:var(--gold); }
 .stat .row span { color:var(--dim); } .stat .row b { color:#e8ecf6; }
 #game-state.on { color:#7CFC9A; }
 
+/* ── 좌측 카테고리 레일 + 콘텐츠 ─────────────────────────────────────────── */
+.app-shell { display:none; width:100%; height:100%; min-height:0; }
+.app-shell[style*="flex"] { display:flex !important; }
+.rail { width:60px; flex-shrink:0; display:flex; flex-direction:column; gap:4px; padding:10px 6px;
+  background:rgba(0,0,0,0.28); border-right:1px solid rgba(240,200,90,0.14); }
+.rail-logo { text-align:center; font-size:19px; margin-bottom:8px; filter:drop-shadow(0 0 10px rgba(240,200,90,0.5)); }
+.rail-btn { display:flex; flex-direction:column; align-items:center; gap:2px; padding:9px 2px; border:none; border-radius:10px;
+  background:transparent; color:var(--dim); cursor:pointer; font-family:var(--f-body); transition:.1s; }
+.rail-btn .ri { font-size:17px; line-height:1; } .rail-btn .rl { font-size:9px; font-weight:700; }
+.rail-btn:hover { background:rgba(255,255,255,0.04); color:#e8ecf6; }
+.rail-btn.on { background:rgba(240,200,90,0.14); color:#ffe39a; box-shadow:inset 2px 0 0 var(--gold); }
+.cat { flex:1; min-width:0; display:flex; }
+.cat-view { display:none; flex:1; min-width:0; min-height:0; flex-direction:column; gap:10px; padding:14px 14px 12px; }
+.cat-hd { font-family:var(--f-title); font-size:15px; color:var(--gold); letter-spacing:0.5px; flex-shrink:0; }
+.cat-hd-sub { font-family:var(--f-mono); font-size:9px; color:var(--dim); letter-spacing:1px; margin-left:6px; }
+.cat-scroll { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:3px; }
+.cat-load, .cat-empty { color:var(--dim); font-size:11.5px; text-align:center; padding:26px 10px; }
+
+/* 프로필 */
+.pf-hero { text-align:center; padding:4px 0 2px; }
+.pf-name { font-size:17px; font-weight:900; color:#ffe39a; }
+.pf-lp { display:flex; align-items:center; justify-content:center; gap:7px; margin-top:6px; }
+.pf-tier { font-family:var(--f-mono); font-size:11px; font-weight:700; color:#1a1206; background:linear-gradient(180deg,#ffe08a,#f0c060); padding:2px 9px; border-radius:8px; }
+.pf-lpn { font-size:13px; font-weight:800; color:var(--gold); }
+.pf-promo { font-size:9px; color:#ff9a9a; border:1px solid rgba(255,120,120,0.4); border-radius:6px; padding:1px 6px; }
+.pf-form { display:flex; gap:3px; justify-content:center; flex-wrap:wrap; }
+.pf-dot { width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; font-family:var(--f-mono); }
+.pf-dot.w { background:var(--gold-soft); color:var(--gold); border:1px solid var(--gold-line); }
+.pf-dot.l { background:rgba(255,255,255,0.05); color:var(--dim); }
+.pf-dim { font-size:10px; color:var(--dim); }
+.pf-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.pf-s { background:rgba(255,255,255,0.03); border:1px solid var(--hair); border-radius:10px; padding:8px 3px; text-align:center; }
+.pf-s b { display:block; font-size:18px; font-weight:900; color:#e8ecf6; } .pf-s span { font-size:9px; color:var(--dim); }
+.pf-wr { color:var(--gold) !important; }
+.pf-gold { font-size:10.5px; color:var(--dim); text-align:center; } .pf-gold b { color:#ffe39a; }
+.pf-champs { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.pf-champ { background:rgba(255,255,255,0.03); border:1px solid var(--hair); border-radius:10px; padding:8px 9px; }
+.pf-champ-l { font-size:9.5px; font-weight:700; color:var(--dim); margin-bottom:5px; } .pf-champ-l.best { color:#ffe39a; }
+.pf-champ-row { display:flex; align-items:center; gap:7px; }
+.pf-cimg { width:30px; height:30px; border-radius:7px; flex-shrink:0; background:rgba(255,255,255,0.05); }
+.pf-champ-info { min-width:0; } .pf-champ-info b { display:block; font-size:11.5px; color:#e8ecf6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pf-champ-info small { font-size:8.5px; color:var(--dim); }
+.pf-champ-empty { font-size:10px; color:var(--dim); padding:6px 0; }
+.pf-loadout { display:flex; flex-direction:column; gap:5px; background:rgba(255,255,255,0.02); border:1px solid var(--hair); border-radius:10px; padding:9px 11px; }
+.pf-line { display:flex; justify-content:space-between; gap:8px; font-size:11px; }
+.pf-k { color:var(--dim); flex-shrink:0; } .pf-v { color:#e8ecf6; text-align:right; min-width:0; } .pf-v em { color:var(--gold); font-style:normal; }
+
+/* 기록 */
+.rc-row { background:rgba(255,255,255,0.03); border:1px solid var(--hair); border-radius:9px; padding:8px 10px; border-left:2px solid transparent; }
+.rc-row.mine-w { border-left-color:var(--gold); } .rc-row.mine-l { border-left-color:rgba(255,120,120,0.55); }
+.rc-top { display:flex; align-items:center; gap:7px; margin-bottom:4px; }
+.rc-cimg { width:22px; height:22px; border-radius:6px; background:rgba(255,255,255,0.05); }
+.rc-res { font-size:10px; font-weight:800; padding:1px 7px; border-radius:6px; }
+.rc-res.w { background:var(--gold-soft); color:var(--gold); } .rc-res.l { background:rgba(255,120,120,0.13); color:#ff9a9a; } .rc-res.n { background:rgba(255,255,255,0.05); color:var(--dim); }
+.rc-kda { font-family:var(--f-mono); font-size:10px; color:#cfd4e6; }
+.rc-size { margin-left:auto; font-size:9px; color:var(--dim); }
+.rc-teams { display:flex; align-items:center; gap:6px; font-size:9.5px; }
+.rc-team { flex:1; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .rc-team.win { color:#e8ecf6; }
+.rc-team:last-child { text-align:right; } .rc-vs { font-size:8px; color:var(--dim); flex-shrink:0; }
+
+/* 랭킹 */
+.rk-row { display:flex; align-items:center; gap:9px; padding:8px 10px; background:rgba(255,255,255,0.03); border:1px solid var(--hair); border-radius:9px; }
+.rk-row.mine { border-color:var(--gold-line); background:var(--gold-soft); }
+.rk-rank { width:22px; text-align:center; font-size:14px; flex-shrink:0; } .rk-num { font-family:var(--f-mono); font-size:11px; color:var(--dim); font-weight:700; }
+.rk-name { flex:1; font-size:12px; font-weight:700; color:#e8ecf6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rk-tier { font-size:9px; color:var(--dim); flex-shrink:0; }
+.rk-lp { font-family:var(--f-mono); font-size:11px; font-weight:800; color:var(--gold); flex-shrink:0; }
+
 /* ── ⚔️ 팀 짜기(방장 전용) ─────────────────────────────────────────────── */
 #teambuild { max-width: 360px; }
 .card-title { display: flex; align-items: center; justify-content: center; gap: 6px; }

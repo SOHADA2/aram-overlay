@@ -19,6 +19,12 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - ⚠️ 이 셸 `ELECTRON_RUN_AS_NODE=1`로 bash서 electron.exe=node모드(ipcMain undefined)—테스트 시 unset. 팀원 무관.
 - 첫 실행 SmartScreen(추가정보→실행). vbs/bat 제거(npm start). packager/archiver 제거(electron-builder로 전환)·gen-ico.mjs로 ico.
 
+## 📊 데스크톱 = 좌측 카테고리 레일 + 프로필/기록/랭킹 (v0.1.8·2026-07-06)
+- 사장님: 데스크톱 메인창을 홈페이지 프로필처럼 제대로 구성·**세로 카테고리(왼쪽 레일)**로. 범위=일단 **프로필/기록/랭킹**만(상점/가챠/패스는 나중). 게임 시작 전 확인용(인게임 노출은 나중 튜닝).
+- **구조**: 로그인 후 `#app`(app-shell) = 좌측 `.rail`(홈/프로필/기록/랭킹 세로 버튼) + `.cat`(콘텐츠). `switchCat(cat)`이 뷰 전환+렌더. 기존 홈 내용은 `#cat-home`으로 이동. 팀짜기는 그대로(#app 숨기고 #teambuild).
+- **데이터(main.js IPC·`profile.js` 계산)**: `profile-data`/`records-data`/`ranking-data`. 원자료=fetchMyGold+getMatchesCached+fetchLpPlayers. `profile.js`가 홈 프로필 정보 이식(시즌2): 내전 승/패/승률/경기·최근10폼·챔프 MOST/BEST(participants.champion)·누적 매치골드(calcGoldFromMatchesS2)·MVP/매너·LP/티어/배치/승급전·강철심장(성능/등급/레벨)·시너지(activeSynergy_s2)·단짝(buddy_s2). 기록=최근24 시즌2 매치(내 승패/챔프/KDA). 랭킹=season2/players 티어→LP순. 챔프 초상화=ddragon(버전 1회조회 `_ddVer`·onerror 폴백). preload getProfile/getRecords/getRanking. package.json files에 `profile.js` 추가.
+- 검증: profile.js 단위테스트(승/패/폼/챔프/emblem/synergy/buddy/lp/records/ranking)·헤드리스 렌더(name/4stats/2champ/10dots/3loadout/wr). ⚠️실기 미검증(실계정 데이터로 표시·챔프명↔ddragon id 매핑 정확도). ⏭️상점/가챠/패스·인게임 도킹 노출·팀 위치 표시는 다음.
+
 ## 🔴 오버레이만으로 경기 저장/정산 = 숨은 라이브 계정 웹뷰 (v0.1.4·2026-07-06) ★★새 세션 필독·이중저장 주의
 - **목표(사장님)**: 홈페이지 라이브 계정을 아무도 안 켜도, 방장이 오버레이만 켜면 경기 저장·정산까지 완결. **최우선=이중 기록 절대 방지**(LP/골드 이중적용→수동 되돌림 사태).
 - **설계 = 저장 로직 재작성 안 함**. 저장은 이 앱에서 제일 복잡·위험(LP·골드·시너지·강철심장·승급전). 오버레이에 재구현하면 계산 갈라짐+두 번째 저장경로=이중기록 위험. → **방장 오버레이가 진짜 홈페이지를 숨은 백그라운드 창(`liveWin`)으로 띄워 `liveMode`로 부팅** → 홈페이지의 **검증된 saveMatch + 원자적 락 그대로** 사용(재작성 0). main.js `startLiveAccount()`(config.isHost일 때·whenReady/set-host서 기동)·`stopLiveAccount()`(before-quit·host off·`close()`로 beforeunload→`config/liveOwner` 락 반납). 창=`show:false·skipTaskbar·backgroundThrottling:false`. 부팅=첫 로드 후 `localStorage.liveMode='1'` 심고 reload(`_liveArmed` 가드)·실패 시 8초 재시도.

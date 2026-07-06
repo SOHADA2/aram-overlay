@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('api', {
   homeToggle: () => ipcRenderer.send('home-toggle'),
   homeClose: () => ipcRenderer.send('home-close'),
   getPlayers: () => ipcRenderer.invoke('get-players'),
+  getProfile: () => ipcRenderer.invoke('profile-data'),   // 📊 프로필 대시보드
+  getRecords: () => ipcRenderer.invoke('records-data'),   // 📋 기록
+  getRanking: () => ipcRenderer.invoke('ranking-data'),   // 🏆 랭킹
   setMyName: (n) => ipcRenderer.send('set-myname', n),
   setHost: (v) => ipcRenderer.send('set-host', v),
   // ⚔️ 팀 짜기(방장 전용)

@@ -64,4 +64,4 @@ function availableGoldS2(name, data, matches) {
   return Math.max(0, earned - num(data.goldSpent_s2));
 }
 
-module.exports = { availableGoldS2 };
+module.exports = { availableGoldS2, calcGoldFromMatchesS2 };

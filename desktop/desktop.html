@@ -29,37 +29,56 @@
       <div class="app-ver" id="ver-entry"></div>
     </section>
 
-    <!-- 입장 후(홈) — 한 화면에 압축 -->
-    <section id="home" class="screen" style="display:none;">
-      <div class="home-top">
-        <span class="home-logo">⚔️ 아수라장 내전</span>
+    <!-- 로그인 후 — 좌측 카테고리 레일 + 콘텐츠(홈/프로필/기록/랭킹) -->
+    <div id="app" class="app-shell" style="display:none;">
+      <nav class="rail">
+        <div class="rail-logo">⚔️</div>
+        <button class="rail-btn on" data-cat="home"><span class="ri">🏠</span><span class="rl">홈</span></button>
+        <button class="rail-btn" data-cat="profile"><span class="ri">👤</span><span class="rl">프로필</span></button>
+        <button class="rail-btn" data-cat="records"><span class="ri">📋</span><span class="rl">기록</span></button>
+        <button class="rail-btn" data-cat="ranking"><span class="ri">🏆</span><span class="rl">랭킹</span></button>
+      </nav>
+      <div class="cat">
+        <!-- 🏠 홈 -->
+        <section class="cat-view" id="cat-home">
+          <div class="user-bar">
+            <div class="avatar">🗡️</div>
+            <div class="user-info"><span class="u-label">접속 중</span><span class="me-name" id="me-name"></span></div>
+            <button id="change-name" class="link">계정 변경</button>
+          </div>
+          <label class="host-toggle" id="host-box">
+            <input type="checkbox" id="is-host">
+            <span class="ht-text"><b>👑 나는 방장이에요</b><small>팀 짜기 · 경기 저장(라이브) 자동 담당</small></span>
+          </label>
+          <div class="stat">
+            <div class="row"><span>롤 게임</span><b id="game-state">감지 대기</b></div>
+            <div class="row"><span>단축키</span><b>Shift+F5 · F6</b></div>
+          </div>
+          <button id="tb-open" class="ui-btn-gold home-main" style="display:none;">⚔️ 팀 짜기 (방장)</button>
+          <div class="home-sub-row">
+            <button id="preview-team" class="ui-btn-ghost">👀 미리보기</button>
+            <button id="home-overlay" class="ui-btn-ghost">🌐 홈 오버레이</button>
+          </div>
+          <button id="open-web" class="ui-btn-ghost home-web">브라우저로 홈페이지 열기</button>
+          <div class="app-ver" id="ver-home"></div>
+        </section>
+        <!-- 👤 프로필 -->
+        <section class="cat-view" id="cat-profile" style="display:none;">
+          <div class="cat-hd">내 프로필</div>
+          <div id="pf-body" class="cat-scroll ui-scroll"></div>
+        </section>
+        <!-- 📋 기록 -->
+        <section class="cat-view" id="cat-records" style="display:none;">
+          <div class="cat-hd">경기 기록</div>
+          <div id="rc-body" class="cat-scroll ui-scroll"></div>
+        </section>
+        <!-- 🏆 랭킹 -->
+        <section class="cat-view" id="cat-ranking" style="display:none;">
+          <div class="cat-hd">LP 랭킹 <span class="cat-hd-sub">SEASON 2</span></div>
+          <div id="rk-body" class="cat-scroll ui-scroll"></div>
+        </section>
       </div>
-
-      <div class="user-bar">
-        <div class="avatar">🗡️</div>
-        <div class="user-info"><span class="u-label">접속 중</span><span class="me-name" id="me-name"></span></div>
-        <button id="change-name" class="link">계정 변경</button>
-      </div>
-
-      <label class="host-toggle" id="host-box">
-        <input type="checkbox" id="is-host">
-        <span class="ht-text"><b>👑 나는 방장이에요</b><small>팀 짜기 · 경기 저장(라이브) 자동 담당</small></span>
-      </label>
-
-      <div class="stat">
-        <div class="row"><span>롤 게임</span><b id="game-state">감지 대기</b></div>
-        <div class="row"><span>단축키</span><b>Shift+F5 · F6</b></div>
-      </div>
-
-      <button id="tb-open" class="ui-btn-gold home-main" style="display:none;">⚔️ 팀 짜기 (방장)</button>
-      <div class="home-sub-row">
-        <button id="preview-team" class="ui-btn-ghost">👀 미리보기</button>
-        <button id="home-overlay" class="ui-btn-ghost">🌐 홈 오버레이</button>
-      </div>
-      <button id="open-web" class="ui-btn-ghost home-web">브라우저로 홈페이지 열기</button>
-      <div class="home-foot">클라 오른쪽 자동 도킹 · 닫아도 트레이 상주</div>
-      <div class="app-ver" id="ver-home"></div>
-    </section>
+    </div>
 
     <!-- ⚔️ 팀 짜기 (방장 전용) — 홈페이지와 완전 연동: 아이템 타이머 15초 → 팀 발표가 홈페이지 유저에게도 그대로 뜸 -->
     <section id="teambuild" class="card" style="display:none;">
