@@ -37,6 +37,7 @@ let dockedNow = false, dockProc = null, _dockBuf = '';
 let leftWin = null, leftDockedBounds = null, leftUserHid = false;   // 🖥️ 왼쪽 도킹 = 내 정보(프로필/기록/랭킹)
 let slotWin = null, _slotSig = '', _slotTeam = 0;   // 📍 클라 로비 위 '내 팀 여기' 마커
 let _floating = false;   // 클라 없음 = 패널을 독립 창으로 띄운 상태
+let _lastRect = null;    // 마지막 감지된 클라 창 좌표(팀 마커 갱신용)
 const _dockScript = `
 $ErrorActionPreference='SilentlyContinue'
 Add-Type @'
@@ -116,19 +117,27 @@ function applyDockLeft(pb) {                    // 내 정보 패널 = 클라 '�
   leftWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
 }
 function hideLeftPanel() { if (leftWin && !leftWin.isDestroyed() && leftWin.isVisible()) leftWin.hide(); leftDockedBounds = null; }
-// 📍 클라 로비 위 '내 팀 여기' 마커 — 클릭 통과(setIgnoreMouseEvents) 작은 배지+화살표
+// 📍 클라 로비 위 '내 팀 여기' 마커 — 팀 컬럼을 네모 테두리로 강조(클릭 통과)
+let _slotReady = false;
 function createSlotWin() {
   slotWin = new BrowserWindow({
-    width: 200, height: 66, show: false, frame: false, transparent: true,
-    resizable: false, focusable: false, skipTaskbar: true, alwaysOnTop: false, roundedCorners: false,
+    width: 300, height: 300, show: false, frame: false, transparent: true, hasShadow: false,
+    backgroundColor: '#00000000',   // 완전 투명(흰 배경 렌더 방지)
+    resizable: false, focusable: false, skipTaskbar: true, alwaysOnTop: false, roundedCorners: false, paintWhenInitiallyHidden: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   slotWin.setIgnoreMouseEvents(true, { forward: true });   // 클릭 통과 → 클라 조작 방해 X
   slotWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  _slotReady = false;
+  slotWin.webContents.on('did-finish-load', () => { _slotReady = true; if (_slotTeam) { try { slotWin.webContents.send('slot-team', _slotTeam); } catch (_) {} } });
   slotWin.loadFile('slot/slot.html');
-  slotWin.on('closed', () => { slotWin = null; });
+  slotWin.on('closed', () => { slotWin = null; _slotReady = false; });
 }
 function hideSlotMarker() { if (slotWin && !slotWin.isDestroyed() && slotWin.isVisible()) slotWin.hide(); _slotSig = ''; }
+function _repaintSlot() {   // 투명창이 흰 박스로 안 그려지는 Win 버그 → 1px 넛지로 강제 리페인트
+  if (!slotWin || slotWin.isDestroyed()) return;
+  try { const b = slotWin.getBounds(); slotWin.setBounds({ x: b.x, y: b.y, width: b.width + 1, height: b.height }); slotWin.setBounds(b); } catch (_) {}
+}
 function updateSlotMarker(p) {   // p=[L,T,R,B] 원시 px(클라 감지됨)
   const t = teamOf(sessionData, config.myName);
   const side = t === 'teamA' ? 1 : t === 'teamB' ? 2 : 0;
@@ -136,15 +145,15 @@ function updateSlotMarker(p) {   // p=[L,T,R,B] 원시 px(클라 감지됨)
   if (!slotWin || slotWin.isDestroyed()) createSlotWin();
   const sf = (screen.getPrimaryDisplay().scaleFactor) || 1;
   const cx = p[0] / sf, cy = p[1] / sf, cw = (p[2] - p[0]) / sf, ch = (p[3] - p[1]) / sf;
-  const colCx = side === 1 ? cx + cw * 0.26 : cx + cw * 0.74;   // 1팀=왼쪽 컬럼 / 2팀=오른쪽 컬럼 중앙
-  const x = Math.round(colCx - 100), y = Math.round(cy + ch * 0.105);   // 팀 헤더 위쪽
-  const sig = `${x},${y},${side}`;
-  if (sig !== _slotSig) {
-    _slotSig = sig;
-    slotWin.setBounds({ x, y, width: 200, height: 66 });
-    if (side !== _slotTeam) { _slotTeam = side; try { slotWin.webContents.send('slot-team', side); } catch (_) {} }
-  }
-  if (!slotWin.isVisible()) slotWin.showInactive();
+  // 팀 컬럼(비율): 1팀=왼쪽 절반 / 2팀=오른쪽 절반, 헤더~슬롯 영역을 감쌈
+  const w = Math.round(cw * 0.455), h = Math.round(ch * 0.50);
+  const x = Math.round(side === 1 ? cx + cw * 0.025 : cx + cw * 0.52);
+  const y = Math.round(cy + ch * 0.135);
+  if (side !== _slotTeam) { _slotTeam = side; try { slotWin.webContents.send('slot-team', side); } catch (_) {} }
+  const sig = `${x},${y},${w},${h},${side}`;
+  if (sig !== _slotSig) { _slotSig = sig; slotWin.setBounds({ x, y, width: w, height: h }); }
+  if (!_slotReady) return;                               // 콘텐츠 로드 후에 표시(흰 박스 방지)
+  if (!slotWin.isVisible()) { slotWin.showInactive(); _repaintSlot(); }
 }
 // 🪟 클라와 같은 층위 — 롤 클라(또는 우리 패널)가 활성일 때만 패널을 위로, 아니면 뒤로(다른 앱에 안 가림)
 let clientFg = false, panelFg = false, _lastRaise = null, _dropTimer = null;
@@ -168,7 +177,7 @@ function handleDockLine(line) {
     if (clientFg) { clientFg = false; evalRaise(); }
     return;
   }
-  _floating = false;                               // 클라 있음 → 도킹 모드
+  _floating = false; _lastRect = p;                // 클라 있음 → 도킹 모드
   const fg = p[4] === 1;                            // 롤 클라가 지금 활성창인가
   if (fg !== clientFg) { clientFg = fg; evalRaise(); }
   const w = p[2] - p[0], h = p[3] - p[1], sig = `${p[0]},${p[1]},${w},${h}`;
@@ -486,7 +495,7 @@ function toggleOverlay() {
 }
 
 function broadcast(channel, payload) {
-  for (const w of [overlayWin, desktopWin]) if (w && !w.isDestroyed()) w.webContents.send(channel, payload);
+  for (const w of [overlayWin, leftWin, desktopWin]) if (w && !w.isDestroyed()) w.webContents.send(channel, payload);
 }
 
 // ── 폴링 루프 ──────────────────────────────────────────────────────────────
@@ -558,6 +567,7 @@ async function pollSession() {
     lastFormed = formed; sampleActive = false; userHid = false; sessionData = s;
     showOverlay();
     broadcast('session', { session: s, myName: config.myName || '', lpMap });
+    if (_lastRect && !inGame && !_floating) updateSlotMarker(_lastRect);   // 📍 팀 배정 → 마커 갱신
     return;
   }
   if (sampleActive) return;                       // 미리보기 유지 중이면 안 건드림
@@ -565,6 +575,7 @@ async function pollSession() {
   // 🗳️ 투표 단계면 오버레이 자동 표시(게임 끝나 숨겨졌어도) — manualEog 신선 or 이미 투표 진행 중
   if (isVotingStage(s) && !userHid) showOverlay();
   broadcast('session', { session: sessionData, myName: config.myName || '', lpMap });
+  if (_lastRect && !inGame && !_floating) updateSlotMarker(_lastRect);   // 📍 팀 상태 변경 → 마커 갱신
 }
 
 // ── ⚔️ 팀 짜기(방장 전용) — 홈페이지와 완전 연동 ─────────────────────────
@@ -573,7 +584,7 @@ async function pollSession() {
 //   ② 15초 후(스킵 가능) 같은 알고리즘으로 팀 계산 → session = 홈페이지 makeTeams와 동일 페이로드
 //      → 홈페이지 유저 = 기존 onValue 흐름 그대로 팀 발표·결과·관전자 배팅 / 오버레이 유저 = pollSession이 teamsFormedAt 감지
 let _tb = null;   // 진행 중 팀짜기 {names, mode, endAt, timer, prevSession, season, matches}
-function sendTb(payload) { if (desktopWin && !desktopWin.isDestroyed()) desktopWin.webContents.send('teambuild', payload); }
+function sendTb(payload) { for (const w of [leftWin, desktopWin]) if (w && !w.isDestroyed()) w.webContents.send('teambuild', payload); }
 
 async function startTeamBuild(names, mode) {
   if (!config.isHost) return { ok: false, err: '방장만 팀을 짤 수 있어요 (홈 화면에서 방장 체크)' };
@@ -874,6 +885,7 @@ else {
     config = loadConfig();
     createOverlay();
     createLeftPanel(); // ▶ 내 정보 패널(로그인·방장·팀짜기) = 메인 창
+    createSlotWin();   // 📍 내 팀 마커(미리 로드 → 팀 배정 시 흰 박스 없이 바로 표시)
     floatPanels();     // 클라 없으면 좌우 독립 창으로 표시(클라 켜면 도킹 스트림이 붙임)
     makeTray();
     globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);

@@ -65,14 +65,53 @@ function renderTeam() {
 }
 
 function renderRoster() {
-  el('roster-h').style.display = roster.length ? 'block' : 'none';
-  el('pcount').textContent = roster.length ? `${roster.length}명` : '';
-  el('status').style.display = roster.length ? 'none' : 'block';
+  const has = roster.length;
+  el('roster-h').style.display = has ? 'block' : 'none';
+  el('pcount').textContent = has ? `${roster.length}명` : '';
+  el('status').style.display = has ? 'none' : 'block';
   el('players').innerHTML = roster.map(p => {
     const r = lpMap[norm(p.name)];
     const lp = r ? `<span class="lp">${TIER_SHORT[r.tier] || '?'} ${r.lp}</span>` : `<span class="lp none">—</span>`;
     return `<li class="team-${p.teamId || 0}"><span class="name">${esc(p.name)}</span><span class="champ">${esc(p.champ || '')}</span>${lp}</li>`;
   }).join('');
+  // 🆕 대기 중(인게임 명단 없음)엔 내 LP 요약 + 시즌 랭킹으로 채움
+  const wi = el('waiting-info');
+  if (!has) { wi.style.display = 'block'; loadWaitingInfo(); } else { wi.style.display = 'none'; }
+}
+// ── 대기 화면 정보(내 LP·폼 + 시즌 랭킹 미리보기) ──────────────────────────
+let _wLoaded = 0, _wData = null;
+async function loadWaitingInfo() {
+  const now = Date.now();
+  if (_wData && now - _wLoaded < 45000) { renderWaitingInfo(); return; }   // 45초 캐시
+  _wLoaded = now;
+  const [pr, rk] = await Promise.all([
+    window.api.getProfile().catch(() => null),
+    window.api.getRanking().catch(() => null),
+  ]);
+  _wData = { pr, rk };
+  renderWaitingInfo();
+}
+function renderWaitingInfo() {
+  const wi = el('waiting-info'); if (!wi || !_wData) return;
+  const pr = _wData.pr && _wData.pr.ok ? _wData.pr.profile : null;
+  const rk = _wData.rk && _wData.rk.ok ? _wData.rk.ranking : null;
+  let html = '';
+  if (pr) {
+    const lp = pr.lp, a = pr.arena;
+    const lpTxt = lp ? (lp.placementDone ? `${lp.tierKr} · ${lp.lp} LP` : `배치 ${lp.placementGames}/5`) : '배치 전';
+    const form = (a.form || []).slice(-8).map(w => `<i class="wi-dot ${w ? 'w' : 'l'}"></i>`).join('') || '<span class="wi-dim">경기 없음</span>';
+    html += `<div class="wi-me"><div class="wi-me-top"><span class="wi-me-nm">${esc(pr.name)}</span><span class="wi-me-lp">${esc(lpTxt)}</span></div>`
+      + `<div class="wi-me-sub"><span>${a.wins}승 ${a.losses}패 · ${a.winrate}%</span><span class="wi-form">${form}</span></div></div>`;
+  }
+  if (rk && rk.length) {
+    const rows = rk.slice(0, 6).map(p => {
+      const medal = p.rank <= 3 ? ['🥇', '🥈', '🥉'][p.rank - 1] : `<b>${p.rank}</b>`;
+      const me = (myName && norm(p.name) === norm(myName)) ? ' me' : '';
+      return `<div class="wi-rk-row${me}"><span class="wi-rk-r">${medal}</span><span class="wi-rk-nm">${esc(p.name)}</span><span class="wi-rk-lp">${p.lp} LP</span></div>`;
+    }).join('');
+    html += `<div class="wi-sec-h">🏆 이번 시즌 랭킹</div><div class="wi-rk">${rows}</div>`;
+  }
+  wi.innerHTML = html || '<div class="wi-dim" style="text-align:center;padding:10px;">데스크톱에서 아이디를 설정하면<br>내 정보가 여기 떠요</div>';
 }
 
 // ── 🗳️ MVP·매너왕 투표 ────────────────────────────────────────────────

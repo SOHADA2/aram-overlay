@@ -12,8 +12,8 @@
   padding:3px 8px; border-radius:7px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); }
 #sbar .s-host input { margin:0; accent-color:var(--gold); }
 #sbar .s-host:has(input:checked) { background:var(--gold-soft); border-color:var(--gold-line); color:#ffe39a; }
-#sbar .s-change { border:none; border-radius:6px; cursor:pointer; font-size:10px; color:var(--dim); background:rgba(255,255,255,0.06); padding:3px 7px; }
-#sbar .s-change:hover { color:var(--ink); }
+#sbar #s-change { border:1px solid rgba(255,255,255,0.12); border-radius:6px; cursor:pointer; font-size:10px; color:var(--dim); background:rgba(255,255,255,0.05); padding:3px 8px; white-space:nowrap; }
+#sbar #s-change:hover { color:var(--ink); border-color:var(--gold-line); }
 #sbar .s-sp { flex:1; }
 #sbar #s-close { width:22px; height:22px; border:none; border-radius:6px; cursor:pointer;
   background:rgba(255,255,255,0.08); color:#cfd4e6; font-size:12px; font-weight:800; }
@@ -34,3 +34,42 @@
 .s-login-box .slb-hint { font-size:9.5px; color:var(--dim); text-align:center; line-height:1.5; }
 /* 이 창은 배경 body 자체가 투명하지 않게(웜블랙) — desktop.css .bg 재사용 */
 body { background:#010A13; }   /* 헥스텍 딥블랙블루 */
+
+/* ── ⚔️ 팀짜기 톤앤매너(헥스텍) 오버라이드 ── */
+#cat-team .cat-scroll { padding:11px 12px 14px; }
+#cat-team .tb-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+#cat-team .tb-count { font-size:11.5px; color:var(--ink-soft); }
+#cat-team .tb-count b { font-family:'JetBrains Mono',monospace; font-size:15px; color:var(--gold); margin-right:2px; }
+#cat-team .tb-modes { display:flex; gap:4px; }
+#cat-team .tb-modes label { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; color:var(--dim);
+  padding:4px 9px; border-radius:8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09); cursor:pointer; }
+#cat-team .tb-modes label:has(input:checked) { background:var(--gold-soft); border-color:var(--gold-line); color:#ffe39a; }
+#cat-team .tb-modes input { position:absolute; opacity:0; width:0; height:0; }
+#cat-team .tb-list { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:11px; }
+#cat-team .tb-item { display:flex; align-items:center; gap:7px; padding:8px 9px; border-radius:9px; cursor:pointer;
+  background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.09); transition:.1s; min-width:0; }
+#cat-team .tb-item:hover { border-color:rgba(255,255,255,0.2); }
+#cat-team .tb-item.on { background:var(--gold-soft); border-color:var(--gold-line); }
+#cat-team .tb-item input { flex-shrink:0; margin:0; width:15px; height:15px; accent-color:var(--gold); cursor:pointer; }
+#cat-team .tb-item span { font-size:12px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#cat-team .tb-item.on span { color:#ffe8b8; }
+#cat-team .btn-gold, #cat-team #tb-go { -webkit-app-region:no-drag; display:block; width:100%; cursor:pointer; padding:11px; border-radius:10px;
+  font-family:'Black Han Sans',sans-serif; font-size:14px; letter-spacing:0.5px; color:#1a1206; border:none;
+  background:linear-gradient(180deg,#e8c84a,#c89b3c); box-shadow:0 4px 14px rgba(200,155,60,0.3); }
+#cat-team .btn-gold:disabled, #cat-team #tb-go:disabled { background:rgba(255,255,255,0.07); color:var(--dim); box-shadow:none; cursor:default; }
+#cat-team .btn-ghost { -webkit-app-region:no-drag; display:block; width:100%; cursor:pointer; padding:10px; border-radius:9px; margin-top:8px;
+  font-size:12px; font-weight:800; color:var(--ink-soft); background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); }
+#cat-team .btn-ghost:hover { border-color:var(--gold-line); color:var(--ink); }
+#cat-team .foot-hint { margin-top:10px; font-size:9.5px; color:var(--dim); line-height:1.6; text-align:center; }
+#cat-team .tb-timer { text-align:center; padding:18px 0 12px; }
+#cat-team .tb-timer b { font-family:'JetBrains Mono',monospace; font-size:40px; color:var(--gold); text-shadow:0 0 20px rgba(240,200,90,0.5); }
+#cat-team .tb-timer span { display:block; font-size:11px; color:var(--dim); margin-top:2px; }
+#cat-team .tb-result { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+#cat-team .tbr { padding:9px 11px; border-radius:10px; background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.09); }
+#cat-team .tbr b { display:block; font-family:'Black Han Sans',sans-serif; font-size:12px; margin-bottom:3px; }
+#cat-team .tbr span { font-size:11.5px; color:var(--ink); line-height:1.6; }
+#cat-team .tbr.a { border-left:3px solid var(--teal); } #cat-team .tbr.a b { color:var(--teal); }
+#cat-team .tbr.b { border-left:3px solid var(--gold); } #cat-team .tbr.b b { color:var(--gold); }
+#cat-team .tbr.s { border-left:3px solid var(--dim); } #cat-team .tbr.s b { color:var(--dim); }
+#cat-team .tbr-ok { font-size:11px; color:#7fe0c8; text-align:center; padding:8px; background:rgba(10,200,185,0.08); border-radius:9px; }
+#cat-team .tb-err { margin-top:9px; font-size:11px; color:#ff8b8b; background:rgba(255,80,80,0.1); border:1px solid rgba(255,90,90,0.35); border-radius:8px; padding:8px 10px; }
