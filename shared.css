@@ -1,0 +1,57 @@
+/* ════════════════════════════════════════════════════════════════════════
+   공통 디자인 토큰 — 오버레이(인게임)·데스크톱(로그인/팀짜기/투표) 두 창 공유
+   기준 = 홈페이지 팀발표 감성(청록 1팀 · 골드 2팀 · Black Han Sans · JetBrains Mono)
+   각 창 CSS(overlay.css/desktop.css)보다 먼저 로드 → 여기서 색·폰트·공통 컴포넌트 정의,
+   각 창은 자기 배경(오버레이=투명/데스크톱=불투명)만 따로. 새 화면은 이 토큰을 재사용할 것.
+   ════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* 팀 색 — 홈페이지와 동일(1팀 청록 / 2팀 골드) */
+  --teal:#38d9c0;  --teal-soft:rgba(56,217,192,0.13);  --teal-line:rgba(56,217,192,0.5);
+  --gold:#e8c84a;  --gold-soft:rgba(232,200,74,0.13);  --gold-line:rgba(232,200,74,0.5);
+  --gold-btn2:#e0a82e;   /* 골드 버튼 그라데이션 하단 */
+  /* 중립 */
+  --dim:#8c86a0;  --ink:#e8ecf6;  --ink-soft:#cfd4e6;
+  --win:#7CFC9A;  --lose:#ff9a9a;
+  /* 카드/라인 */
+  --card-bg:linear-gradient(160deg, rgba(24,20,36,0.82), rgba(14,11,22,0.9));
+  --card-line:rgba(240,200,90,0.28);
+  --hair:rgba(255,255,255,0.06);
+  /* 폰트 */
+  --f-body:'Pretendard','Segoe UI',system-ui,sans-serif;
+  --f-title:'Black Han Sans',sans-serif;
+  --f-mono:'JetBrains Mono',monospace;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+
+/* ── 공통 컴포넌트 (양 창 재사용) ────────────────────────────────────── */
+
+/* 카드 */
+.ui-card { background:var(--card-bg); border:1px solid var(--card-line); border-radius:14px; }
+
+/* 버튼 */
+.ui-btn-gold { padding:12px; border:none; border-radius:11px; font-size:14px; font-weight:800; cursor:pointer;
+  font-family:var(--f-body); color:#1a1206;
+  background:linear-gradient(135deg, var(--gold-btn2), var(--gold)); box-shadow:0 6px 18px rgba(230,180,70,0.28); }
+.ui-btn-gold:disabled { opacity:0.4; cursor:default; box-shadow:none; }
+.ui-btn-gold:not(:disabled):active { transform:translateY(1px); }
+.ui-btn-ghost { padding:11px; border:1px solid var(--gold-line); border-radius:11px; font-size:13px; font-weight:700;
+  cursor:pointer; font-family:var(--f-body); background:rgba(232,200,74,0.07); color:#ffe39a; }
+.ui-btn-ghost:active { transform:translateY(1px); }
+
+/* 배지(LP·티어·카운트 등) */
+.ui-badge { font-family:var(--f-mono); font-size:9.5px; font-weight:600; color:var(--dim);
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); border-radius:5px; padding:2px 8px; }
+.ui-lp { font-family:var(--f-mono); font-size:10px; font-weight:800; color:#1a1206;
+  background:linear-gradient(180deg,#ffe08a,#f0c060); padding:1px 7px; border-radius:9px; white-space:nowrap; }
+.ui-lp.none { background:rgba(255,255,255,0.08); color:#7a8092; }
+
+/* 팀 색 유틸 — 텍스트/보더에 팀 색 (블루=1팀, 레드=2팀) */
+.t-blue { color:var(--teal); } .t-red { color:var(--gold); }
+
+/* 스크롤바 */
+.ui-scroll::-webkit-scrollbar { width:6px; }
+.ui-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.14); border-radius:3px; }
+
+/* 제목 */
+.ui-title { font-family:var(--f-title); letter-spacing:1px; color:var(--gold); text-shadow:0 0 16px rgba(200,155,60,0.5); }

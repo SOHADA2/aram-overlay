@@ -151,6 +151,22 @@ async function fbSet(pathStr, value) {
   if (r.status === 401 || r.status === 403) { _fbTok = null; }   // 토큰 만료/거부 → 다음 시도에 재발급
   return { ok: false, err: `쓰기 실패(HTTP ${r.status})` };
 }
+async function fbDelete(pathStr) {   // 특정 키 삭제 — 홈페이지 remove()와 동일(투표 취소용)
+  const tok = await fbToken();
+  if (!tok) return { ok: false };
+  const r = await reqJson('DELETE', `${FIREBASE_DB}/${pathStr}.json?auth=${tok}`);
+  if (r.status === 401 || r.status === 403) { _fbTok = null; }
+  return { ok: r.status === 200 };
+}
+// 이름 → 홈페이지 투표 키(fbKey = normName 후 공백→_) · session에서 내 팀 판별
+const fbKeyOf = name => normName(name).replace(/\s+/g, '_');
+function teamOf(s, name) {
+  if (!s || !name) return null;
+  const n = normName(name);
+  if ((s.teamA || []).some(x => normName(x) === n)) return 'teamA';
+  if ((s.teamB || []).some(x => normName(x) === n)) return 'teamB';
+  return null;
+}
 
 const norm = s => String(s || '').replace(/\s+/g, '').toLowerCase();
 
@@ -266,6 +282,8 @@ async function pollSession() {
   }
   if (sampleActive) return;                       // 미리보기 유지 중이면 안 건드림
   sessionData = s || null;
+  // 🗳️ 투표 단계면 오버레이 자동 표시(게임 끝나 숨겨졌어도) — manualEog 신선 or 이미 투표 진행 중
+  if (isVotingStage(s) && !userHid) showOverlay();
   broadcast('session', { session: sessionData, myName: config.myName || '', lpMap });
 }
 
@@ -345,6 +363,17 @@ async function finishTeamBuild() {
 }
 function skipItemPhase() { if (_tb && !_tb.finishing) _tb.endAt = Date.now(); }   // 홈페이지 skipItemPhase와 동일(즉시 팀 구성)
 
+// 🗳️ 투표 단계 판정 — mvp/manner active·미확정 + (승리팀 수동선택 신선 or 이미 투표 진행 중)
+//   makeTeams가 mvp:{active:true}를 팀 짤 때 미리 쓰므로 active만으론 부족 → manualEog(승패) 또는 votes 존재로 "지금 투표 중" 판정.
+function isVotingStage(s) {
+  if (!s || !s.mvp || !s.mvp.active || !s.manner || !s.manner.active) return false;
+  if (s.mvp.confirmed || s.manner.confirmed) return false;   // 확정 = 투표 끝(정산 단계)
+  const fresh = s.manualEog && s.manualEog.at && (Date.now() - s.manualEog.at < 10 * 60 * 1000);
+  const anyVote = (s.mvp.teamAVotes && Object.keys(s.mvp.teamAVotes).length) ||
+                  (s.mvp.teamBVotes && Object.keys(s.mvp.teamBVotes).length);
+  return !!(fresh || anyVote);
+}
+
 // ── 트레이 ──────────────────────────────────────────────────────────────
 function toggleDock() {
   config.dock = (config.dock === false);   // 뒤집기(기본 켜짐)
@@ -396,6 +425,25 @@ ipcMain.handle('get-players', async () => {        // 데스크톱 ID 선택용 
 });
 ipcMain.handle('tb-start', (_e, { names, mode }) => startTeamBuild(names, mode));   // ⚔️ 팀 짜기 시작(방장)
 ipcMain.on('tb-skip', () => skipItemPhase());                                       // ⏭️ 아이템 시간 건너뛰기
+// 🗳️ 투표 — 내 이름·현재 session으로 팀/키 계산 후 mvp·manner 두 노드에 write(홈 castCombinedVote와 동일 경로)
+ipcMain.handle('vote-cast', async (_e, { mvpPick, mannerPick }) => {
+  const s = sessionData, me = config.myName;
+  const team = teamOf(s, me);
+  if (!team) return { ok: false, err: '이 경기에 참가하지 않았어요' };
+  const k = fbKeyOf(me);
+  const a = await fbSet(`session/mvp/${team}Votes/${k}`, mvpPick);
+  const b = await fbSet(`session/manner/${team}Votes/${k}`, mannerPick);
+  return { ok: a.ok && b.ok, err: a.err || b.err };
+});
+ipcMain.handle('vote-clear', async (_e) => {   // ↩ 다시 선택(투표 취소)
+  const s = sessionData, me = config.myName;
+  const team = teamOf(s, me);
+  if (!team) return { ok: false };
+  const k = fbKeyOf(me);
+  await fbDelete(`session/mvp/${team}Votes/${k}`);
+  await fbDelete(`session/manner/${team}Votes/${k}`);
+  return { ok: true };
+});
 ipcMain.on('session-preview', () => {              // 팀 배정 뷰 미리보기(샘플)
   sampleActive = true; userHid = false; sessionData = SAMPLE_SESSION; showOverlay();
   if (overlayWin) {

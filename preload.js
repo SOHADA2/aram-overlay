@@ -19,4 +19,7 @@ contextBridge.exposeInMainWorld('api', {
   tbStart: (names, mode) => ipcRenderer.invoke('tb-start', { names, mode }),
   tbSkip: () => ipcRenderer.send('tb-skip'),
   onTeamBuild: (cb) => ipcRenderer.on('teambuild', (_e, d) => cb(d)),
+  // 🗳️ 투표
+  voteCast: (mvpPick, mannerPick) => ipcRenderer.invoke('vote-cast', { mvpPick, mannerPick }),
+  voteClear: () => ipcRenderer.invoke('vote-clear'),
 });

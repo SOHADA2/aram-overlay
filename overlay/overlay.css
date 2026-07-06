@@ -69,3 +69,37 @@ header #close:hover { background:#e0483a; color:#fff; }
 .players li .lp.none { background:rgba(255,255,255,0.08); color:#7a8092; }
 
 footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rgba(255,255,255,0.05); flex:0 0 auto; text-align:center; }
+
+/* ── 🗳️ 투표 뷰 ── */
+.vt-banner { text-align:center; font-size:12px; padding:8px; border-radius:10px; margin-bottom:10px;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:var(--dim); }
+.vt-banner b { font-size:13.5px; color:var(--ink); }
+.vt-banner.t1 { background:var(--teal-soft); border-color:var(--teal-line); color:#bff3ea; }
+.vt-banner.t1 b { color:#dffff8; }
+.vt-banner.t2 { background:var(--gold-soft); border-color:var(--gold-line); color:#ffe8a6; }
+.vt-banner.t2 b { color:#fff2c8; }
+.vt-sec { margin-bottom:11px; }
+.vt-sec-h { font-size:11px; font-weight:800; letter-spacing:.3px; margin-bottom:6px; }
+.vt-cands { display:flex; flex-direction:column; gap:5px; }
+.vt-cand { -webkit-app-region:no-drag; display:flex; align-items:center; gap:8px; width:100%; text-align:left; cursor:pointer;
+  padding:8px 10px; border-radius:9px; font-size:12px; font-weight:700; color:var(--ink);
+  background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.08); transition:.1s; }
+.vt-cand .vt-badge { font-size:13px; flex-shrink:0; opacity:.85; }
+.vt-cand .vt-nm { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vt-cand.mvp.on { background:var(--gold-soft); border-color:var(--gold-line); color:#fff2c8; }
+.vt-cand.manner.on { background:var(--teal-soft); border-color:var(--teal-line); color:#dffff8; }
+.vt-cand.on .vt-badge { opacity:1; }
+#vt-cast { width:100%; margin-top:2px; }
+.vt-note { font-size:11px; color:var(--dim); line-height:1.7; text-align:center; padding:16px 8px; }
+.vt-done { text-align:center; }
+.vt-done-h { font-size:13px; font-weight:800; color:var(--win); margin-bottom:9px; }
+.vt-done-row { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; margin-bottom:5px;
+  border-radius:9px; background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.08); font-size:12px; }
+.vt-done-row span { color:var(--dim); } .vt-done-row b { color:var(--ink); }
+#vt-redo { width:100%; margin-top:6px; }
+.vt-progress { margin-top:8px; padding-top:8px; border-top:1px solid var(--hair); display:flex; flex-direction:column; gap:5px; }
+.vt-prow { display:flex; align-items:center; gap:5px; flex-wrap:wrap; font-size:9.5px; }
+.vt-prow > span:first-child { font-family:var(--f-title); font-size:10px; margin-right:2px; }
+.vt-chip { font-family:var(--f-mono); font-size:8.5px; color:var(--dim); background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07); border-radius:5px; padding:2px 6px; white-space:nowrap; }
+.vt-chip.ok { color:var(--win); border-color:rgba(124,252,154,0.3); }
