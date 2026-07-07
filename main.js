@@ -822,7 +822,9 @@ ipcMain.handle('item-toggle', async (_e, { id }) => {
   const turningOn = !items[idx].active;
   if (turningOn) {
     const lp = await fetchMyLpState();
-    const placementDone = lp ? lp.placementDone !== false : true;   // 정보 없으면 허용(홈이 최종 검증)
+    if ((id === 's1_gamble' || id === 's1_lp2x') && !lp)   // 홈 toggleItemActive과 동일: LP 정보 없으면 차단(배치/승급전 오사용 방지)
+      return { ok: false, err: '내 LP 정보를 불러오지 못했어요 — 잠시 후 다시' };
+    const placementDone = !!(lp && lp.placementDone !== false);
     const promoActive = !!(lp && lp.promoActive);
     if ((id === 's1_promo_shield' || id === 's1_promo_win') && !promoActive) return { ok: false, err: '승급전 중에만 쓸 수 있어요' };
     if ((id === 's1_gamble' || id === 's1_lp2x') && (!placementDone || promoActive))

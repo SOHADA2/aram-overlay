@@ -236,11 +236,27 @@ function settleItemChips(name) {
   const chips = items.filter(id => SETTLE_ITEM_LABELS[id]).map(id => `<span class="st-item" title="${SETTLE_ITEM_LABELS[id].name}">${SETTLE_ITEM_LABELS[id].ic}</span>`).join('');
   return chips ? `<span class="st-items">${chips}</span>` : '';
 }
+// 💰 각자 총 획득 골드 — 홈 showMatchSummary playerRow와 동일 합산(기본 승15/패5·quest·MVP/매너50·시너지·강철심장. S2=뉴비 OFF)
+function settleGold(name, isWin) {
+  const s = settleData.settle, k = nn(name);
+  let gold;
+  if (s.questEvent) gold = isWin ? (s.questEvent.bonusGold || 0) : 0;
+  else gold = isWin ? 15 : 5;
+  const isMvp = k === nn(s.mvpWinner || '') || k === nn(s.mvpLoser || '');
+  if (isMvp) gold += 50;
+  if (k === nn(s.mannerWinner || '') || k === nn(s.mannerLoser || '')) gold += 50;
+  const pr = settleData.procs || {};
+  const se = pr.syn && pr.syn[k];
+  if (se && se.goldDelta) gold += se.goldDelta;
+  const em = pr.em && pr.em[k];
+  if (em) { let eg = (em.matchG || 0) + (isWin ? (em.winG || 0) : 0); if (isMvp) eg += (em.mvpG || 0); gold += eg; }
+  return gold;
+}
 function settleTeamHtml(names, isWin, badgeMap) {
   const rows = (names || []).map(name => {
     const me = (myName && nn(name) === nn(myName)) ? ' me' : '';
     const b = badgeMap[nn(name)] || '';
-    return `<li class="${me.trim()}"><span class="st-nm">${esc(name)}${b}${settleItemChips(name)}</span>${lpDeltaHtml(name)}</li>`;
+    return `<li class="${me.trim()}"><span class="st-nm">${esc(name)}${b}${settleItemChips(name)}</span>${lpDeltaHtml(name)}<span class="st-gold">+${settleGold(name, isWin)}G</span></li>`;
   }).join('');
   return `<div class="st-team ${isWin ? 'win' : 'lose'}"><div class="st-team-h">${isWin ? '🏆 승리' : '패배'}</div><ul>${rows}</ul></div>`;
 }
@@ -321,12 +337,14 @@ function renderSettle() {
 
 // ── 🎒 아이템 사용(팀 구성 직전 15초) ────────────────────────────────────
 // 홈페이지에서 미리 산 전투 아이템을 여기서 활성화. items_s2 토글(main.js가 상호배제·조건 검증·Firebase write).
-// 홈페이지 아이템 페이즈 pill과 동일한 전투 아이템 3종(구매/활성화). LP2배권은 릴레이 전용이라 여기 없음.
+// 홈페이지 아이템 페이즈 pill과 동일한 전투 아이템 3종(구매/활성화).
 const COMBAT_ITEMS = [
   { id: 's1_gamble',       name: '도박권',        ic: '🎲', desc: '승 +40 / 패 −30 LP', price: 60 },
   { id: 's1_promo_shield', name: '승급전 방어권', ic: '🛡️', desc: '승급전 패배 무효',   price: 100 },
   { id: 's1_promo_win',    name: '승급전 승리권', ic: '⚔️', desc: '승급전 승리 = 2승',   price: 100 },
 ];
+// LP 2배권 = 릴레이/단짝 보상 전용(구매 불가) — 보유자에게만 표시(홈 인벤토리 활성화와 동일 기능)
+const LP2X_ITEM = { id: 's1_lp2x', name: 'LP 2배권', ic: '✨', desc: '승리 LP 2배 (보상 아이템)', price: 0 };
 // 가챠 시너지 11종 — 카드 소유(champCards_s2)로 2★/3★ 판정. sid/멤버/효과는 홈 GACHA_SYNERGY_GROUPS와 동일.
 const SYN_PROC = { 2: 30, 3: 50 };   // 발동 확률 (2★ 30% / 3★ 50%)
 const SYN_GROUPS = [
@@ -482,8 +500,9 @@ function renderItem() {
   const cnt = id => items.filter(it => it && it.id === id).length;
   const on  = id => items.some(it => it && it.id === id && it.active);
 
-  // ① 전투 아이템(보유=활성화 토글 / 미보유=구매)
-  const itemsHtml = COMBAT_ITEMS.map(ci => {
+  // ① 전투 아이템(보유=활성화 토글 / 미보유=구매) — LP2배권은 보유자에게만(구매 없음)
+  const itemList = cnt(LP2X_ITEM.id) ? [...COMBAT_ITEMS, LP2X_ITEM] : COMBAT_ITEMS;
+  const itemsHtml = itemList.map(ci => {
     const owned = cnt(ci.id), act = on(ci.id), akey = `item:${ci.id}`;
     const badge = owned ? (act ? '<span class="it-badge on">✓ 켜짐</span>' : '<span class="it-badge own">보유</span>') : `<span class="it-badge buy">${ci.price}G</span>`;
     const btn = owned
@@ -578,14 +597,15 @@ function renderIngame() {
   const on = id => items.some(it => it && it.id === id && it.active);
   const tierKr = TIER_KR[st.tier] || st.tier || '—';
 
-  // ⬆️ 승급/강등 컨텍스트
+  // ⬆️ 승급/강등 컨텍스트 — 챌린저=상한 없음 / 플래+ 0 미만=이전 티어 75LP 강등(홈 S1_NO_DEMOTE 규칙)
+  const isChall = st.tier === 'challenger';
+  const DEMOTE_TIERS = ['platinum', 'diamond', 'master', 'grandmaster', 'challenger'];   // 강등 있는 티어(브/실/골=0 바닥)
+  const PREV_TIER = { platinum: 'gold', diamond: 'platinum', master: 'diamond', grandmaster: 'master', challenger: 'grandmaster' };
   let promoCtx;
   if (st.placementDone === false) promoCtx = `배치 ${st.placementGames}/5`;
   else if (st.promoActive) promoCtx = `승급전 ${st.promoWins}-${st.promoLosses}`;
-  else {
-    const HI = ['platinum', 'emerald', 'diamond', 'master', 'grandmaster', 'challenger'];
-    promoCtx = (st.lp <= 15 && HI.includes(st.tier)) ? `⚠️ 강등 위험 · 승급까지 ${LP_CAP - st.lp}` : `승급까지 ${LP_CAP - st.lp} LP`;
-  }
+  else if (isChall) promoCtx = '정점 · LP 상한 없음';
+  else promoCtx = (st.lp <= 15 && DEMOTE_TIERS.includes(st.tier)) ? `⚠️ 강등 위험 · 승급까지 ${LP_CAP - st.lp}` : `승급까지 ${LP_CAP - st.lp} LP`;
 
   // 🔥 오늘 전적·연승 (경기 전 기준)
   let todayHtml = '';
@@ -608,10 +628,16 @@ function renderIngame() {
     const gamble = on('s1_gamble'), lp2x = on('s1_lp2x');
     const wLp = gamble ? GMB_WIN : (lp2x ? LP_WIN * 2 : LP_WIN);
     const lLp = gamble ? GMB_LOSS : LP_LOSS;
-    const winTo = Math.min(LP_CAP, st.lp + wLp), lossTo = Math.max(0, st.lp - lLp);
-    winB = `+${wLp} LP`; winSub = winTo >= LP_CAP ? '🔥 승급전 진입!' : `→ ${winTo} LP`;
-    lossB = `−${lLp} LP`; lossSub = `→ ${lossTo} LP`;
-    lpBar = `<div class="ig-lpbar-track"><div class="ig-lpbar" style="width:${Math.min(100, st.lp)}%"></div></div>`;
+    if (isChall) {   // 챌린저: LP 무제한(캡·승급전 없음), 0 미만=그마 75 강등
+      winB = `+${wLp} LP`; winSub = `→ ${st.lp + wLp} LP`;
+    } else {
+      const winTo = Math.min(LP_CAP, st.lp + wLp);
+      winB = `+${wLp} LP`; winSub = winTo >= LP_CAP ? '🔥 승급전 진입!' : `→ ${winTo} LP`;
+      lpBar = `<div class="ig-lpbar-track"><div class="ig-lpbar" style="width:${Math.min(100, st.lp)}%"></div></div>`;
+    }
+    lossB = `−${lLp} LP`;
+    if (st.lp - lLp < 0 && DEMOTE_TIERS.includes(st.tier)) lossSub = `⚠️ ${TIER_KR[PREV_TIER[st.tier]] || ''} 강등 (75 LP)`;
+    else lossSub = `→ ${Math.max(0, st.lp - lLp)} LP`;
   }
 
   // 내 빌드 — 장착 강철심장 · 활성 시너지 · 활성 아이템
