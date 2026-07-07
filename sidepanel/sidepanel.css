@@ -3,8 +3,8 @@
   background:linear-gradient(165deg, rgba(10,22,40,0.97), rgba(2,10,20,0.98));   /* 헥스텍 딥블루 */
   border:1px solid rgba(120,90,40,0.6); border-left:none; border-top:2px solid #C8AA6E; border-radius:0;   /* 각지게 + 상단 골드 라인(클라 헥스텍 골드) */
   box-shadow:3px 0 20px rgba(0,0,0,0.45); }   /* 그림자는 바깥(오른쪽)으로만 — 클라 위로 안 새게 */
-#sbar { -webkit-app-region:drag; display:flex; align-items:center; gap:7px; padding:0 11px; min-height:90px; flex:0 0 auto;   /* 클라 상단 네비바 높이에 맞춤(아래 구분선 정렬) */
-  background:linear-gradient(180deg, rgba(200,170,110,0.10), rgba(200,170,110,0.03)); border-bottom:1px solid #C8AA6E; }   /* 클라 네비 아래 구분선 톤(골드) */
+#sbar { -webkit-app-region:drag; display:flex; align-items:center; gap:7px; padding:0 11px; min-height:84px; flex:0 0 auto;   /* 클라 상단 네비바 높이에 맞춤(아래 구분선 정렬) */
+  background:linear-gradient(180deg, rgba(200,170,110,0.10), rgba(200,170,110,0.03)); border-bottom:1px solid rgba(255,255,255,0.11); }   /* 클라 네비 아래 구분선=얇은 회색 */
 #panel .rail { padding-top:10px; }   /* rail-logo 제거 후 상단 여백 */
 #sbar label, #sbar button, #sbar input, #sbar select { -webkit-app-region:no-drag; }
 #sbar .s-ttl { font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:14px; letter-spacing:0.5px; color:var(--gold); }
