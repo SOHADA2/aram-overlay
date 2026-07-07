@@ -615,14 +615,15 @@ function renderIngame() {
 function render() {
   if (itemActive()) { renderItem(); showView('item'); el('phase').textContent = '아이템'; return; }
   if (settleActive()) { renderSettle(); showView('settle'); el('phase').textContent = '정산'; return; }
-  if (inGame) { renderIngame(); showView('ingame'); el('phase').textContent = '게임 중'; return; }   // 🎮 전투 중=내 빌드+승패 LP(팀 명단 숨김)
   const hasTeams = sessionData && sessionData.active && (((sessionData.teamA || []).length) || ((sessionData.teamB || []).length));
-  if (hasTeams && isVoting()) {
+  if (hasTeams && isVoting()) {   // 🗳️ 투표=경기 종료 신호 → 인게임보다 우선(끝난 순간 확실히 뜨게)
     // 팀이 바뀌면 선택 초기화(다음 경기 투표)
     const sig = (sessionData.teamsFormedAt || 0) + ':' + (sessionData.manualEog && sessionData.manualEog.at || 0);
     if (sig !== _voteSig) { _voteSig = sig; _pendMvp = _pendManner = null; }
-    renderVote(); showView('vote'); el('phase').textContent = '투표';
-  } else if (hasTeams) { renderTeam(); showView('team'); el('phase').textContent = phaseLabel === '미리보기' ? '미리보기' : '팀 배정'; }
+    renderVote(); showView('vote'); el('phase').textContent = '투표'; return;
+  }
+  if (inGame) { renderIngame(); showView('ingame'); el('phase').textContent = '게임 중'; return; }   // 🎮 전투 중=내 빌드+승패 LP(팀 명단 숨김)
+  if (hasTeams) { renderTeam(); showView('team'); el('phase').textContent = phaseLabel === '미리보기' ? '미리보기' : '팀 배정'; }
   else { renderRoster(); showView('roster'); el('phase').textContent = phaseLabel; }
 }
 render();
