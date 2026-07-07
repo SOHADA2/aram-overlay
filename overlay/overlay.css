@@ -21,7 +21,7 @@ header #close:hover { background:#e0483a; color:#fff; }
 .view::-webkit-scrollbar { width:6px; } .view::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.14); border-radius:3px; }
 
 /* ── 팀 배정 뷰 (세로 가운데 정렬 → 아래 빈 공간 균형 있게) ── */
-#view-team { flex-direction:column; justify-content:safe center; }
+#view-team { flex-direction:column; justify-content:flex-start; }
 .tv-band { text-align:center; font-size:11px; font-weight:700; padding:11px 8px; border-radius:12px; margin-bottom:12px;
   background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); color:var(--dim); }
 .tv-band b { font-size:14px; color:var(--ink); }
@@ -38,9 +38,9 @@ header #close:hover { background:#e0483a; color:#fff; }
 .ta-team.mine.red  .ta-label::after { background:rgba(232,200,74,0.22); color:#ffe39a; }
 
 /* 세로 스택(1팀 위·2팀 아래) — 좁고 긴 도킹 패널에 꽉 차게 */
-.ta-teams { display:flex; flex-direction:column; gap:9px; }
+.ta-teams { display:flex; flex-direction:column; gap:9px; flex:1; min-height:0; }
 
-.ta-team { position:relative; border-radius:13px; overflow:hidden; min-width:0;
+.ta-team { position:relative; border-radius:13px; overflow:hidden; min-width:0; flex:1;
   background:linear-gradient(160deg, rgba(20,17,10,0.96), rgba(11,9,5,0.98)); border:1px solid; }
 .ta-team::after { content:''; position:absolute; inset:0; pointer-events:none;
   background:repeating-linear-gradient(135deg,transparent,transparent 15px,rgba(255,255,255,0.01) 15px,rgba(255,255,255,0.01) 16px); }
