@@ -162,6 +162,19 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 .st-lp.plus { color:var(--win); } .st-lp.minus { color:var(--lose); } .st-lp.zero { color:var(--dim); }
 .st-lp.dim { color:var(--dim); font-weight:600; }
 .st-tier { font-family:var(--f-mono); font-size:8.5px; color:var(--gold); margin-left:2px; }
+.st-items { margin-left:5px; white-space:nowrap; }
+.st-item { font-size:10px; margin-left:1px; opacity:0.9; }
+/* ⚡ 이번 판 발동 효과 */
+.st-procs:empty { display:none; }
+.st-procs { margin-bottom:10px; border:1px solid var(--gold-line); border-radius:11px; overflow:hidden; background:rgba(240,200,90,0.05); }
+.st-procs-h { font-family:var(--f-title); font-size:11px; letter-spacing:0.5px; color:#ffe39a; padding:6px 11px; border-bottom:1px solid var(--hair); }
+.st-proc { display:flex; align-items:center; gap:8px; padding:6px 11px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:11px; }
+.st-proc:last-child { border-bottom:none; }
+.st-proc.miss { opacity:0.72; }
+.st-proc-nm { flex-shrink:0; min-width:52px; max-width:88px; font-weight:700; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.st-proc-mid { flex:1; min-width:0; color:var(--ink); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.st-proc-fx { flex-shrink:0; font-family:var(--f-mono); font-size:10px; font-weight:800; color:#ffd98a; text-align:right; }
+.st-proc.miss .st-proc-fx { color:var(--dim); }
 #st-close { width:100%; }
 
 /* ── 🎒 아이템 사용 뷰 ── */

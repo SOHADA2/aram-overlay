@@ -16,7 +16,12 @@
   const VOTE = Object.assign({}, TEAM, { mvp: { active: true, teamAVotes: {}, teamBVotes: {} }, manner: { active: true, teamAVotes: {}, teamBVotes: {} }, manualEog: { at: Date.now(), winSide: 'blue' } });
   const SETTLE = { settle: { publishedAt: Date.now(), matchKey: 'm' + Date.now(), winners: TEAM.teamA, losers: TEAM.teamB, mvpWinner: '애긔반달곰', mvpLoser: 'ap렉사이서폿', mannerWinner: '신규회원임',
     s1LpBefore: { '애긔반달곰': { tier: 'gold', lp: 56, placementDone: true }, '울퉁쓰': { tier: 'gold', lp: 55 }, '신규회원임': { tier: 'silver', lp: 95 }, 'ap렉사이서폿': { tier: 'diamond', lp: 42 }, '맹독 벌꿀오소리': { tier: 'gold', lp: 94 }, '나랑듀오해듀오': { tier: 'gold', lp: 89 } } },
-    lpNow: { '애긔반달곰': { tier: 'gold', lp: 76 }, '울퉁쓰': { tier: 'gold', lp: 75 }, '신규회원임': { tier: 'gold', lp: 0 }, 'ap렉사이서폿': { tier: 'diamond', lp: 28 }, '맹독 벌꿀오소리': { tier: 'gold', lp: 80 }, '나랑듀오해듀오': { tier: 'gold', lp: 75 } } };
+    lpNow: { '애긔반달곰': { tier: 'gold', lp: 76 }, '울퉁쓰': { tier: 'gold', lp: 75 }, '신규회원임': { tier: 'gold', lp: 0 }, 'ap렉사이서폿': { tier: 'diamond', lp: 28 }, '맹독 벌꿀오소리': { tier: 'gold', lp: 80 }, '나랑듀오해듀오': { tier: 'gold', lp: 75 } },
+    procs: {
+      syn: { '애긔반달곰': { sid: 'marksman', tier: 2, procced: false }, '울퉁쓰': { sid: 'bilgewater', tier: 2, procced: true, goldDelta: 40 }, 'ap렉사이서폿': { sid: 'void', tier: 2, procced: true } },
+      em: { '애긔반달곰': { winLpProc: true, winLP: 3, matchG: 5, winG: 8, mvpG: 15 }, '맹독 벌꿀오소리': { lossLpProc: true, lossLP: 2, matchG: 5 } },
+      items: { '울퉁쓰': ['s1_gamble'], 'ap렉사이서폿': ['s1_promo_shield'], '신규회원임': ['s1_lp2x'] },
+    } };
 
   window.api = new Proxy({}, { get(_, k) {
     if (typeof k !== 'string') return undefined;

@@ -252,6 +252,7 @@ const fetchPlayers   = () => getJson(`${FIREBASE_DB}/players.json`);   // 등록
 const fetchMatches   = () => getJson(`${FIREBASE_DB}/matches.json`);   // ⚔️ 팀짜기 승률 계산용(수 MB — 팀짤 때만)
 const fetchSeason    = () => getJson(`${FIREBASE_DB}/config/currentSeason.json`);
 const fetchSettlement= () => getJson(`${FIREBASE_DB}/lastSettlement.json`);   // 💰 정산 결과(참여자 전파용)
+const fetchMatch     = (key) => getJson(`${FIREBASE_DB}/matches/${key}.json`);   // 💥 발동 효과(시너지·강철심장·아이템) 스냅샷
 const fetchGoldAll   = () => getJson(`${FIREBASE_DB}/gold.json`);      // 🎒 아이템 페이즈 — 내 gold 노드 찾기용
 const fetchMyLp      = () => getJson(`${FIREBASE_DB}/season2/players.json`);   // 배치/승급전 판정용
 const fetchAppVersion= () => getJson(`${FIREBASE_DB}/config/appVersion.json`);  // 🔖 홈페이지 현재 버전(오버레이에 실시간 동기화 표시)
@@ -556,8 +557,14 @@ async function pollSettlement() {
   const raw = await fetchLpPlayers();
   const lpNow = {};
   if (raw) for (const k in raw) { const d = raw[k]; const key = normName(d.name || k); if (key) lpNow[key] = { tier: d.tier || '', lp: d.lp || 0 }; }
+  // 💥 이번 판 발동 효과(시너지·강철심장·아이템) — 경기 기록 스냅샷에서 참여자별로 (홈 정산창과 동일 소스)
+  let procs = null;
+  if (s.matchKey) {
+    const m = await fetchMatch(s.matchKey);
+    if (m) procs = { syn: m.synergyEffects || {}, em: m.emblemEffects || {}, items: m.itemEffects || {} };
+  }
   if (!userHid) showOverlay();
-  broadcast('settlement', { settle: s, lpNow });
+  broadcast('settlement', { settle: s, lpNow, procs });
 }
 
 // 🧩 홈페이지 session(팀 배정) 폴링 — 새 팀 짜이면 오버레이 자동 표시

@@ -221,13 +221,79 @@ function lpDeltaHtml(name) {
   const sign = d > 0 ? '+' : '';
   return `<span class="st-lp ${cls}">${sign}${d} LP</span>${tierTxt}`;
 }
+// 🎒 사용 아이템 칩(정산창 이름 표시용)
+const SETTLE_ITEM_LABELS = {
+  s1_gamble:       { ic: '🎲', name: '도박권' },
+  s1_promo_win:    { ic: '⚔️', name: '승급전 승리권' },
+  s1_promo_shield: { ic: '🛡️', name: '승급전 방어권' },
+  s1_lp2x:         { ic: '✨', name: 'LP 2배권' },
+};
+function settleItemChips(name) {
+  const items = (settleData.procs && settleData.procs.items && settleData.procs.items[nn(name)]) || [];
+  const chips = items.filter(id => SETTLE_ITEM_LABELS[id]).map(id => `<span class="st-item" title="${SETTLE_ITEM_LABELS[id].name}">${SETTLE_ITEM_LABELS[id].ic}</span>`).join('');
+  return chips ? `<span class="st-items">${chips}</span>` : '';
+}
 function settleTeamHtml(names, isWin, badgeMap) {
   const rows = (names || []).map(name => {
     const me = (myName && nn(name) === nn(myName)) ? ' me' : '';
     const b = badgeMap[nn(name)] || '';
-    return `<li class="${me.trim()}"><span class="st-nm">${esc(name)}${b}</span>${lpDeltaHtml(name)}</li>`;
+    return `<li class="${me.trim()}"><span class="st-nm">${esc(name)}${b}${settleItemChips(name)}</span>${lpDeltaHtml(name)}</li>`;
   }).join('');
   return `<div class="st-team ${isWin ? 'win' : 'lose'}"><div class="st-team-h">${isWin ? '🏆 승리' : '패배'}</div><ul>${rows}</ul></div>`;
+}
+// 💥 이번 판 발동 효과 — 시너지(홈 _synColl 이식). 발동=전원 공개 / 미발동·역효과=본인만
+function _settleSynProc(name, isWin) {
+  const se = settleData.procs && settleData.procs.syn && settleData.procs.syn[nn(name)];
+  if (!se || !se.sid) return null;
+  const g = SYN_GROUPS.find(x => x.sid === se.sid);
+  if (!g) return null;
+  const t = se.tier === 3 ? 3 : 2, v = t === 3 ? g.v3 : g.v2, proc = !!se.procced;
+  let fired = false, backfire = false, relevant = false, fx = '';
+  switch (g.effType) {
+    case 'win_lp':   relevant = isWin; if (proc && isWin) { fired = true; fx = `승리 LP +${v}`; } break;
+    case 'win_gold': relevant = isWin || (g.lossV2 != null); if (proc && se.goldDelta) { fired = true; fx = isWin ? `골드 +${se.goldDelta}G` : `위로금 +${se.goldDelta}G`; } break;
+    case 'lp_block': relevant = !isWin; if (proc && !isWin) { const p = [`LP ${v} 방어`]; if (se.goldDelta) p.push(`위로금 +${se.goldDelta}G`); fired = true; fx = p.join(' · '); } break;
+    case 'risk_win': relevant = true; if (proc && isWin) { fired = true; fx = `LP +${v}`; } else if (proc && !isWin) { backfire = true; fx = `LP -${g.lossV}`; } break;
+    case 'risk_block': relevant = !isWin; if (!isWin && proc) { fired = true; fx = '손실 전액 방어'; } else if (!isWin && !proc) { backfire = true; fx = `LP -${t === 3 ? g.failV3 : g.failV2}`; } break;
+  }
+  const isMe = myName && nn(name) === nn(myName);
+  if (fired) return { name, ic: g.ic, label: g.name, fx, miss: false };
+  if (isMe && (relevant || backfire)) {
+    const msg = backfire ? `역효과 ${fx}` : (se.condFail && g.cond) ? `${g.cond} 미달 — 미발동` : '발동 실패';
+    return { name, ic: g.ic, label: g.name, fx: msg, miss: true };
+  }
+  return null;
+}
+// 💥 강철심장 걸작 발동(홈 emblemSnap 이식) — LP/골드
+function _settleEmProc(name, isWin) {
+  const em = settleData.procs && settleData.procs.em && settleData.procs.em[nn(name)];
+  if (!em) return null;
+  const s = settleData.settle;
+  const items = (settleData.procs.items && settleData.procs.items[nn(name)]) || [];
+  const s1item = items.find(e => typeof e === 'string' && e.startsWith('s1_'));
+  const before = (s.s1LpBefore || {})[nn(name)];
+  const suppress = (s1item === 's1_gamble') || (before && (before.placementDone === false || before.promoActive));   // 도박권·배치·승급전은 LP 발동 제외(홈과 동일)
+  const parts = [];
+  if (isWin && em.winLpProc && em.winLP && !suppress) parts.push(`승리 LP +${em.winLP}`);
+  if (!isWin && em.lossLpProc && em.lossLP && !suppress) parts.push(`LP ${em.lossLP} 방어`);
+  const isMvp = nn(name) === nn(s.mvpWinner || '') || nn(name) === nn(s.mvpLoser || '');
+  let eg = (em.matchG || 0) + (isWin ? (em.winG || 0) : 0);
+  if (isMvp) eg += (em.mvpG || 0);
+  if (eg) parts.push(`골드 +${eg}G`);
+  if (!parts.length) return null;
+  return { name, ic: '🔨', label: '강철심장', fx: parts.join(' · '), miss: false };
+}
+function _settleProcsHtml() {
+  if (!settleData.procs) return '';
+  const s = settleData.settle, rows = [];
+  const collect = (names, isWin) => (names || []).forEach(n => {
+    const sp = _settleSynProc(n, isWin); if (sp) rows.push(sp);
+    const ep = _settleEmProc(n, isWin); if (ep) rows.push(ep);
+  });
+  collect(s.winners, true); collect(s.losers, false);
+  if (!rows.length) return '';
+  const body = rows.map(r => `<div class="st-proc${r.miss ? ' miss' : ''}"><span class="st-proc-nm">${esc(r.name)}</span><span class="st-proc-mid">${r.ic} ${esc(r.label)}</span><span class="st-proc-fx">${esc(r.fx)}</span></div>`).join('');
+  return `<div class="st-procs-h">⚡ 이번 판 발동 효과</div>${body}`;
 }
 function renderSettle() {
   const s = settleData.settle;
@@ -246,6 +312,7 @@ function renderSettle() {
   el('st-awards').innerHTML = aw.join('');
 
   el('st-teams').innerHTML = settleTeamHtml(s.winners, true, badge) + settleTeamHtml(s.losers, false, badge);
+  el('st-procs').innerHTML = _settleProcsHtml();
   el('st-close').onclick = () => { if (s.matchKey) markSettleSeen(s.matchKey); settleData = null; render(); };
 }
 
