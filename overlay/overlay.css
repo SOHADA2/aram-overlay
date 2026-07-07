@@ -202,6 +202,7 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 /* 펼침 바디 */
 .it-acbody { display:none; padding:2px 11px 11px; }
 .it-acc.open .it-acbody { display:block; }
+.it-acc.open .it-acbody.it-picks { display:flex; }   /* 섹션 아코디언 본문(목록)은 펼침 시 flex */
 .it-eff { background:rgba(0,0,0,0.22); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:8px 10px; margin-bottom:8px; }
 .it-eff-row { display:flex; align-items:center; gap:6px; font-size:11px; line-height:1.5; }
 .it-eff-row + .it-eff-row { margin-top:4px; }
@@ -220,7 +221,7 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 .it-act.busy { opacity:0.5; pointer-events:none; }
 /* 큰 틀 아코디언(강철심장·시너지 섹션) — 접힘=요약 / 펼침=바꿀 목록 */
 .it-sec-acc { margin-top:8px; }
-.it-picks { display:flex; flex-direction:column; gap:6px; }
+.it-picks { flex-direction:column; gap:6px; }   /* display는 .it-acbody(접힘 none)·.open(펼침 flex)이 제어 */
 .it-pick { display:flex; flex-direction:column; gap:5px; padding:8px 10px; border-radius:8px; background:rgba(0,0,0,0.22); border:1px solid rgba(255,255,255,0.06); }
 .it-pick.on { border-color:var(--gold-line); background:rgba(240,200,90,0.08); }
 .it-pick-row { display:flex; align-items:center; gap:8px; }
