@@ -25,7 +25,7 @@ window.api.onItemPhase(d => {
   if (d && d.endAt !== _itemPhaseKey) { _itemPhaseKey = d.endAt; _itemSeenAt = Date.now(); _itOpen.clear(); }   // 새 페이즈 = 로컬 15초 시작(아코디언 초기화)
   render();
 });
-setInterval(() => { if (itemActive()) { const l = itemSecsLeft(); const e = el('it-sec'); if (e) e.textContent = l; if (l <= 0) render(); } }, 500);
+setInterval(() => { if (itemActive()) { const l = itemSecsLeft(); const e = el('it-sec'); if (e) e.textContent = l; updateItemBar(l); if (l <= 0) render(); } }, 500);
 
 function showView(v) {
   el('view-team').style.display   = v === 'team'   ? 'flex'  : 'none';
@@ -433,6 +433,15 @@ function emEffLinesHtml(em) {
 function itemActive() { return !!(itemData && itemSecsLeft() > 0); }
 // 절대 종료시각(endAt) 기준 = 우측 사이드패널(방장) 카운트다운과 동일 소스 → 같은 숫자로 동기화. 방장은 같은 기기라 정확 일치.
 function itemSecsLeft() { return itemData ? Math.max(0, Math.min(15, Math.ceil((itemData.endAt - Date.now()) / 1000))) : 0; }
+// ⏳ 실제로 줄어드는 시간 바 — 남은 비율(연속값)로 폭, 5초 이하 긴박(빨강)
+function updateItemBar(secs) {
+  const bar = el('it-bar'); if (!bar || !itemData) return;
+  const frac = Math.max(0, Math.min(1, (itemData.endAt - Date.now()) / 15000));
+  bar.style.width = (frac * 100) + '%';
+  const urgent = secs <= 5;
+  bar.classList.toggle('urgent', urgent);
+  const t = bar.closest('.it-timer'); if (t) t.classList.toggle('urgent', urgent);
+}
 function _gd() { return (itemData && itemData.gold && itemData.gold.data) || {}; }
 function _eqEmblemId(d) {   // 현재 장착 강철심장 id(명시적 장착 없으면 성능 1위=레거시 자동장착)
   const arr = (Array.isArray(d.emblems_s2) ? d.emblems_s2 : []).filter(Boolean);
@@ -441,10 +450,10 @@ function _eqEmblemId(d) {   // 현재 장착 강철심장 id(명시적 장착 �
   return top ? top.id : null;
 }
 // 아코디언 1칸 HTML — 접힘(아이콘+이름+짧은효과+상태) / 펼침(효과 상세 + 액션 버튼)
-function accHtml(akey, ic, title, short, badge, effHtml, btnHtml) {
+function accHtml(akey, title, short, badge, effHtml, btnHtml) {
   const open = _itOpen.has(akey) ? ' open' : '';
   return `<div class="it-acc${open}" data-akey="${akey}">`
-    + `<div class="it-achd" data-k="${akey}"><span class="it-ic">${ic}</span>`
+    + `<div class="it-achd" data-k="${akey}">`
     + `<span class="it-info"><b>${title}</b><small>${esc(short)}</small></span>${badge}<span class="it-chev">▾</span></div>`
     + `<div class="it-acbody">${effHtml}${btnHtml}</div></div>`;
 }
@@ -454,15 +463,16 @@ function toggleAcc(k) {
   if (acc) acc.classList.toggle('open', _itOpen.has(k));
 }
 // 큰 틀 아코디언 1칸(강철심장·시너지 섹션) — 접힘=현재 장착/활성 요약 / 펼침=바꿀 목록
-function secAcc(akey, ic, title, summary, bodyHtml) {
+function secAcc(akey, title, summary, bodyHtml) {
   const open = _itOpen.has(akey) ? ' open' : '';
   return `<div class="it-acc it-sec-acc${open}" data-akey="${akey}">`
-    + `<div class="it-achd" data-k="${akey}"><span class="it-ic">${ic}</span>`
+    + `<div class="it-achd" data-k="${akey}">`
     + `<span class="it-info"><b>${title}</b><small>${esc(summary)}</small></span><span class="it-chev">▾</span></div>`
     + `<div class="it-acbody it-picks">${bodyHtml}</div></div>`;
 }
 function renderItem() {
   el('it-sec').textContent = itemSecsLeft();
+  updateItemBar(itemSecsLeft());
   const d = _gd();
   const items = Array.isArray(d.items_s2) ? d.items_s2 : [];
   const cnt = id => items.filter(it => it && it.id === id).length;
@@ -476,7 +486,7 @@ function renderItem() {
       ? `<button class="it-act ${act ? 'act-on' : ''}" data-act="toggle" data-id="${ci.id}">${act ? '✓ 활성화됨 (탭해서 끄기)' : '활성화하기'}</button>`
       : `<button class="it-act act-buy" data-act="buy" data-id="${ci.id}">${ci.price}G 구매하기</button>`;
     const eff = `<div class="it-eff"><div class="it-eff-row"><span class="it-eff-nm">효과</span><span class="it-eff-v">${esc(ci.desc)}</span></div></div>`;
-    return accHtml(akey, ci.ic, `${esc(ci.name)}${owned > 1 ? ` ×${owned}` : ''}`, ci.desc, badge, eff, btn);
+    return accHtml(akey, `${esc(ci.name)}${owned > 1 ? ` ×${owned}` : ''}`, ci.desc, badge, eff, btn);
   }).join('');
 
   // ② 강철심장 = 큰 틀 아코디언 1칸(접힘=장착 요약 / 펼침=바꿀 목록)
@@ -491,7 +501,7 @@ function renderItem() {
       + `<button class="it-pick-btn${eq ? ' on' : ''}" data-act="emblem" data-id="${em.id}">${eq ? '✓ 장착' : '장착'}</button></div>`
       + `<div class="it-pick-eff">${esc(emEffText(em))}</div></div>`;
   }).join('') : '<div class="it-empty">보유한 강철심장이 없어요</div>';
-  const emHtml = secAcc('sec:emblem', '⚒️', '강철심장', emSummary, emBody);
+  const emHtml = secAcc('sec:emblem', '강철심장', emSummary, emBody);
 
   // ③ 시너지 = 큰 틀 아코디언 1칸(접힘=활성 요약 / 펼침=카드 완성분 목록)
   const cards = d.champCards_s2 || {};
@@ -507,9 +517,9 @@ function renderItem() {
       + `<button class="it-pick-btn${act ? ' on' : ''}" data-act="synergy" data-sid="${g.sid}" data-tier="${t}">${act ? '✓ 활성' : '활성화'}</button></div>`
       + `<div class="it-pick-eff">${esc(synEffTxt(g, t))}</div></div>`;
   }).join('') : '<div class="it-empty">활성화할 시너지가 없어요 (카드 미완성)</div>';
-  const synHtml = secAcc('sec:synergy', '🃏', '시너지', synSummary, synBody);
+  const synHtml = secAcc('sec:synergy', '시너지', synSummary, synBody);
 
-  el('it-body').innerHTML = `<div class="it-sec-h">🎒 전투 아이템</div>${itemsHtml}${emHtml}${synHtml}`;
+  el('it-body').innerHTML = `<div class="it-sec-h">전투 아이템</div>${itemsHtml}${emHtml}${synHtml}`;
   el('it-body').querySelectorAll('.it-achd').forEach(h => h.onclick = () => toggleAcc(h.dataset.k));
   el('it-body').querySelectorAll('.it-act, .it-pick-btn').forEach(b => b.onclick = (e) => { e.stopPropagation(); onItemAction(b); });
 }

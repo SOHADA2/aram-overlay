@@ -36,7 +36,10 @@
 
     <!-- 🎒 아이템 사용 뷰 (팀 구성 직전 15초) -->
     <section id="view-item" class="view ui-scroll" style="display:none;">
-      <div class="it-timer"><b id="it-sec">15</b><span>초 · 아이템 사용 시간</span></div>
+      <div class="it-timer">
+        <div class="it-timer-row"><span class="it-timer-lbl">아이템 사용 시간</span><b id="it-sec">15</b><span class="it-timer-unit">초</span></div>
+        <div class="it-bar-track"><div id="it-bar" class="it-bar"></div></div>
+      </div>
       <div id="it-body" class="it-body"></div>
       <div id="it-err" class="it-err" style="display:none;"></div>
       <div class="it-note">아이템 구매·활성화 · 강철심장 장착 · 시너지 활성화 — 경기 저장 시 반영</div>
