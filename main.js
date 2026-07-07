@@ -163,23 +163,19 @@ let clientFg = false, panelFg = false, _lastRaise = null, _dropTimer = null;
 let _ovFocus = false, _lfFocus = false;
 function applyRaise() {
   if (inGame) return;   // 게임 중엔 pollGame이 오버레이 관리
-  if (_floating) {      // 클라 없음 = 독립 창(항상 보임·일반 z-order)
-    _lastRaise = null;
-    for (const win of [overlayWin, leftWin]) if (win && !win.isDestroyed()) { try { win.setAlwaysOnTop(false, 'normal'); } catch (_) {} }
-    return;
-  }
-  // 도킹 중: 클라(또는 우리 패널)가 활성일 때만 표시+위로 / 다른 창이 활성이면 그 뒤로 숨김
-  const active = !!(clientFg || panelFg);
-  if (active === _lastRaise) return; _lastRaise = active;
-  const apply = (win, allowed) => {
-    if (!win || win.isDestroyed() || !allowed) return;
-    if (active) { try { win.setAlwaysOnTop(true, 'screen-saver'); } catch (_) {} if (!win.isVisible()) win.showInactive(); }
-    else { try { win.setAlwaysOnTop(false, 'normal'); } catch (_) {} if (win.isVisible()) win.hide(); }   // 다른 창 활성 → 그 뒤로 숨김
+  // 🪟 도킹/플로팅 모두: 패널은 항상 보임(숨기지 않음)·일반 z-order로.
+  //   → 다른 앱을 클릭하면 그 창 뒤로 자연스럽게 가고(사라지지 않음), 클라를 다시 눌러도 억지로 튀어나오지(pop) 않음.
+  //   (사장님 요청: "그냥 그 창 뒤로만 가면 되니까 안 사라져도 됨")
+  const show = (win, allowed) => {
+    if (!win || win.isDestroyed()) return;
+    try { win.setAlwaysOnTop(false, 'normal'); } catch (_) {}
+    if (allowed) { if (!win.isVisible()) win.showInactive(); }
+    else if (win.isVisible()) win.hide();   // 사용자가 직접 숨긴(userHid/leftUserHid) 경우만 숨김
   };
-  apply(overlayWin, !userHid && !sampleActive);
-  apply(leftWin, config.sidePanel !== false && !leftUserHid);
-  if (!active) hideSlotMarker();
-  else if (_lastRect) updateSlotMarker(_lastRect);
+  show(overlayWin, !userHid && !sampleActive);
+  show(leftWin, config.sidePanel !== false && !leftUserHid);
+  // 📍 마커는 클라가 '활성창'일 때만(도킹 중·다른 앱 위엔 안 뜨게)
+  if (!_floating && clientFg && _lastRect) updateSlotMarker(_lastRect); else hideSlotMarker();
 }
 function evalRaise() {   // 올릴 땐 즉시, 내릴 땐 살짝 텀(클라↔패널 클릭 전환 깜빡임 방지)
   if (clientFg || panelFg) { if (_dropTimer) { clearTimeout(_dropTimer); _dropTimer = null; } applyRaise(); }
@@ -611,6 +607,13 @@ async function startTeamBuild(names, mode) {
   // extBuild:true = 오버레이가 팀 구성 담당 → (숨은) 라이브 웹뷰는 이 페이즈에 makeTeams 하지 않음(이중 팀구성 방지)
   const w = await fbSet('session', { phase: 'item', itemPhaseEnd, players: names.map(n => normName(n)), extBuild: true });
   if (!w.ok) return { ok: false, err: w.err };
+  // 방장 오버레이도 즉시 아이템 뷰 표시(3초 폴 안 기다리게=이슈5) — 방장이 참가자일 때만. endAt 동일이라 우측 카운트다운과 정확 동기(이슈2)
+  if (config.myName && names.map(n => normName(n)).includes(normName(config.myName))) {
+    Promise.all([fetchMyGold(), fetchMyLpState()]).then(([g, lp]) => {
+      if (!userHid) showOverlay();
+      broadcast('itemphase', { gold: g, lp, endAt: itemPhaseEnd });
+    }).catch(() => {});
+  }
   _tb = { names, mode: (mode === 'random' ? 'random' : 'balance'), endAt: itemPhaseEnd, prevSession, season, matches: null, finishing: false };
   fetchMatches().then(m => { if (_tb) _tb.matches = m || {}; });   // 15초 동안 승률 데이터 미리 로드
   _tb.timer = setInterval(() => {

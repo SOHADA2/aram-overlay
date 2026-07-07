@@ -322,6 +322,13 @@ function emPerLine(eid, power) {
   return d.perCap ? Math.min(d.perCap, v) : v;
 }
 function emLpChance(power) { return power > 0 ? Math.min(_EM_LPCAP, power * _EM_LPK) : 0; }
+// 걸작 효과 한 줄 요약(픽 목록용) — 예: "🪙+5G · 🎫-23%"
+function emEffShort(em) {
+  const pw = _emPower(em);
+  const lines = Array.isArray(em && em.lines) ? em.lines.filter(eid => EMBLEM_EFFECTS[eid]) : [];
+  if (!lines.length) return '걸작 미제작';
+  return lines.map(eid => EMBLEM_EFFECTS[eid].icon + EMBLEM_EFFECTS[eid].fmt(emPerLine(eid, pw))).join(' · ');
+}
 // 걸작 줄 효과 목록 HTML (홈 _emEffLines 이식)
 function emEffLinesHtml(em) {
   const pw = _emPower(em), lpc = Math.round(emLpChance(pw) * 100);
@@ -335,7 +342,8 @@ function emEffLinesHtml(em) {
 }
 
 function itemActive() { return !!(itemData && itemSecsLeft() > 0); }
-function itemSecsLeft() { return Math.max(0, 15 - Math.floor((Date.now() - _itemSeenAt) / 1000)); }
+// 절대 종료시각(endAt) 기준 = 우측 사이드패널(방장) 카운트다운과 동일 소스 → 같은 숫자로 동기화. 방장은 같은 기기라 정확 일치.
+function itemSecsLeft() { return itemData ? Math.max(0, Math.min(15, Math.ceil((itemData.endAt - Date.now()) / 1000))) : 0; }
 function _gd() { return (itemData && itemData.gold && itemData.gold.data) || {}; }
 function _eqEmblemId(d) {   // 현재 장착 강철심장 id(명시적 장착 없으면 성능 1위=레거시 자동장착)
   const arr = (Array.isArray(d.emblems_s2) ? d.emblems_s2 : []).filter(Boolean);
@@ -356,6 +364,14 @@ function toggleAcc(k) {
   const acc = el('it-body').querySelector(`.it-acc[data-akey="${k}"]`);
   if (acc) acc.classList.toggle('open', _itOpen.has(k));
 }
+// 큰 틀 아코디언 1칸(강철심장·시너지 섹션) — 접힘=현재 장착/활성 요약 / 펼침=바꿀 목록
+function secAcc(akey, ic, title, summary, bodyHtml) {
+  const open = _itOpen.has(akey) ? ' open' : '';
+  return `<div class="it-acc it-sec-acc${open}" data-akey="${akey}">`
+    + `<div class="it-achd" data-k="${akey}"><span class="it-ic">${ic}</span>`
+    + `<span class="it-info"><b>${title}</b><small>${esc(summary)}</small></span><span class="it-chev">▾</span></div>`
+    + `<div class="it-acbody it-picks">${bodyHtml}</div></div>`;
+}
 function renderItem() {
   el('it-sec').textContent = itemSecsLeft();
   const d = _gd();
@@ -374,35 +390,37 @@ function renderItem() {
     return accHtml(akey, ci.ic, `${esc(ci.name)}${owned > 1 ? ` ×${owned}` : ''}`, ci.desc, badge, eff, btn);
   }).join('');
 
-  // ② 강철심장(장착) — 걸작 효과 목록 펼침
+  // ② 강철심장 = 큰 틀 아코디언 1칸(접힘=장착 요약 / 펼침=바꿀 목록)
   const emblems = (Array.isArray(d.emblems_s2) ? d.emblems_s2 : []).filter(Boolean).slice().sort((a, b) => _emPower(b) - _emPower(a));
   const eqId = _eqEmblemId(d);
-  const emHtml = emblems.length ? emblems.map(em => {
-    const p = _emPower(em), lv = _emLevel(em), g = _emGrade(p), eq = em.id === eqId, akey = `em:${em.id}`;
-    const title = `${em.nick ? esc(em.nick) : '강철심장 +' + lv} <em class="g-${g}">${g}</em>`;
-    const badge = eq ? '<span class="it-badge on">✓ 장착</span>' : '<span class="it-badge own">장착</span>';
-    const btn = `<button class="it-act ${eq ? 'act-on' : ''}" data-act="emblem" data-id="${em.id}">${eq ? '✓ 장착됨 (탭해서 해제)' : '이걸로 장착하기'}</button>`;
-    return accHtml(akey, '⚒️', title, `성능 ${p} · Lv${lv}`, badge, `<div class="it-eff">${emEffLinesHtml(em)}</div>`, btn);
-  }).join('') : `<div class="it-empty">보유한 강철심장이 없어요</div>`;
+  const eqEm = emblems.find(e => e.id === eqId);
+  const emSummary = eqEm ? `${eqEm.nick ? esc(eqEm.nick) : '+' + _emLevel(eqEm)} · 성능 ${_emPower(eqEm)} · ${_emGrade(_emPower(eqEm))}` : (emblems.length ? '장착 안 함 — 탭해서 선택' : '보유 없음');
+  const emBody = emblems.length ? emblems.map(em => {
+    const p = _emPower(em), lv = _emLevel(em), g = _emGrade(p), eq = em.id === eqId;
+    return `<div class="it-pick${eq ? ' on' : ''}"><div class="it-pick-main"><b>${em.nick ? esc(em.nick) : '강철심장 +' + lv} <em class="g-${g}">${g}</em></b>`
+      + `<small>성능 ${p} · Lv${lv} · ${esc(emEffShort(em))}</small></div>`
+      + `<button class="it-pick-btn${eq ? ' on' : ''}" data-act="emblem" data-id="${em.id}">${eq ? '✓ 장착' : '장착'}</button></div>`;
+  }).join('') : '<div class="it-empty">보유한 강철심장이 없어요</div>';
+  const emHtml = secAcc('sec:emblem', '⚒️', '강철심장', emSummary, emBody);
 
-  // ③ 시너지(활성화) — 카드 소유분만, 효과 펼침
+  // ③ 시너지 = 큰 틀 아코디언 1칸(접힘=활성 요약 / 펼침=카드 완성분 목록)
   const cards = d.champCards_s2 || {};
   const ownsTier = (g, t) => g.members.every(s => { const c = cards[s] || {}; return t === 3 ? (c.s3 || 0) >= 1 : ((c.s2 || 0) >= 1 || (c.s3 || 0) >= 1); });
   const asyn = d.activeSynergy_s2 || null;
   const synList = SYN_GROUPS.map(g => { const t = ownsTier(g, 3) ? 3 : ownsTier(g, 2) ? 2 : 0; return t ? { g, t } : null; }).filter(Boolean);
-  const synHtml = synList.length ? synList.map(({ g, t }) => {
-    const act = asyn && asyn.sid === g.sid && asyn.tier === t, akey = `syn:${g.sid}:${t}`;
-    const badge = act ? '<span class="it-badge on">✓ 활성</span>' : '<span class="it-badge own">활성화</span>';
-    const btn = `<button class="it-act ${act ? 'act-on' : ''}" data-act="synergy" data-sid="${g.sid}" data-tier="${t}">${act ? '✓ 활성화됨 (탭해서 끄기)' : '이걸로 활성화하기'}</button>`;
-    const eff = `<div class="it-eff"><div class="it-eff-full" style="color:#cdbe91">${esc(synEffTxt(g, t))}</div><div class="it-eff-cond">${g.members.length}종 세트 완성</div></div>`;
-    return accHtml(akey, g.ic, `${esc(g.name)} <em>${'★'.repeat(t)}</em>`, synEffShort(g, t), badge, eff, btn);
-  }).join('') : `<div class="it-empty">활성화할 시너지가 없어요 (카드 미완성)</div>`;
+  const activeG = asyn ? SYN_GROUPS.find(g => g.sid === asyn.sid) : null;
+  const synSummary = activeG ? `${activeG.name} ${'★'.repeat(asyn.tier)}` : (synList.length ? '활성화 안 함 — 탭해서 선택' : '완성된 시너지 없음');
+  const synBody = synList.length ? synList.map(({ g, t }) => {
+    const act = asyn && asyn.sid === g.sid && asyn.tier === t;
+    return `<div class="it-pick${act ? ' on' : ''}"><div class="it-pick-main"><b>${g.ic} ${esc(g.name)} <em>${'★'.repeat(t)}</em></b>`
+      + `<small>${esc(synEffShort(g, t))}</small></div>`
+      + `<button class="it-pick-btn${act ? ' on' : ''}" data-act="synergy" data-sid="${g.sid}" data-tier="${t}">${act ? '✓ 활성' : '활성화'}</button></div>`;
+  }).join('') : '<div class="it-empty">활성화할 시너지가 없어요 (카드 미완성)</div>';
+  const synHtml = secAcc('sec:synergy', '🃏', '시너지', synSummary, synBody);
 
-  el('it-body').innerHTML = `<div class="it-sec-h">🎒 전투 아이템</div>${itemsHtml}`
-    + `<div class="it-sec-h">⚒️ 강철심장</div>${emHtml}`
-    + `<div class="it-sec-h">🃏 시너지</div>${synHtml}`;
+  el('it-body').innerHTML = `<div class="it-sec-h">🎒 전투 아이템</div>${itemsHtml}${emHtml}${synHtml}`;
   el('it-body').querySelectorAll('.it-achd').forEach(h => h.onclick = () => toggleAcc(h.dataset.k));
-  el('it-body').querySelectorAll('.it-act').forEach(b => b.onclick = (e) => { e.stopPropagation(); onItemAction(b); });
+  el('it-body').querySelectorAll('.it-act, .it-pick-btn').forEach(b => b.onclick = (e) => { e.stopPropagation(); onItemAction(b); });
 }
 
 async function onItemAction(b) {

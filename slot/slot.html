@@ -4,25 +4,39 @@
   <meta charset="utf-8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@700;900&display=swap" rel="stylesheet">
   <style>
     * { margin:0; box-sizing:border-box; }
     html, body { width:100%; height:100%; background:transparent; overflow:hidden; -webkit-user-select:none; }
-    #badge { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:4px;
-      font-family:'Black Han Sans',sans-serif; font-size:13px; letter-spacing:0.3px; color:#04140f; border-radius:9px;
-      background:rgba(22,210,192,0.9); box-shadow:0 3px 12px rgba(0,0,0,0.45), 0 0 14px rgba(22,210,192,0.45);
-      animation:glow 2.2s ease-in-out infinite; }
-    @keyframes glow { 0%,100% { opacity:0.82; } 50% { opacity:1; } }
-    body.t2 #badge { background:rgba(230,195,70,0.92); color:#1a1206; box-shadow:0 3px 12px rgba(0,0,0,0.45), 0 0 14px rgba(230,195,70,0.45); }
+    /* 🎯 롤 클라 헥스텍 톤에 녹아드는 칩 — 딥블루+골드 하이라인+컷코너, 은은한 숨쉬는 글로우 */
+    #badge {
+      position:absolute; inset:3px;
+      display:flex; align-items:center; justify-content:center; gap:6px;
+      font-family:'Black Han Sans','Noto Sans KR',sans-serif; font-size:12.5px; letter-spacing:1px; white-space:nowrap;
+      color:#F0E6D2;
+      background:linear-gradient(158deg, rgba(10,22,38,0.90), rgba(2,10,20,0.95));
+      border:1px solid rgba(200,170,110,0.62);
+      box-shadow:0 5px 16px rgba(0,0,0,0.5), inset 0 0 14px rgba(200,170,110,0.05);
+      clip-path:polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+      animation:mkGlow 2.6s ease-in-out infinite;
+    }
+    /* 상단 팀컬러 헤어라인 */
+    #badge::before { content:''; position:absolute; top:0; left:10px; right:10px; height:1.5px; border-radius:2px;
+      background:linear-gradient(90deg, transparent, var(--acc, #0AC8B9), transparent); opacity:0.85; }
+    .mk-ic { color:var(--acc, #0AC8B9); font-size:10px; filter:drop-shadow(0 0 5px var(--accg, rgba(10,200,185,0.6))); }
+    .mk-tx { text-shadow:0 1px 3px rgba(0,0,0,0.65); }
+    @keyframes mkGlow {
+      0%,100% { border-color:rgba(200,170,110,0.5);  box-shadow:0 5px 16px rgba(0,0,0,0.5), inset 0 0 14px rgba(200,170,110,0.05); }
+      50%     { border-color:rgba(200,170,110,0.92); box-shadow:0 5px 18px rgba(0,0,0,0.5), inset 0 0 17px rgba(200,170,110,0.12), 0 0 15px rgba(200,170,110,0.22); }
+    }
+    body.t1 { --acc:#0AC8B9; --accg:rgba(10,200,185,0.6); }   /* 1팀 = 청록 */
+    body.t2 { --acc:#E8C346; --accg:rgba(232,195,70,0.6); }   /* 2팀 = 골드 */
   </style>
 </head>
 <body class="t1">
-  <div id="badge">◆ 내 팀</div>
+  <div id="badge"><span class="mk-ic">◆</span><span class="mk-tx">내 팀</span></div>
   <script>
-    window.api.onSlotTeam(t => {
-      document.body.className = t === 2 ? 't2' : 't1';
-      document.getElementById('badge').textContent = '◆ 내 팀';
-    });
+    window.api.onSlotTeam(t => { document.body.className = t === 2 ? 't2' : 't1'; });
   </script>
 </body>
 </html>
