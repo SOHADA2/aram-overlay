@@ -463,11 +463,12 @@ function toggleAcc(k) {
   if (acc) acc.classList.toggle('open', _itOpen.has(k));
 }
 // 큰 틀 아코디언 1칸(강철심장·시너지 섹션) — 접힘=현재 장착/활성 요약 / 펼침=바꿀 목록
-function secAcc(akey, title, summary, bodyHtml) {
+function secAcc(akey, title, summary, effText, bodyHtml) {
   const open = _itOpen.has(akey) ? ' open' : '';
+  const eff = effText ? `<span class="it-sec-eff">${esc(effText)}</span>` : '';
   return `<div class="it-acc it-sec-acc${open}" data-akey="${akey}">`
     + `<div class="it-achd" data-k="${akey}">`
-    + `<span class="it-info"><b>${title}</b><small>${esc(summary)}</small></span><span class="it-chev">▾</span></div>`
+    + `<span class="it-info"><b>${title}</b><small>${esc(summary)}</small>${eff}</span><span class="it-chev">▾</span></div>`
     + `<div class="it-acbody it-picks">${bodyHtml}</div></div>`;
 }
 function renderItem() {
@@ -501,7 +502,7 @@ function renderItem() {
       + `<button class="it-pick-btn${eq ? ' on' : ''}" data-act="emblem" data-id="${em.id}">${eq ? '✓ 장착' : '장착'}</button></div>`
       + `<div class="it-pick-eff">${esc(emEffText(em))}</div></div>`;
   }).join('') : '<div class="it-empty">보유한 강철심장이 없어요</div>';
-  const emHtml = secAcc('sec:emblem', '강철심장', emSummary, emBody);
+  const emHtml = secAcc('sec:emblem', '강철심장', emSummary, eqEm ? emEffText(eqEm) : '', emBody);
 
   // ③ 시너지 = 큰 틀 아코디언 1칸(접힘=활성 요약 / 펼침=카드 완성분 목록)
   const cards = d.champCards_s2 || {};
@@ -517,7 +518,7 @@ function renderItem() {
       + `<button class="it-pick-btn${act ? ' on' : ''}" data-act="synergy" data-sid="${g.sid}" data-tier="${t}">${act ? '✓ 활성' : '활성화'}</button></div>`
       + `<div class="it-pick-eff">${esc(synEffTxt(g, t))}</div></div>`;
   }).join('') : '<div class="it-empty">활성화할 시너지가 없어요 (카드 미완성)</div>';
-  const synHtml = secAcc('sec:synergy', '시너지', synSummary, synBody);
+  const synHtml = secAcc('sec:synergy', '시너지', synSummary, activeG ? synEffShort(activeG, asyn.tier) : '', synBody);
 
   el('it-body').innerHTML = `<div class="it-sec-h">전투 아이템</div>${itemsHtml}${emHtml}${synHtml}`;
   el('it-body').querySelectorAll('.it-achd').forEach(h => h.onclick = () => toggleAcc(h.dataset.k));
