@@ -208,13 +208,15 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 /* 큰 틀 아코디언(강철심장·시너지 섹션) — 접힘=요약 / 펼침=바꿀 목록 */
 .it-sec-acc { margin-top:8px; }
 .it-picks { display:flex; flex-direction:column; gap:6px; }
-.it-pick { display:flex; align-items:center; gap:8px; padding:8px 9px; border-radius:8px; background:rgba(0,0,0,0.22); border:1px solid rgba(255,255,255,0.06); }
+.it-pick { display:flex; flex-direction:column; gap:5px; padding:8px 10px; border-radius:8px; background:rgba(0,0,0,0.22); border:1px solid rgba(255,255,255,0.06); }
 .it-pick.on { border-color:var(--gold-line); background:rgba(240,200,90,0.08); }
+.it-pick-row { display:flex; align-items:center; gap:8px; }
 .it-pick-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
 .it-pick-main b { font-size:11.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .it-pick-main b em { font-style:normal; color:var(--gold); }
 .it-pick-main b em.g-실버 { color:#cfd6e0; } .it-pick-main b em.g-골드 { color:var(--gold); } .it-pick-main b em.g-프리즘 { color:#e79bff; } .it-pick-main b em.g-기본 { color:var(--dim); }
-.it-pick-main small { font-size:9px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.it-pick-main small { font-size:9.5px; color:var(--dim); }
+.it-pick-eff { font-size:10px; color:var(--ink-soft); line-height:1.55; word-break:keep-all; }
 .it-pick-btn { flex-shrink:0; -webkit-app-region:no-drag; cursor:pointer; padding:6px 11px; border-radius:7px; font-size:11px; font-weight:800;
   background:rgba(240,200,90,0.12); color:#ffe39a; border:1px solid rgba(240,200,90,0.3); }
 .it-pick-btn:hover { background:rgba(240,200,90,0.2); }

@@ -322,12 +322,34 @@ function emPerLine(eid, power) {
   return d.perCap ? Math.min(d.perCap, v) : v;
 }
 function emLpChance(power) { return power > 0 ? Math.min(_EM_LPCAP, power * _EM_LPK) : 0; }
-// 걸작 효과 한 줄 요약(픽 목록용) — 예: "🪙+5G · 🎫-23%"
-function emEffShort(em) {
-  const pw = _emPower(em);
-  const lines = Array.isArray(em && em.lines) ? em.lines.filter(eid => EMBLEM_EFFECTS[eid]) : [];
-  if (!lines.length) return '걸작 미제작';
-  return lines.map(eid => EMBLEM_EFFECTS[eid].icon + EMBLEM_EFFECTS[eid].fmt(emPerLine(eid, pw))).join(' · ');
+// 걸작 최종 효과(줄×성능 합산) — 홈 emblemEffectsOf 이식
+const _LOTTO_SKULL_CAP = 0.70;
+function emblemEff(em) {
+  const power = _emPower(em), mult = 1 + power * 0.1;
+  const lines = Array.isArray(em && em.lines) ? em.lines : [];
+  const eff = {};
+  for (const eid of Object.keys(EMBLEM_EFFECTS)) {
+    const cnt = lines.filter(l => l === eid).length, d = EMBLEM_EFFECTS[eid];
+    if (!cnt) { eff[eid] = 0; continue; }
+    if (eid === 'lottoTkt') { eff[eid] = Math.min(_LOTTO_SKULL_CAP, cnt * _LOTTO_PER); continue; }
+    if (eid === 'winLP' || eid === 'lossLP') { eff[eid] = Math.min(d.cap, cnt * d.base); continue; }
+    const per = d.perCap ? Math.min(d.perCap, Math.round(d.base * mult)) : Math.round(d.base * mult);
+    let v = cnt * per; if (d.cap && v > d.cap) v = d.cap;
+    eff[eid] = v;
+  }
+  return { power, eff };
+}
+// 걸작 효과 설명 — 이름 + 값 (아이콘 남발 X · 홈 _qibEmEffTxt 톤). 예: "해골 감소 -23% · 막고라 배당 +9%"
+function emEffText(em) {
+  const { power, eff } = emblemEff(em);
+  const lpc = Math.round(emLpChance(power) * 100);
+  const parts = Object.keys(EMBLEM_EFFECTS).filter(eid => eff[eid] > 0).map(eid => {
+    const d = EMBLEM_EFFECTS[eid];
+    let s = `${d.name} ${d.fmt(eff[eid])}`;
+    if (eid === 'winLP' || eid === 'lossLP') s += ` (발동 ${lpc}%)`;
+    return s;
+  });
+  return parts.length ? parts.join(' · ') : '걸작 미제작 (효과 없음)';
 }
 // 걸작 줄 효과 목록 HTML (홈 _emEffLines 이식)
 function emEffLinesHtml(em) {
@@ -397,9 +419,10 @@ function renderItem() {
   const emSummary = eqEm ? `${eqEm.nick ? esc(eqEm.nick) : '+' + _emLevel(eqEm)} · 성능 ${_emPower(eqEm)} · ${_emGrade(_emPower(eqEm))}` : (emblems.length ? '장착 안 함 — 탭해서 선택' : '보유 없음');
   const emBody = emblems.length ? emblems.map(em => {
     const p = _emPower(em), lv = _emLevel(em), g = _emGrade(p), eq = em.id === eqId;
-    return `<div class="it-pick${eq ? ' on' : ''}"><div class="it-pick-main"><b>${em.nick ? esc(em.nick) : '강철심장 +' + lv} <em class="g-${g}">${g}</em></b>`
-      + `<small>성능 ${p} · Lv${lv} · ${esc(emEffShort(em))}</small></div>`
-      + `<button class="it-pick-btn${eq ? ' on' : ''}" data-act="emblem" data-id="${em.id}">${eq ? '✓ 장착' : '장착'}</button></div>`;
+    return `<div class="it-pick${eq ? ' on' : ''}"><div class="it-pick-row">`
+      + `<div class="it-pick-main"><b>${em.nick ? esc(em.nick) : '강철심장 +' + lv} <em class="g-${g}">${g}</em></b><small>성능 ${p} · Lv${lv}</small></div>`
+      + `<button class="it-pick-btn${eq ? ' on' : ''}" data-act="emblem" data-id="${em.id}">${eq ? '✓ 장착' : '장착'}</button></div>`
+      + `<div class="it-pick-eff">${esc(emEffText(em))}</div></div>`;
   }).join('') : '<div class="it-empty">보유한 강철심장이 없어요</div>';
   const emHtml = secAcc('sec:emblem', '⚒️', '강철심장', emSummary, emBody);
 
@@ -409,12 +432,13 @@ function renderItem() {
   const asyn = d.activeSynergy_s2 || null;
   const synList = SYN_GROUPS.map(g => { const t = ownsTier(g, 3) ? 3 : ownsTier(g, 2) ? 2 : 0; return t ? { g, t } : null; }).filter(Boolean);
   const activeG = asyn ? SYN_GROUPS.find(g => g.sid === asyn.sid) : null;
-  const synSummary = activeG ? `${activeG.name} ${'★'.repeat(asyn.tier)}` : (synList.length ? '활성화 안 함 — 탭해서 선택' : '완성된 시너지 없음');
+  const synSummary = activeG ? `${activeG.name} ${asyn.tier}성` : (synList.length ? '활성화 안 함 — 탭해서 선택' : '완성된 시너지 없음');
   const synBody = synList.length ? synList.map(({ g, t }) => {
     const act = asyn && asyn.sid === g.sid && asyn.tier === t;
-    return `<div class="it-pick${act ? ' on' : ''}"><div class="it-pick-main"><b>${g.ic} ${esc(g.name)} <em>${'★'.repeat(t)}</em></b>`
-      + `<small>${esc(synEffShort(g, t))}</small></div>`
-      + `<button class="it-pick-btn${act ? ' on' : ''}" data-act="synergy" data-sid="${g.sid}" data-tier="${t}">${act ? '✓ 활성' : '활성화'}</button></div>`;
+    return `<div class="it-pick${act ? ' on' : ''}"><div class="it-pick-row">`
+      + `<div class="it-pick-main"><b>${esc(g.name)} ${t}성</b></div>`
+      + `<button class="it-pick-btn${act ? ' on' : ''}" data-act="synergy" data-sid="${g.sid}" data-tier="${t}">${act ? '✓ 활성' : '활성화'}</button></div>`
+      + `<div class="it-pick-eff">${esc(synEffTxt(g, t))}</div></div>`;
   }).join('') : '<div class="it-empty">활성화할 시너지가 없어요 (카드 미완성)</div>';
   const synHtml = secAcc('sec:synergy', '🃏', '시너지', synSummary, synBody);
 
