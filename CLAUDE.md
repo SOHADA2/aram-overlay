@@ -45,6 +45,11 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 ## 🪟 창 구조 대개편 (v0.1.14~17·2026-07-06) ★새 세션 필독 — 아래 옛 설명보다 우선
 > **현재 배포 = v0.1.17** (CI Releases). 이 세션(v0.1.10~17) 요약은 맨 아래 "세션 이력" 참고.
 
+### 🎨 디자인 목업 (v0.1.18~·게임 없이 브라우저서 디자인 확인)
+- **`design/mockup.html`**(런처·미배포) → `overlay/overlay.html`·`sidepanel/sidepanel.html`·`slot/slot.html`를 **브라우저에서 직접 열면** 샘플 데이터로 렌더. 각 화면 상단 「목업」 바에서 뷰 전환(오버레이=팀/아이템/대기/명단/투표/정산+도킹토글 · 사이드=로그인/방장·레일 · 마커=1팀/2팀).
+- **원리**: `overlay/mock.js`·`sidepanel/mock.js`가 `overlay.js`/`sidepanel.js`보다 **먼저 로드**되어 `if(window.api)return;`(실앱=preload로 window.api 존재→비활성) 아니면 **Proxy 목 api**(on*=콜백 저장·getProfile/getRanking/getRecords=샘플) 설치 + `window.load`서 툴바+시나리오. slot.html은 인라인 가드. **실제 CSS/JS/마크업 그대로 써서 목업=앱과 안 갈라짐**. 목업 파일(mock.js)은 앱에 포함돼도 무해(inert). `design/`은 files 화이트리스트 밖=미배포.
+- 디자인 수정 = `overlay.css`/`sidepanel.css`/`slot.html`/`shared.css` 고치고 새로고침. 데이터/뷰 형태 바꾸려면 각 mock.js의 샘플 상수.
+
 ### ⚠️ v0.1.18 갱신 (사장님 피드백 5건 — 최우선)
 - **📍 마커 디자인(slot.html)**: 밝은 솔리드 박스 → **롤 클라 헥스텍 칩**(딥블루 반투명+골드 하이라인 테두리+컷코너 clip-path+숨쉬는 글로우, 팀컬러=1팀 청록/2팀 골드 다이아·상단 헤어라인). 배경과 조화. ⚠️위치 비율(colRight)은 그대로(친구목록 유동—실기 조정 여지).
 - **⏱️ 타이머 동기화(이슈2·5)**: 좌측 오버레이 `itemSecsLeft`를 로컬 15초 카운트 → **절대 `itemData.endAt` 기준 ceil**(우측 사이드패널 카운트다운과 동일 소스=방장 같은 기기라 정확 일치). + `startTeamBuild`에서 세션 쓰기 직후 **즉시 `broadcast('itemphase')`**(방장이 참가자일 때)로 3초 폴 안 기다리고 좌측 타이머 즉시 표시.

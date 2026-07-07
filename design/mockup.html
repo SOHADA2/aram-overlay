@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>아수라장 내전 오버레이 — 디자인 목업</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing:border-box; margin:0; }
+    body { min-height:100vh; background:radial-gradient(ellipse 100% 60% at 50% 0%, #10202e, #060d14 70%); color:#e6edf3;
+      font-family:'Noto Sans KR',system-ui,sans-serif; padding:48px 24px; }
+    .wrap { max-width:820px; margin:0 auto; }
+    h1 { font-family:'Black Han Sans',sans-serif; font-size:30px; color:#C8AA6E; letter-spacing:1px; text-shadow:0 0 22px rgba(200,170,110,0.35); }
+    .eyebrow { font-size:11px; letter-spacing:3px; color:#6f8296; margin-bottom:10px; }
+    .lead { color:#9fb0c0; font-size:13.5px; line-height:1.7; margin:14px 0 28px; }
+    .lead b { color:#F0E6D2; }
+    .cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .card { display:block; text-decoration:none; color:inherit; padding:20px; border-radius:14px;
+      background:linear-gradient(160deg, rgba(20,32,46,0.9), rgba(8,16,24,0.95)); border:1px solid rgba(200,170,110,0.28);
+      transition:.14s; position:relative; overflow:hidden; }
+    .card::before { content:''; position:absolute; top:0; left:20px; right:20px; height:1px; background:linear-gradient(90deg,transparent,rgba(200,170,110,0.55),transparent); }
+    .card:hover { border-color:rgba(200,170,110,0.7); transform:translateY(-2px); box-shadow:0 12px 30px rgba(0,0,0,0.4); }
+    .card.wide { grid-column:1 / -1; }
+    .ic { font-size:26px; margin-bottom:10px; }
+    .card h2 { font-size:15px; color:#F0E6D2; margin-bottom:6px; }
+    .card p { font-size:11.5px; color:#8ea1b3; line-height:1.6; }
+    .hint { margin-top:26px; font-size:12px; color:#6f8296; line-height:1.7; padding:14px 16px; border-radius:10px;
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); }
+    .hint b { color:#C8AA6E; }
+    code { font-family:'JetBrains Mono',monospace; background:rgba(200,170,110,0.1); color:#ffe39a; padding:1px 6px; border-radius:5px; font-size:11px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow">◇ ARAM OVERLAY ◇</div>
+    <h1>디자인 목업</h1>
+    <p class="lead">게임 없이 브라우저에서 오버레이 디자인을 <b>바로 확인·조정</b>할 수 있어요.<br>
+      실제 코드(<code>overlay.css/js</code>·<code>sidepanel</code>)를 그대로 쓰므로, <b>여기 보이는 게 곧 앱 모습</b>입니다.</p>
+    <div class="cards">
+      <a class="card" href="../overlay/overlay.html">
+        <div class="ic">◀️</div>
+        <h2>오버레이 패널 <span style="color:#8ea1b3;font-size:11px;font-weight:400;">좌측·인게임</span></h2>
+        <p>팀 배정 · 아이템 · 대기 · 명단 · 투표 · 정산. 상단 「목업」 바로 뷰 전환 · 도킹(각진) 토글.</p>
+      </a>
+      <a class="card" href="../sidepanel/sidepanel.html">
+        <div class="ic">▶️</div>
+        <h2>사이드패널 <span style="color:#8ea1b3;font-size:11px;font-weight:400;">우측·메인</span></h2>
+        <p>로그인 · 팀짜기(방장) · 프로필 · 기록 · 랭킹. 좌측 레일로 카테고리 전환.</p>
+      </a>
+      <a class="card wide" href="../slot/slot.html">
+        <div class="ic">📍</div>
+        <h2>내 팀 마커 <span style="color:#8ea1b3;font-size:11px;font-weight:400;">클라 로비 위</span></h2>
+        <p>롤 클라 헥스텍 톤 칩. 1팀(청록)/2팀(골드) 토글로 확인.</p>
+      </a>
+    </div>
+    <div class="hint">
+      💡 각 목업 화면의 <b>상단(또는 좌상단) 「목업」 바</b>에서 뷰를 바꿔가며 봅니다.<br>
+      디자인은 <code>overlay/overlay.css</code> · <code>sidepanel/sidepanel.css</code> · <code>slot/slot.html</code> · <code>shared.css</code>를 고치면 됩니다 — 저장 후 새로고침하면 바로 반영돼요.
+    </div>
+  </div>
+</body>
+</html>

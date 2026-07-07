@@ -36,7 +36,16 @@
 <body class="t1">
   <div id="badge"><span class="mk-ic">◆</span><span class="mk-tx">내 팀</span></div>
   <script>
-    window.api.onSlotTeam(t => { document.body.className = t === 2 ? 't2' : 't1'; });
+    if (window.api) { window.api.onSlotTeam(t => { document.body.className = t === 2 ? 't2' : 't1'; }); }
+    else {   // 🎨 목업(브라우저 직접 열기) — 다크 배경 + 실제 크기 칩 + 팀 토글
+      const s = document.createElement('style');
+      s.textContent = "html,body{background:#0a1712;} #badge{position:relative!important;inset:auto!important;width:128px;height:38px;margin:70px auto;} #mk{position:fixed;top:12px;left:12px;font:12px 'Noto Sans KR',sans-serif;} #mk button{padding:5px 11px;margin-right:6px;border:1px solid #33475a;background:#132030;color:#cfd8e3;border-radius:6px;cursor:pointer;}";
+      document.head.appendChild(s);
+      const bar = document.createElement('div'); bar.id = 'mk';
+      bar.innerHTML = '<span style="color:#6f8296;margin-right:8px">목업</span><button data-t="1">1팀(청록)</button><button data-t="2">2팀(골드)</button>';
+      document.body.appendChild(bar);
+      bar.querySelectorAll('button').forEach(b => b.onclick = () => { document.body.className = b.dataset.t === '2' ? 't2' : 't1'; });
+    }
   </script>
 </body>
 </html>
