@@ -5,13 +5,13 @@ html, body { width:100%; height:100%; background:transparent; overflow:hidden;
 
 #panel { width:100%; height:100%; display:flex; flex-direction:column; color:#F0E6D2;
   background:linear-gradient(165deg, rgba(10,22,40,0.97), rgba(2,10,20,0.98));   /* 헥스텍 딥블루 */
-  border:1px solid rgba(120,90,40,0.6); border-top:2px solid rgba(200,170,110,0.55); border-radius:0; overflow:hidden;   /* 항상 직각 + 상단 골드 라인(클라 톤 통일) */
+  border:1px solid rgba(120,90,40,0.6); border-top:2px solid #C8AA6E; border-radius:0; overflow:hidden;   /* 항상 직각 + 상단 골드 라인(클라 헥스텍 골드) */
   box-shadow:0 16px 50px rgba(0,0,0,0.66), inset 0 1px 0 rgba(200,170,110,0.06); }
 /* 🖥️ 클라에 도킹 중(팀/명단=클라 왼쪽) = 각지게·오른쪽 테두리 제거해 클라에 딱 붙임 */
 body.docked #panel { border-radius:0; border-right:none; box-shadow:-3px 0 20px rgba(0,0,0,0.45); }   /* 그림자는 바깥(왼쪽)으로만 — 클라 위로 안 새게 */
 
 header { -webkit-app-region:drag; display:flex; align-items:center; gap:8px; padding:13px 11px;   /* 클라 상단 네비 높이에 맞춤 */
-  background:linear-gradient(180deg, rgba(200,170,110,0.10), rgba(200,170,110,0.03)); border-bottom:1px solid rgba(200,170,110,0.4); }   /* 골드 구분선(클라 라인 톤) */
+  background:linear-gradient(180deg, rgba(200,170,110,0.10), rgba(200,170,110,0.03)); border-bottom:1px solid rgba(200,170,110,0.7); }   /* 게임시작 아래 골드 라인 톤 */
 header .ttl { flex:1; font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:15px; letter-spacing:1px; color:var(--gold); text-shadow:0 0 16px rgba(200,155,60,0.45); }
 header .phase { font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:600; color:var(--dim); background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); padding:2px 8px; border-radius:5px; }
 header #close { -webkit-app-region:no-drag; width:22px; height:22px; border:none; border-radius:6px; cursor:pointer; background:rgba(255,255,255,0.08); color:#cfd4e6; font-size:12px; font-weight:800; }
