@@ -42,8 +42,17 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 ## 🔖 버전 표시(홈페이지 실시간 동기화)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
-## 🪟 창 구조 대개편 (v0.1.14~17·2026-07-06) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.17** (CI Releases). 이 세션(v0.1.10~17) 요약은 맨 아래 "세션 이력" 참고.
+## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
+> **현재 배포 = v0.1.26** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### ⚠️ v0.1.19~26 도킹 정밀화·클라 톤 통일 (최신·위 항목보다 우선)
+- **도킹 좌표 = DWM 보이는 경계**: `GetWindowRect`는 클라의 투명 리사이즈 테두리(~7px)까지 포함 → 패널이 떠 보임. 도킹 스트림 C#이 `DwmGetWindowAttribute(h,9,…)`(DWMWA_EXTENDED_FRAME_BOUNDS·실패 시 GetWindowRect 폴백)로 **실제 보이는 가장자리** 사용. + `applyDock`/`applyDockLeft`가 클라 쪽으로 **2px 겹침**(틈 완전 제거).
+- **창 모서리 각지게 = DWM 강제**: `roundedCorners:false`가 이 환경서 안 먹음 → `forceSquareCorners(win)`=PS 원샷 `DwmSetWindowAttribute(hwnd,33,DONOTROUND=1)`(HWND=getNativeWindowHandle). whenReady서 `squareAllPanels()`+1.5초 재적용. overlay/sidepanel #panel `border-radius:0`.
+- **클라 톤 통일(헤더/라인/배경)**: 좌·우 패널 **동일**. 헤더(`header`/`#sbar`) `min-height:80px`(클라 상단 네비바 높이·세로 가운데)·상단 `border-top:2px solid #785A28`(클라 골드 라인)·하단 `border-bottom:1px solid rgba(255,255,255,0.11)`(클라 얇은 회색 구분선). 배경 `~#061117`(클라 로비 톤·블루끼 뺀 블랙, `rgba(9,19,26,0.985)~rgba(4,12,19,0.985)` 그라데이션·sidepanel body #061117). ⚠️라인 높이(80px)·색은 **사장님 실기 스샷+색상선택기 값으로 픽셀 튜닝된 값**(추가 조정 시 이 값에서 ±).
+- **사이드패널 레일**: 상단 `.rail-logo`(⚔️) 제거(중복)·`#panel .rail{padding-top:10px}`.
+- **⏭️ 미착수 제안**: 배경을 **클라 상태별 동적**으로(홈=더 블랙 / 사용자게임 로비=블루). 브릿지가 LCU gameflow-phase(Lobby/None) 감지 가능 → 상태 IPC로 패널 bg 전환 구현 여지(사장님 요청 시). 지금은 #061117 정적.
+
+### 옛 요약: v0.1.10~17 (창구조 대개편·마커·z레이어·아코디언 등)
 
 ### 🎨 디자인 목업 (v0.1.18~·게임 없이 브라우저서 디자인 확인)
 - **`design/mockup.html`**(런처·미배포) → `overlay/overlay.html`·`sidepanel/sidepanel.html`·`slot/slot.html`를 **브라우저에서 직접 열면** 샘플 데이터로 렌더. 각 화면 상단 「목업」 바에서 뷰 전환(오버레이=팀/아이템/대기/명단/투표/정산+도킹토글 · 사이드=로그인/방장·레일 · 마커=1팀/2팀).
