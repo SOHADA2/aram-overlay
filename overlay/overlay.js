@@ -20,6 +20,8 @@ window.api.onSession(({ session, myName: mn, lpMap: m }) => { sessionData = sess
 window.api.onMyName(name => { myName = name || ''; render(); });
 window.api.onDocked(v => { document.body.classList.toggle('docked', !!v); });   // 🖥️ 도킹 중=각진 모서리
 window.api.onSettlement(d => { settleData = d || null; render(); });
+let myStats = null;   // 🎮 인게임 — 오늘 전적·연승
+window.api.onMystats(d => { myStats = d || null; if (inGame) render(); });
 window.api.onItemPhase(d => {
   itemData = d || null;
   if (d && d.endAt !== _itemPhaseKey) { _itemPhaseKey = d.endAt; _itemSeenAt = Date.now(); _itOpen.clear(); }   // 새 페이즈 = 로컬 15초 시작(아코디언 초기화)
@@ -576,6 +578,24 @@ function renderIngame() {
   const on = id => items.some(it => it && it.id === id && it.active);
   const tierKr = TIER_KR[st.tier] || st.tier || '—';
 
+  // ⬆️ 승급/강등 컨텍스트
+  let promoCtx;
+  if (st.placementDone === false) promoCtx = `배치 ${st.placementGames}/5`;
+  else if (st.promoActive) promoCtx = `승급전 ${st.promoWins}-${st.promoLosses}`;
+  else {
+    const HI = ['platinum', 'emerald', 'diamond', 'master', 'grandmaster', 'challenger'];
+    promoCtx = (st.lp <= 15 && HI.includes(st.tier)) ? `⚠️ 강등 위험 · 승급까지 ${LP_CAP - st.lp}` : `승급까지 ${LP_CAP - st.lp} LP`;
+  }
+
+  // 🔥 오늘 전적·연승 (경기 전 기준)
+  let todayHtml = '';
+  if (myStats) {
+    const parts = [];
+    if (myStats.todayW || myStats.todayL) parts.push(`오늘 <b>${myStats.todayW}승 ${myStats.todayL}패</b>`);
+    if (myStats.streakType && myStats.streakCount >= 2) parts.push(myStats.streakType === 'win' ? `🔥 <b class="ig-win">${myStats.streakCount}연승</b>` : `❄️ <b class="ig-lose">${myStats.streakCount}연패</b>`);
+    if (parts.length) todayHtml = `<div class="ig-today">${parts.join(' · ')}</div>`;
+  }
+
   // 이기면 / 지면 — 배치·승급전·정규전 분기
   let winB, winSub, lossB, lossSub, lpBar = '';
   if (st.placementDone === false) {
@@ -606,10 +626,20 @@ function renderIngame() {
   if (activeG) rows.push(`<div class="ig-build"><div class="ig-build-nm">${esc(activeG.name)} ${asyn.tier}성</div><div class="ig-build-eff">${esc(synEffShort(activeG, asyn.tier))}</div></div>`);
   const buildHtml = rows.length ? `<div class="ig-sec">내 빌드</div>${rows.join('')}` : '<div class="ig-empty">이번 판 장착한 빌드가 없어요</div>';
 
+  // 🎯 이번 판 목표 — 활성 시너지 발동 조건
+  let goalHtml = '';
+  if (activeG) {
+    const proc = SYN_PROC[asyn.tier] || 30;
+    const head = activeG.cond ? `${activeG.cond} 달성` : activeG.name;
+    goalHtml = `<div class="ig-goal"><span class="ig-goal-ic">🎯</span><div class="ig-goal-tx"><b>이번 판 목표 · ${esc(head)}</b><span>${esc(activeG.name)} ${esc(synEffShort(activeG, asyn.tier))} · 발동 ${proc}%</span></div></div>`;
+  }
+
   el('ig-body').innerHTML =
-    `<div class="ig-lp"><span class="ig-tier">${tierKr}</span><b class="ig-lpnum">${st.lp} LP</b></div>${lpBar}`
+    `<div class="ig-lp"><span class="ig-tier">${tierKr}</span><b class="ig-lpnum">${st.lp} LP</b><span class="ig-promoctx">${promoCtx}</span></div>${lpBar}`
+    + todayHtml
     + `<div class="ig-outs"><div class="ig-out win"><span class="ig-out-lbl">이기면</span><b>${winB}</b><span class="ig-out-sub">${winSub}</span></div>`
     + `<div class="ig-out lose"><span class="ig-out-lbl">지면</span><b>${lossB}</b><span class="ig-out-sub">${lossSub}</span></div></div>`
+    + goalHtml
     + buildHtml;
 }
 function render() {

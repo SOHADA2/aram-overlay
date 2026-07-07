@@ -110,4 +110,27 @@ function computeRanking(lpAll, limit = 60) {
   return rows.slice(0, limit).map((r, i) => ({ rank: i + 1, name: r.name, tier: r.tier, tierKr: TIER_KR[r.tier] || '배치', lp: r.lp }));
 }
 
-module.exports = { computeProfile, computeRecords, computeRanking };
+// 🎮 인게임 패널용 — 오늘 전적 + 현재 연승/연패 (경기 들어가기 전 기준)
+function computeMyStats(name, matches) {
+  const me = normName(name);
+  const mine = (matches ? Object.values(matches) : [])
+    .filter(m => m && (m.season ?? 0) === 2 && [...(m.teamA || []), ...(m.teamB || [])].some(n => normName(n) === me))
+    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));   // 오래된→최신
+  const wonOf = m => ((m.teamA || []).some(n => normName(n) === me)) === (m.winner === 'blue');   // blue=1팀
+  const today = new Date().toDateString();
+  let todayW = 0, todayL = 0;
+  for (const m of mine) {
+    if (new Date(m.timestamp || 0).toDateString() !== today) continue;
+    wonOf(m) ? todayW++ : todayL++;
+  }
+  let streakType = null, streakCount = 0;
+  for (let i = mine.length - 1; i >= 0; i--) {
+    const t = wonOf(mine[i]) ? 'win' : 'loss';
+    if (streakType === null) { streakType = t; streakCount = 1; }
+    else if (t === streakType) streakCount++;
+    else break;
+  }
+  return { todayW, todayL, streakType, streakCount };
+}
+
+module.exports = { computeProfile, computeRecords, computeRanking, computeMyStats };

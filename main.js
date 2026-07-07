@@ -16,7 +16,7 @@ const FIREBASE_API_KEY = 'AIzaSyAzRirJzvaqu6jelqUUjV_Tik1MgsALEE4';   // aram/in
 const TOGGLE_HOTKEY = 'Shift+F5';
 const { buildTeams, normName } = require('./teams');   // ⚔️ 홈페이지 makeTeams 1:1 이식
 const { availableGoldS2 } = require('./gold');         // 💰 아이템 구매 골드 검증(홈 calcPlayerGoldEarned S2 이식)
-const { computeProfile, computeRecords, computeRanking } = require('./profile');   // 📊 프로필/기록/랭킹(홈 프로필 정보 이식)
+const { computeProfile, computeRecords, computeRanking, computeMyStats } = require('./profile');   // 📊 프로필/기록/랭킹(홈 프로필 정보 이식)
 const bridge = require('./bridge');                    // 🔌 내장 브릿지(LCU EOG 캡처) — aram-bridge 완전 대체
 
 let overlayWin = null, desktopWin = null, homeWin = null, tray = null;
@@ -524,7 +524,7 @@ async function pollGame() {
     inGame = nowIn;
     // 게임 중(전체화면)만 위로, 로비/클라에선 같은 층위(클라 활성 시에만 evalRaise가 올림)
     try { if (overlayWin && !overlayWin.isDestroyed()) overlayWin.setAlwaysOnTop(inGame, inGame ? 'screen-saver' : 'normal'); } catch (_) {}
-    if (inGame) { if (!userHid) showOverlay(); hideSlotMarker(); }   // 게임 중엔 마커 숨김
+    if (inGame) { if (!userHid) showOverlay(); hideSlotMarker(); pollMyStats(); }   // 게임 중엔 마커 숨김 + 오늘전적 갱신
     else { hideOverlay(); userHid = false; latestPlayers = []; _lastRaise = null; evalRaise(); }   // 게임 종료 → 로비 층위 재적용
     broadcast('state', { inGame, label: inGame ? '게임 중' : '대기' });
   }
@@ -565,6 +565,14 @@ async function pollSettlement() {
   }
   if (!userHid) showOverlay();
   broadcast('settlement', { settle: s, lpNow, procs });
+  _matchesCacheAt = 0;   // 경기 저장됨 → 매치 캐시 무효화(다음 오늘전적/연승 최신 반영)
+  pollMyStats();
+}
+
+// 🎮 인게임 패널용 — 오늘 전적·연승 브로드캐스트 (매치 캐시 재사용)
+async function pollMyStats() {
+  if (!config.myName) return;
+  try { const matches = await getMatchesCached(); broadcast('mystats', computeMyStats(config.myName, matches)); } catch (_) {}
 }
 
 // 🧩 홈페이지 session(팀 배정) 폴링 — 새 팀 짜이면 오버레이 자동 표시
@@ -913,7 +921,7 @@ else {
     makeTray();
     globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
     globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
-    pollGame(); pollLp(); pollSession(); pollSettlement(); pollVersion(); startDockStream();
+    pollGame(); pollLp(); pollSession(); pollSettlement(); pollVersion(); pollMyStats(); startDockStream();
     setInterval(pollGame, 2500);
     setInterval(pollLp, 60000);
     setInterval(pollSession, 3000);

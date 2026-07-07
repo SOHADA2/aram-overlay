@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('api', {
   voteClear: () => ipcRenderer.invoke('vote-clear'),
   // 💰 정산
   onSettlement: (cb) => ipcRenderer.on('settlement', (_e, d) => cb(d)),
+  onMystats: (cb) => ipcRenderer.on('mystats', (_e, d) => cb(d)),   // 🎮 인게임 오늘전적·연승
   // 🎒 아이템 페이즈
   onItemPhase: (cb) => ipcRenderer.on('itemphase', (_e, d) => cb(d)),
   itemToggle: (id) => ipcRenderer.invoke('item-toggle', { id }),
