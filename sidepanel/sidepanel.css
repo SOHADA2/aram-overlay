@@ -1,9 +1,9 @@
 /* 왼쪽 도킹 사이드 패널 — 오른쪽 오버레이와 같은 톤(웜블랙+골드), 클라에 각지게 플러시 */
 #panel { position:relative; z-index:1; width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden;
-  background:linear-gradient(165deg, rgba(10,22,40,0.97), rgba(2,10,20,0.98));   /* 헥스텍 딥블루 */
-  border:1px solid rgba(120,90,40,0.6); border-left:none; border-top:2px solid #C8AA6E; border-radius:0;   /* 각지게 + 상단 골드 라인(클라 헥스텍 골드) */
+  background:linear-gradient(165deg, rgba(9,19,26,0.985), rgba(4,12,19,0.985));   /* 클라 로비 톤 ~#061117 (덜 블루한 블랙) */
+  border:1px solid rgba(120,90,40,0.6); border-left:none; border-top:2px solid #785A28; border-radius:0;   /* 각지게 + 상단 골드 라인(클라 #785A28) */
   box-shadow:3px 0 20px rgba(0,0,0,0.45); }   /* 그림자는 바깥(오른쪽)으로만 — 클라 위로 안 새게 */
-#sbar { -webkit-app-region:drag; display:flex; align-items:center; gap:7px; padding:0 11px; min-height:84px; flex:0 0 auto;   /* 클라 상단 네비바 높이에 맞춤(아래 구분선 정렬) */
+#sbar { -webkit-app-region:drag; display:flex; align-items:center; gap:7px; padding:0 11px; min-height:79px; flex:0 0 auto;   /* 클라 상단 네비바 높이에 맞춤(아래 구분선 정렬) */
   background:linear-gradient(180deg, rgba(200,170,110,0.10), rgba(200,170,110,0.03)); border-bottom:1px solid rgba(255,255,255,0.11); }   /* 클라 네비 아래 구분선=얇은 회색 */
 #panel .rail { padding-top:10px; }   /* rail-logo 제거 후 상단 여백 */
 #sbar label, #sbar button, #sbar input, #sbar select { -webkit-app-region:no-drag; }
@@ -34,7 +34,7 @@
 .s-login-box .slb-go { width:100%; padding:10px; font-size:13px; }
 .s-login-box .slb-hint { font-size:9.5px; color:var(--dim); text-align:center; line-height:1.5; }
 /* 이 창은 배경 body 자체가 투명하지 않게(웜블랙) — desktop.css .bg 재사용 */
-body { background:#010A13; }   /* 헥스텍 딥블랙블루 */
+body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블루) */
 /* 🎨 스크롤바 톤앤매너(헥스텍 골드) — 기본 회색 스크롤바 제거 */
 #panel ::-webkit-scrollbar { width:8px; height:8px; }
 #panel ::-webkit-scrollbar-track { background:transparent; }
