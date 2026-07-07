@@ -4,47 +4,40 @@
   <meta charset="utf-8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin:0; box-sizing:border-box; }
     html, body { width:100%; height:100%; background:transparent; overflow:hidden; -webkit-user-select:none; }
-    /* 🎯 롤 클라 헥스텍 톤에 녹아드는 칩 — 딥블루+골드 하이라인+컷코너, 은은한 숨쉬는 글로우 */
+    /* 🎯 롤 클라 헥스텍 칩 — 골드 글로우로 버튼 전체 발광 · 얇고 또렷한 글자 · 가운데 정렬 · 앱 문양(⚔️) */
     #badge {
       position:absolute; inset:3px;
       display:flex; align-items:center; justify-content:center; gap:6px;
-      font-family:'Black Han Sans','Noto Sans KR',sans-serif; font-size:12.5px; letter-spacing:1px; white-space:nowrap;
-      color:#F0E6D2;
-      background:linear-gradient(158deg, rgba(10,22,38,0.90), rgba(2,10,20,0.95));
-      border:1px solid rgba(200,170,110,0.62);
-      box-shadow:0 5px 16px rgba(0,0,0,0.5), inset 0 0 14px rgba(200,170,110,0.05);
+      font-family:'Noto Sans KR',sans-serif; font-size:13px; font-weight:600; letter-spacing:1px; line-height:1; white-space:nowrap;
+      color:#F5E7C6;
+      background:linear-gradient(158deg, rgba(12,24,40,0.90), rgba(3,11,20,0.95));
+      border:1px solid rgba(200,170,110,0.7);
+      box-shadow:0 4px 16px rgba(0,0,0,0.5), 0 0 16px rgba(200,170,110,0.32), inset 0 0 16px rgba(200,170,110,0.09);
       clip-path:polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
       animation:mkGlow 2.6s ease-in-out infinite;
     }
-    /* 상단 팀컬러 헤어라인 */
-    #badge::before { content:''; position:absolute; top:0; left:10px; right:10px; height:1.5px; border-radius:2px;
-      background:linear-gradient(90deg, transparent, var(--acc, #0AC8B9), transparent); opacity:0.85; }
-    .mk-ic { color:var(--acc, #0AC8B9); font-size:10px; filter:drop-shadow(0 0 5px var(--accg, rgba(10,200,185,0.6))); }
-    .mk-tx { text-shadow:0 1px 3px rgba(0,0,0,0.65); }
+    .mk-ic { font-size:12.5px; line-height:1; filter:drop-shadow(0 0 4px rgba(200,170,110,0.55)); }
+    .mk-tx { text-shadow:0 1px 3px rgba(0,0,0,0.7); }
+    /* 골드 글로우 — 버튼 전체가 은은하게 숨쉬듯 발광 */
     @keyframes mkGlow {
-      0%,100% { border-color:rgba(200,170,110,0.5);  box-shadow:0 5px 16px rgba(0,0,0,0.5), inset 0 0 14px rgba(200,170,110,0.05); }
-      50%     { border-color:rgba(200,170,110,0.92); box-shadow:0 5px 18px rgba(0,0,0,0.5), inset 0 0 17px rgba(200,170,110,0.12), 0 0 15px rgba(200,170,110,0.22); }
+      0%,100% { border-color:rgba(200,170,110,0.5);  box-shadow:0 4px 16px rgba(0,0,0,0.5), 0 0 12px rgba(200,170,110,0.22), inset 0 0 14px rgba(200,170,110,0.06); }
+      50%     { border-color:rgba(200,170,110,0.95); box-shadow:0 4px 18px rgba(0,0,0,0.5), 0 0 26px rgba(200,170,110,0.58), inset 0 0 18px rgba(200,170,110,0.15); }
     }
-    body.t1 { --acc:#0AC8B9; --accg:rgba(10,200,185,0.6); }   /* 1팀 = 청록 */
-    body.t2 { --acc:#E8C346; --accg:rgba(232,195,70,0.6); }   /* 2팀 = 골드 */
   </style>
 </head>
-<body class="t1">
-  <div id="badge"><span class="mk-ic">◆</span><span class="mk-tx">내 팀</span></div>
+<body>
+  <div id="badge"><span class="mk-ic">⚔️</span><span class="mk-tx">내 팀</span></div>
   <script>
-    if (window.api) { window.api.onSlotTeam(t => { document.body.className = t === 2 ? 't2' : 't1'; }); }
-    else {   // 🎨 목업(브라우저 직접 열기) — 다크 배경 + 실제 크기 칩 + 팀 토글
+    // 팀 구분은 위치(팀 컬럼)로 표시 — 색은 골드로 통일. onSlotTeam은 호환용 no-op.
+    if (window.api) { window.api.onSlotTeam(() => {}); }
+    else {   // 🎨 목업(브라우저 직접 열기) — 다크 배경 + 실제 크기 칩
       const s = document.createElement('style');
-      s.textContent = "html,body{background:#0a1712;} #badge{position:relative!important;inset:auto!important;width:128px;height:38px;margin:70px auto;} #mk{position:fixed;top:12px;left:12px;font:12px 'Noto Sans KR',sans-serif;} #mk button{padding:5px 11px;margin-right:6px;border:1px solid #33475a;background:#132030;color:#cfd8e3;border-radius:6px;cursor:pointer;}";
+      s.textContent = "html,body{background:#0a1712;} #badge{position:relative!important;inset:auto!important;width:128px;height:38px;margin:80px auto;}";
       document.head.appendChild(s);
-      const bar = document.createElement('div'); bar.id = 'mk';
-      bar.innerHTML = '<span style="color:#6f8296;margin-right:8px">목업</span><button data-t="1">1팀(청록)</button><button data-t="2">2팀(골드)</button>';
-      document.body.appendChild(bar);
-      bar.querySelectorAll('button').forEach(b => b.onclick = () => { document.body.className = b.dataset.t === '2' ? 't2' : 't1'; });
     }
   </script>
 </body>
