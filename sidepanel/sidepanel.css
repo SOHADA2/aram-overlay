@@ -3,7 +3,7 @@
   background:linear-gradient(165deg, rgba(9,19,26,0.985), rgba(4,12,19,0.985));   /* 클라 로비 톤 ~#061117 (덜 블루한 블랙) */
   border:1px solid rgba(120,90,40,0.6); border-left:none; border-top:2px solid #785A28; border-radius:0;   /* 각지게 + 상단 골드 라인(클라 #785A28) */
   box-shadow:3px 0 20px rgba(0,0,0,0.45); }   /* 그림자는 바깥(오른쪽)으로만 — 클라 위로 안 새게 */
-#sbar { -webkit-app-region:drag; display:flex; align-items:center; gap:7px; padding:0 11px; min-height:79px; flex:0 0 auto;   /* 클라 상단 네비바 높이에 맞춤(아래 구분선 정렬) */
+#sbar { -webkit-app-region:drag; display:flex; align-items:center; gap:7px; padding:0 11px; min-height:80px; flex:0 0 auto;   /* 클라 상단 네비바 높이에 맞춤(아래 구분선 정렬) */
   background:linear-gradient(180deg, rgba(200,170,110,0.10), rgba(200,170,110,0.03)); border-bottom:1px solid rgba(255,255,255,0.11); }   /* 클라 네비 아래 구분선=얇은 회색 */
 #panel .rail { padding-top:10px; }   /* rail-logo 제거 후 상단 여백 */
 #sbar label, #sbar button, #sbar input, #sbar select { -webkit-app-region:no-drag; }
