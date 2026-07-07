@@ -12,7 +12,7 @@ body.docked #panel { border-radius:0; border-right:none; box-shadow:-3px 0 20px 
 
 header { -webkit-app-region:drag; display:flex; align-items:center; gap:8px; padding:9px 11px;
   background:linear-gradient(180deg, rgba(200,170,110,0.10), rgba(200,170,110,0.03)); border-bottom:1px solid rgba(120,90,40,0.4); }
-header .ttl { flex:1; font-family:'Black Han Sans',sans-serif; font-size:15px; letter-spacing:1px; color:var(--gold); text-shadow:0 0 16px rgba(200,155,60,0.45); }
+header .ttl { flex:1; font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:15px; letter-spacing:1px; color:var(--gold); text-shadow:0 0 16px rgba(200,155,60,0.45); }
 header .phase { font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:600; color:var(--dim); background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); padding:2px 8px; border-radius:5px; }
 header #close { -webkit-app-region:no-drag; width:22px; height:22px; border:none; border-radius:6px; cursor:pointer; background:rgba(255,255,255,0.08); color:#cfd4e6; font-size:12px; font-weight:800; }
 header #close:hover { background:#e0483a; color:#fff; }
@@ -70,13 +70,13 @@ header #close:hover { background:#e0483a; color:#fff; }
 .ta-players li.me .nm::after { content:' (나)'; font-size:9px; color:var(--gold); font-weight:800; }
 
 /* ── 참가자 명단 뷰 ── */
-.status { padding:30px 12px; font-family:'Black Han Sans',sans-serif; font-size:16px; letter-spacing:0.5px; color:var(--gold); line-height:1.5; text-align:center; }
+.status { padding:30px 12px; font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:16px; letter-spacing:0.5px; color:var(--gold); line-height:1.5; text-align:center; }
 .status .status-sub { display:inline-block; margin-top:8px; font-family:'Noto Sans KR',sans-serif; font-size:11px; font-weight:400; letter-spacing:0; color:var(--dim); line-height:1.7; }
 /* 🆕 대기 화면 정보(내 LP + 시즌 랭킹) */
 .waiting-info { padding:2px 3px 6px; }
 .wi-me { background:linear-gradient(160deg, rgba(200,170,110,0.1), rgba(200,170,110,0.03)); border:1px solid var(--gold-line); border-radius:12px; padding:11px 12px; margin-bottom:12px; }
 .wi-me-top { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-.wi-me-nm { font-family:'Black Han Sans',sans-serif; font-size:15px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wi-me-nm { font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:15px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wi-me-lp { flex-shrink:0; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:800; color:var(--gold); }
 .wi-me-sub { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:6px; font-size:10.5px; color:var(--ink-soft); }
 .wi-form { display:flex; gap:3px; }
@@ -132,7 +132,7 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 #vt-redo { width:100%; margin-top:6px; }
 .vt-progress { margin-top:8px; padding-top:8px; border-top:1px solid var(--hair); display:flex; flex-direction:column; gap:5px; }
 .vt-prow { display:flex; align-items:center; gap:5px; flex-wrap:wrap; font-size:9.5px; }
-.vt-prow > span:first-child { font-family:var(--f-title); font-size:10px; margin-right:2px; }
+.vt-prow > span:first-child { font-family:var(--f-title); font-weight:900; font-size:10px; margin-right:2px; }
 .vt-chip { font-family:var(--f-mono); font-size:8.5px; color:var(--dim); background:rgba(255,255,255,0.04);
   border:1px solid rgba(255,255,255,0.07); border-radius:5px; padding:2px 6px; white-space:nowrap; }
 .vt-chip.ok { color:var(--win); border-color:rgba(124,252,154,0.3); }
@@ -151,7 +151,7 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 .st-team { border-radius:11px; overflow:hidden; border:1px solid; }
 .st-team.win  { border-color:var(--teal-line); background:linear-gradient(160deg,rgba(56,217,192,0.07),transparent); }
 .st-team.lose { border-color:rgba(255,255,255,0.1); background:rgba(255,255,255,0.02); }
-.st-team-h { font-family:var(--f-title); font-size:12px; letter-spacing:1px; padding:6px 11px; border-bottom:1px solid var(--hair); }
+.st-team-h { font-family:var(--f-title); font-weight:900; font-size:12px; letter-spacing:1px; padding:6px 11px; border-bottom:1px solid var(--hair); }
 .st-team.win .st-team-h { color:var(--teal); }
 .st-team.lose .st-team-h { color:var(--dim); }
 .st-team ul { list-style:none; }
@@ -169,7 +169,7 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 /* ⚡ 이번 판 발동 효과 */
 .st-procs:empty { display:none; }
 .st-procs { margin-bottom:10px; border:1px solid var(--gold-line); border-radius:11px; overflow:hidden; background:rgba(240,200,90,0.05); }
-.st-procs-h { font-family:var(--f-title); font-size:11px; letter-spacing:0.5px; color:#ffe39a; padding:6px 11px; border-bottom:1px solid var(--hair); }
+.st-procs-h { font-family:var(--f-title); font-weight:900; font-size:11px; letter-spacing:0.5px; color:#ffe39a; padding:6px 11px; border-bottom:1px solid var(--hair); }
 .st-proc { display:flex; align-items:center; gap:8px; padding:6px 11px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:11px; }
 .st-proc:last-child { border-bottom:none; }
 .st-proc.miss { opacity:0.72; }
