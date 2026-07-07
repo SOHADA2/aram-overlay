@@ -48,6 +48,7 @@ public class Win{
  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
+ [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h,int a,out RECT r,int s);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] public static extern IntPtr SetWinEventHook(uint a,uint b,IntPtr m,WinEventProc cb,uint p,uint t,uint f);
  [DllImport("user32.dll")] public static extern IntPtr SetTimer(IntPtr h,IntPtr id,uint ms,IntPtr fn);
@@ -65,7 +66,7 @@ public class Win{
   IntPtr h=FindWindow(null,"League of Legends");
   target=h;
   if(h==IntPtr.Zero||!IsWindowVisible(h)||IsIconic(h)) return "";
-  RECT r; if(!GetWindowRect(h,out r)) return "";
+  RECT r; if(DwmGetWindowAttribute(h,9,out r,16)!=0 && !GetWindowRect(h,out r)) return "";  // 9=DWMWA_EXTENDED_FRAME_BOUNDS(보이는 실제 경계·투명 테두리 제외)
   int fg=(GetForegroundWindow()==h)?1:0;
   return r.L+" "+r.T+" "+r.R+" "+r.B+" "+fg;
  }
