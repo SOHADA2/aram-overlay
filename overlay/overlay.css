@@ -177,6 +177,29 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 .st-proc.miss .st-proc-fx { color:var(--dim); }
 #st-close { width:100%; }
 
+/* ── 🎮 인게임 뷰(내 빌드 + 승패 LP) ── */
+.ig-lp { display:flex; align-items:baseline; gap:8px; padding:2px 2px 8px; }
+.ig-tier { font-size:12px; font-weight:800; color:var(--gold); }
+.ig-lpnum { font-family:var(--f-mono); font-size:22px; font-weight:800; color:var(--ink); }
+.ig-lpbar-track { height:5px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden; margin-bottom:12px; }
+.ig-lpbar { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--gold),#ffe39a); }
+.ig-outs { display:flex; gap:8px; margin-bottom:13px; }
+.ig-out { flex:1; min-width:0; border-radius:11px; padding:9px 11px; border:1px solid; display:flex; flex-direction:column; gap:2px; }
+.ig-out.win { border-color:var(--teal-line); background:linear-gradient(160deg,rgba(56,217,192,0.09),transparent); }
+.ig-out.lose { border-color:rgba(255,120,110,0.3); background:linear-gradient(160deg,rgba(255,107,90,0.08),transparent); }
+.ig-out-lbl { font-size:9.5px; letter-spacing:0.5px; color:var(--dim); }
+.ig-out b { font-family:var(--f-mono); font-size:17px; font-weight:800; }
+.ig-out.win b { color:var(--teal); }
+.ig-out.lose b { color:#ff8a7a; }
+.ig-out-sub { font-size:10px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ig-sec { font-size:10.5px; font-weight:800; letter-spacing:0.4px; color:var(--gold); margin:4px 0 6px; opacity:0.9; }
+.ig-items { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
+.ig-item { font-size:10px; font-weight:700; color:#ffe39a; background:rgba(240,200,90,0.12); border:1px solid rgba(240,200,90,0.28); border-radius:6px; padding:3px 8px; }
+.ig-build { background:rgba(0,0,0,0.22); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:8px 10px; margin-bottom:6px; }
+.ig-build-nm { font-size:12px; font-weight:700; color:var(--ink); }
+.ig-build-eff { font-size:10px; color:#ffd98a; line-height:1.5; word-break:keep-all; margin-top:3px; }
+.ig-empty { font-size:11px; color:var(--dim); text-align:center; padding:18px 8px; }
+
 /* ── 🎒 아이템 사용 뷰 ── */
 .it-timer { padding:4px 2px 12px; }
 .it-timer-row { display:flex; align-items:baseline; gap:5px; margin-bottom:7px; }

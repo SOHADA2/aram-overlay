@@ -33,6 +33,7 @@ function showView(v) {
   el('view-vote').style.display   = v === 'vote'   ? 'block' : 'none';
   el('view-settle').style.display = v === 'settle' ? 'block' : 'none';
   el('view-roster').style.display = v === 'roster' ? 'block' : 'none';
+  el('view-ingame').style.display = v === 'ingame' ? 'block' : 'none';
 }
 
 function myTeam() {
@@ -553,9 +554,68 @@ async function onItemAction(b) {
   renderItem();
 }
 
+// ── 🎮 인게임 뷰 (전투 중) — 내 빌드 + 이기면/지면 LP 동기부여 ──
+const LP_WIN = 20, LP_LOSS = 14, LP_CAP = 100, GMB_WIN = 40, GMB_LOSS = 30;
+function _myLpState() {
+  const detail = (itemData && itemData.lp) || {};   // 팀빌드 때 박제된 내 LP 상세(placement/promo)
+  const basic = lpMap[nn(myName)] || {};
+  return {
+    tier: detail.tier || basic.tier || '',
+    lp: (detail.lp != null ? detail.lp : (basic.lp != null ? basic.lp : 0)),
+    placementDone: detail.placementDone,
+    placementGames: detail.placementGames || 0,
+    promoActive: !!detail.promoActive,
+    promoWins: detail.promoWins || 0,
+    promoLosses: detail.promoLosses || 0,
+  };
+}
+function renderIngame() {
+  const d = _gd();
+  const st = _myLpState();
+  const items = Array.isArray(d.items_s2) ? d.items_s2 : [];
+  const on = id => items.some(it => it && it.id === id && it.active);
+  const tierKr = TIER_KR[st.tier] || st.tier || '—';
+
+  // 이기면 / 지면 — 배치·승급전·정규전 분기
+  let winB, winSub, lossB, lossSub, lpBar = '';
+  if (st.placementDone === false) {
+    winB = '배치 1승'; winSub = `${st.placementGames + 1}/5 판`;
+    lossB = '배치 1패'; lossSub = `${st.placementGames + 1}/5 판`;
+  } else if (st.promoActive) {
+    winB = '승급 1승'; winSub = `${st.promoWins + 1}승 · 2승이면 승급 🔥`;
+    lossB = '승급 1패'; lossSub = `${st.promoLosses + 1}패 · 2패면 실패`;
+  } else {
+    const gamble = on('s1_gamble'), lp2x = on('s1_lp2x');
+    const wLp = gamble ? GMB_WIN : (lp2x ? LP_WIN * 2 : LP_WIN);
+    const lLp = gamble ? GMB_LOSS : LP_LOSS;
+    const winTo = Math.min(LP_CAP, st.lp + wLp), lossTo = Math.max(0, st.lp - lLp);
+    winB = `+${wLp} LP`; winSub = winTo >= LP_CAP ? '🔥 승급전 진입!' : `→ ${winTo} LP`;
+    lossB = `−${lLp} LP`; lossSub = `→ ${lossTo} LP`;
+    lpBar = `<div class="ig-lpbar-track"><div class="ig-lpbar" style="width:${Math.min(100, st.lp)}%"></div></div>`;
+  }
+
+  // 내 빌드 — 장착 강철심장 · 활성 시너지 · 활성 아이템
+  const emblems = (Array.isArray(d.emblems_s2) ? d.emblems_s2 : []).filter(Boolean).slice().sort((a, b) => _emPower(b) - _emPower(a));
+  const eqEm = emblems.find(e => e.id === _eqEmblemId(d));
+  const asyn = d.activeSynergy_s2 || null;
+  const activeG = asyn ? SYN_GROUPS.find(g => g.sid === asyn.sid) : null;
+  const rows = [];
+  const actItems = items.filter(it => it && it.active && SETTLE_ITEM_LABELS[it.id]);
+  if (actItems.length) rows.push(`<div class="ig-items">${actItems.map(it => `<span class="ig-item">${SETTLE_ITEM_LABELS[it.id].ic} ${SETTLE_ITEM_LABELS[it.id].name}</span>`).join('')}</div>`);
+  if (eqEm) rows.push(`<div class="ig-build"><div class="ig-build-nm">${eqEm.nick ? esc(eqEm.nick) : '강철심장 +' + _emLevel(eqEm)} · ${_emGrade(_emPower(eqEm))}</div><div class="ig-build-eff">${esc(emEffText(eqEm))}</div></div>`);
+  if (activeG) rows.push(`<div class="ig-build"><div class="ig-build-nm">${esc(activeG.name)} ${asyn.tier}성</div><div class="ig-build-eff">${esc(synEffShort(activeG, asyn.tier))}</div></div>`);
+  const buildHtml = rows.length ? `<div class="ig-sec">내 빌드</div>${rows.join('')}` : '<div class="ig-empty">이번 판 장착한 빌드가 없어요</div>';
+
+  el('ig-body').innerHTML =
+    `<div class="ig-lp"><span class="ig-tier">${tierKr}</span><b class="ig-lpnum">${st.lp} LP</b></div>${lpBar}`
+    + `<div class="ig-outs"><div class="ig-out win"><span class="ig-out-lbl">이기면</span><b>${winB}</b><span class="ig-out-sub">${winSub}</span></div>`
+    + `<div class="ig-out lose"><span class="ig-out-lbl">지면</span><b>${lossB}</b><span class="ig-out-sub">${lossSub}</span></div></div>`
+    + buildHtml;
+}
 function render() {
   if (itemActive()) { renderItem(); showView('item'); el('phase').textContent = '아이템'; return; }
   if (settleActive()) { renderSettle(); showView('settle'); el('phase').textContent = '정산'; return; }
+  if (inGame) { renderIngame(); showView('ingame'); el('phase').textContent = '게임 중'; return; }   // 🎮 전투 중=내 빌드+승패 LP(팀 명단 숨김)
   const hasTeams = sessionData && sessionData.active && (((sessionData.teamA || []).length) || ((sessionData.teamB || []).length));
   if (hasTeams && isVoting()) {
     // 팀이 바뀌면 선택 초기화(다음 경기 투표)
