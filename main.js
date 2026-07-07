@@ -104,7 +104,7 @@ function applyDock(pb) {                       // 팀/명단 오버레이 = 클�
   if (W < 300) W = 300;
   let x = Math.round(cx - W);
   if (x < dispLeft) x = dispLeft;                     // 화면 밖이면 붙임(살짝 겹칠 수 있음)
-  overlayWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
+  overlayWin.setBounds({ x, y: Math.round(cy), width: W + 2, height: Math.round(ch) });   // +2 클라 쪽으로 겹쳐 틈 제거
 }
 function applyDockLeft(pb) {                    // 내 정보 패널 = 클라 '오른쪽' 바깥에 붙임
   if (!leftWin || leftWin.isDestroyed()) return;
@@ -112,13 +112,22 @@ function applyDockLeft(pb) {                    // 내 정보 패널 = 클라 '�
   const cx = pb.x / sf, cy = pb.y / sf, cw = pb.w / sf, ch = pb.h / sf;
   const disp = screen.getDisplayMatching({ x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) });
   const dispRight = disp.workArea.x + disp.workArea.width;
-  let W = Math.min(400, Math.round(dispRight - (cx + cw)));   // 클라 오른쪽 바깥 남은 공간
+  let x = Math.round(cx + cw) - 2;                            // -2 클라 쪽으로 겹쳐 틈 제거
+  let W = Math.min(400, Math.round(dispRight - x));           // 클라 오른쪽 바깥 남은 공간
   if (W < 300) W = 300;
-  let x = Math.round(cx + cw);
   if (x + W > dispRight) x = Math.max(disp.workArea.x, dispRight - W);   // 화면 밖이면 안으로 당김
   leftWin.setBounds({ x, y: Math.round(cy), width: W, height: Math.round(ch) });
 }
 function hideLeftPanel() { if (leftWin && !leftWin.isDestroyed() && leftWin.isVisible()) leftWin.hide(); leftDockedBounds = null; }
+// 🪟 Win11 창 모서리 둥글림 강제 해제 (roundedCorners:false가 안 먹는 환경 대비 · DWMWA_WINDOW_CORNER_PREFERENCE=33·DONOTROUND=1)
+function forceSquareCorners(win) {
+  if (!win || win.isDestroyed()) return;
+  let hwnd;
+  try { const b = win.getNativeWindowHandle(); hwnd = b.length >= 8 ? b.readBigUInt64LE(0).toString() : String(b.readUInt32LE(0)); } catch (_) { return; }
+  const ps = `Add-Type -Namespace Sq -Name W -MemberDefinition '[DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr h,int a,ref int v,int s);'; $v=1; [Sq.W]::DwmSetWindowAttribute([IntPtr]${hwnd},33,[ref]$v,4)`;
+  try { spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true }); } catch (_) {}
+}
+function squareAllPanels() { for (const w of [overlayWin, leftWin, slotWin]) forceSquareCorners(w); }
 // 📍 클라 로비 위 '내 팀 여기' 마커 — 팀 컬럼을 네모 테두리로 강조(클릭 통과)
 let _slotReady = false;
 function createSlotWin() {
@@ -921,6 +930,7 @@ else {
     createSlotWin();   // 📍 내 팀 마커(미리 로드 → 팀 배정 시 흰 박스 없이 바로 표시)
     _startTs = Date.now();
     floatPanels();     // 클라 없으면 좌우 독립 창으로 표시(클라 켜면 도킹 스트림이 붙임)
+    squareAllPanels(); setTimeout(squareAllPanels, 1500);   // 🪟 창 모서리 각지게(둥글림 강제 해제)
     makeTray();
     globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
     globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
