@@ -313,10 +313,32 @@ async function renderRanking(silent) {
 }
 
 // ── 🛒 상점 / 🃏 가챠 / 🎫 패스 (홈 로직 = main.js IPC·store.js) ─────────────
+// 🪟 커스텀 확인창(네이티브 confirm 대체 · 헥스텍 톤) → Promise<boolean>
+function uiConfirm(message, opts) {
+  opts = opts || {};
+  return new Promise(resolve => {
+    const ov = document.createElement('div'); ov.className = 'ui-modal-overlay';
+    const modal = document.createElement('div'); modal.className = 'ui-modal';
+    const body = document.createElement('div'); body.className = 'ui-modal-body';
+    String(message).split('\n').forEach((line, i) => { const d = document.createElement('div'); d.className = 'uim-line' + (i === 0 ? ' uim-h' : ''); d.textContent = line; body.appendChild(d); });
+    const btns = document.createElement('div'); btns.className = 'ui-modal-btns';
+    const cancel = document.createElement('button'); cancel.className = 'uim-cancel'; cancel.textContent = opts.cancel || '취소';
+    const ok = document.createElement('button'); ok.className = 'uim-ok'; ok.textContent = opts.ok || '확인';
+    if (opts.danger) ok.style.background = 'linear-gradient(180deg,#e0605a,#b8433d)';
+    btns.appendChild(cancel); btns.appendChild(ok); modal.appendChild(body); modal.appendChild(btns); ov.appendChild(modal);
+    document.body.appendChild(ov); ok.focus();
+    const done = v => { document.removeEventListener('keydown', onKey, true); ov.remove(); resolve(v); };
+    function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); done(false); } else if (e.key === 'Enter') { e.preventDefault(); done(true); } }
+    document.addEventListener('keydown', onKey, true);
+    ok.onclick = () => done(true); cancel.onclick = () => done(false);
+    ov.onclick = e => { if (e.target === ov) done(false); };
+  });
+}
+
 // 🔒 조작 잠금 — 다른 기기 조작 중이면 확인 후 권한 인계 + 자동 재시도
 async function withCtrl(fn) {
   let r = await fn();
-  if (r && r.ctrl && confirm((r.err || '다른 기기에서 조작 중이에요') + '\n이 기기에서 조작 권한을 가져올까요?\n(같은 순간 동시 조작 사고 방지용 — 보는 건 자유)')) {
+  if (r && r.ctrl && await uiConfirm((r.err || '🔒 다른 기기에서 조작 중이에요') + '\n이 기기에서 조작 권한을 가져올까요?\n(같은 순간 동시 조작 사고 방지용 — 보는 건 자유)', { ok: '권한 가져오기', cancel: '취소' })) {
     await window.api.takeControl();
     r = await fn();
   }
@@ -608,7 +630,7 @@ function openScratch(rec, resume) {
   };
   $('sc-aside').onclick = async () => { await window.api.lotteryAside(revealed); ov.remove(); renderLottery(true); };
   $('sc-discard').onclick = async () => {
-    if (!confirm('이 복권을 버릴까요?\n당첨이어도 골드를 받지 못하고, 구매비는 돌려받지 않아요.')) return;
+    if (!await uiConfirm('이 복권을 버릴까요?\n당첨이어도 골드를 받지 못하고, 구매비는 돌려받지 않아요.', { ok: '버리기', cancel: '취소', danger: true })) return;
     const res = await withCtrl(() => window.api.lotteryDiscard());
     spToast(res && res.ok ? '버렸어요' : (res && res.err) || '실패');
     ov.remove(); renderLottery(true);
@@ -686,7 +708,7 @@ async function renderForge(silent) {
   });
   const rr = $('fg-reroll'); if (rr) rr.onclick = async () => {
     if (_fgBusy) return;
-    if (!confirm('걸작의 정수 1개로 효과 3줄을 전부 다시 뽑을까요?\n(기존 걸작 효과는 사라져요)')) return;
+    if (!await uiConfirm('걸작의 정수 1개로 효과 3줄을 전부 다시 뽑을까요?\n(기존 걸작 효과는 사라져요)', { ok: '다시 뽑기', cancel: '취소' })) return;
     _fgBusy = true; rr.disabled = true;
     const res = await withCtrl(() => window.api.forgeReroll());
     if (res && res.ok) { await forgeStrike(true); spToast('🏆 걸작 완성!'); }
@@ -704,7 +726,7 @@ async function renderForge(silent) {
   el.querySelectorAll('[data-fg-eq]').forEach(b => b.onclick = async () => { const eqr = await withCtrl(() => window.api.emblemEquip(Number(b.dataset.fgEq))); if (eqr && !eqr.ok && eqr.err && !eqr.ctrl) spToast(eqr.err); renderForge(true); });
   el.querySelectorAll('[data-fg-sell]').forEach(b => b.onclick = async () => {
     const em = r.emblems.find(e => e.id === Number(b.dataset.fgSell));
-    if (!confirm(`이 강철심장(성능 ${em ? em.power : '?'})을 ${em ? em.sellPrice : '?'}G에 팔까요?\n강화·걸작이 함께 사라져요.`)) return;
+    if (!await uiConfirm(`이 강철심장(성능 ${em ? em.power : '?'})을 ${em ? em.sellPrice : '?'}G에 팔까요?\n강화·걸작이 함께 사라져요.`, { ok: '판매', cancel: '취소', danger: true })) return;
     const res = await withCtrl(() => window.api.forgeSell(Number(b.dataset.fgSell)));
     spToast(res && res.ok ? `💰 판매 완료 +${res.refund}G` : (res && res.err) || '판매 실패');
     renderForge(true);

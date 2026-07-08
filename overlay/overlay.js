@@ -463,10 +463,31 @@ function updateItemBar(secs) {
   bar.classList.toggle('urgent', urgent);
   const t = bar.closest('.it-timer'); if (t) t.classList.toggle('urgent', urgent);
 }
+// 🪟 커스텀 확인창(네이티브 confirm 대체 · 헥스텍 톤) → Promise<boolean>
+function uiConfirm(message, opts) {
+  opts = opts || {};
+  return new Promise(resolve => {
+    const ov = document.createElement('div'); ov.className = 'ui-modal-overlay';
+    const modal = document.createElement('div'); modal.className = 'ui-modal';
+    const body = document.createElement('div'); body.className = 'ui-modal-body';
+    String(message).split('\n').forEach((line, i) => { const d = document.createElement('div'); d.className = 'uim-line' + (i === 0 ? ' uim-h' : ''); d.textContent = line; body.appendChild(d); });
+    const btns = document.createElement('div'); btns.className = 'ui-modal-btns';
+    const cancel = document.createElement('button'); cancel.className = 'uim-cancel'; cancel.textContent = opts.cancel || '취소';
+    const ok = document.createElement('button'); ok.className = 'uim-ok'; ok.textContent = opts.ok || '확인';
+    btns.appendChild(cancel); btns.appendChild(ok); modal.appendChild(body); modal.appendChild(btns); ov.appendChild(modal);
+    document.body.appendChild(ov); ok.focus();
+    const done = v => { document.removeEventListener('keydown', onKey, true); ov.remove(); resolve(v); };
+    function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); done(false); } else if (e.key === 'Enter') { e.preventDefault(); done(true); } }
+    document.addEventListener('keydown', onKey, true);
+    ok.onclick = () => done(true); cancel.onclick = () => done(false);
+    ov.onclick = e => { if (e.target === ov) done(false); };
+  });
+}
+
 // 🔒 조작 잠금 — 다른 기기 조작 중이면 확인 후 권한 인계 + 자동 재시도
 async function ovCtrl(fn) {
   let r = await fn();
-  if (r && r.ctrl && confirm((r.err || '다른 기기에서 조작 중이에요') + '\n이 기기에서 조작 권한을 가져올까요?')) {
+  if (r && r.ctrl && await uiConfirm((r.err || '🔒 다른 기기에서 조작 중이에요') + '\n이 기기에서 조작 권한을 가져올까요?', { ok: '권한 가져오기', cancel: '취소' })) {
     await window.api.takeControl();
     r = await fn();
   }
