@@ -52,11 +52,20 @@ function showLogin() {
 function showLogged() {
   $('s-login').style.display = 'none'; $('s-app').style.display = 'flex';
   $('s-ttl').style.display = 'none';
-  $('s-me').style.display = ''; $('s-me').textContent = _myName;
+  $('s-me').style.display = 'none';   // 아이디는 클라 옆이라 생략(사장님) — 대신 재화 표시
+  $('s-wallet').style.display = '';
+  updateWallet();
   $('s-host-box').style.display = ''; $('s-host').checked = _isHost;
   $('s-change').style.display = '';
   $('s-rail-team').style.display = _isHost ? '' : 'none';
   switchCat(_isHost && _curCat === 'team' ? 'team' : 'profile');
+}
+// 🪙 상단 재화(골드·뽑기코인·투기장코인) — 탭 전환/60초마다 갱신
+async function updateWallet() {
+  if (!window.api.getWallet) return;
+  const w = await window.api.getWallet().catch(() => null);
+  if (!w || !w.ok) return;
+  $('s-wallet').innerHTML = `<b class="sw-g">🪙 ${w.gold.toLocaleString()}</b>${w.claw ? `<span>🕹️ ${w.claw}</span>` : ''}${w.arena ? `<span>🗡️ ${w.arena}</span>` : ''}`;
 }
 
 // ── 레일 전환 ────────────────────────────────────────────────────────────
@@ -66,14 +75,14 @@ function renderCat(cat, silent) {
   else if (cat === 'records') renderRecords(silent);
   else if (cat === 'ranking') renderRanking(silent);
   else if (cat === 'shop') renderShop(silent);
-  else if (cat === 'lottery') renderLottery(silent);
-  else if (cat === 'forge') renderForge(silent);
   else if (cat === 'gacha') renderGacha(silent);
   else if (cat === 'pass') renderPass(silent);
   else if (cat === 'team') tbRenderList();   // 진행 중 단계(run/done)는 건드리지 않음
 }
 function switchCat(cat) {
   _curCat = cat;
+  updateWallet();
+  hpEmbedFor(cat);   // 🌐 복권/대장간 = 홈 임베드 표시 토글
   document.querySelectorAll('.rail-btn').forEach(b => b.classList.toggle('on', b.dataset.cat === cat));
   document.querySelectorAll('.cat-view').forEach(v => { v.style.display = (v.id === 'cat-' + cat) ? 'flex' : 'none'; });
   renderCat(cat, false);
@@ -120,10 +129,11 @@ function tbRenderList() {
   });
   list.innerHTML = sorted.map(n => {
     const e = n.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-    return `<div class="tb-item${_tbChecked.has(n) ? ' on' : ''}" data-name="${e}"><div class="tb-check"></div><span class="tb-nm">${e}</span>${_tbBadge(n)}</div>`;
+    return `<div class="tb-item${_tbChecked.has(n) ? ' on' : ''}" data-name="${e}" title="${e}"><div class="tb-check"></div><span class="tb-nm">${e}</span></div>`;   // LP 배지 제거 — 이름 온전히(사장님 요청)
   }).join('');
   tbSync();
 }
+{ const tc = $('tb-clear'); if (tc) tc.onclick = () => { _tbChecked.clear(); localStorage.setItem('tbChecked', '[]'); tbRenderList(); }; }   // 전체 선택 해제
 // 드래그 선택(홈 initDragSelect 이식·데스크톱=마우스만): 누른 칩의 반대 상태를 목표로, 지나는 칩 전부 적용
 (function tbDragSelect() {
   const list = $('tb-list');
@@ -225,35 +235,78 @@ async function renderProfile(silent) {
     + `<div class="pf-champs">${champCard('most', '🔥 MOST', p.champs.most)}${champCard('best', '⭐ BEST', p.champs.best)}</div>`
     + (em || syn || bd ? `<div class="pf-loadout">${em}${syn}${bd}</div>` : '');
 }
-async function renderRecords(silent) {
-  const el = $('rc-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
-  const r = await window.api.getRecords();
-  if (!r || !r.ok) { if (!silent) el.innerHTML = '<div class="cat-empty">기록을 불러오지 못했어요</div>'; return; }
-  if (r.ddVer) _ddVer = r.ddVer;
-  if (!r.records.length) { el.innerHTML = '<div class="cat-empty">시즌2 경기 기록이 아직 없어요</div>'; return; }
-  el.innerHTML = r.records.map(m => {
-    const blueWon = m.winner === 'blue';
-    const res = m.mine ? (m.won ? '<span class="rc-res w">승</span>' : '<span class="rc-res l">패</span>') : '<span class="rc-res n">관전</span>';
-    const kda = m.kda ? `<span class="rc-kda">${m.kda.k}/${m.kda.d}/${m.kda.a}</span>` : '';
-    const champ = m.myChamp ? `<img class="rc-cimg" src="${ddImg(m.myChamp)}" onerror="this.style.visibility='hidden'">` : '';
-    const d = m.ts ? new Date(m.ts) : null;   // 홈 기록처럼 날짜 표시
-    const date = d ? `<span class="rc-date">${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</span>` : '';
-    const tA = `<span class="rc-team ${blueWon ? 'win' : ''}">${m.teamA.map(escH).join(', ')}</span>`;
-    const tB = `<span class="rc-team ${!blueWon ? 'win' : ''}">${m.teamB.map(escH).join(', ')}</span>`;
-    return `<div class="rc-row ${m.mine ? (m.won ? 'mine-w' : 'mine-l') : ''}"><div class="rc-top">${champ}${res}${kda}<span class="rc-size">${m.size}:${m.size}${date ? ' · ' : ''}</span>${date}</div><div class="rc-teams">${tA}<span class="rc-vs">vs</span>${tB}</div></div>`;
+// ── 📋 기록 — 홈처럼 필터(시즌2/시즌1/일반게임/막고라) + 행 클릭=상세(참가자 스탯) ──
+let _rcFilter = 's2', _rcOpen = new Set();
+const _fmtD = ts => { const d = new Date(ts || 0); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+function _rcDetailRows(list, winner, side) {
+  return list.map(p => {
+    const img = p.champ ? `<img class="rc-cimg s" src="${ddImg(p.champ)}" onerror="this.style.visibility='hidden'">` : '<span class="rc-cimg s"></span>';
+    const st = (p.k != null && p.champ) ? `<span class="rc-kda">${p.k}/${p.d}/${p.a}</span><span class="rc-dmg">${(p.dmg || 0).toLocaleString()}</span>` : '<span class="rc-dmg">기록 없음</span>';
+    return `<div class="rc-dp ${winner === side ? 'w' : ''}">${img}<span class="rc-dp-nm">${escH(p.name)}</span>${st}</div>`;
   }).join('');
 }
+async function renderRecords(silent) {
+  const el = $('rc-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
+  const r = await window.api.getRecords(_rcFilter);
+  if (!r || !r.ok) { if (!silent) el.innerHTML = '<div class="cat-empty">기록을 불러오지 못했어요</div>'; return; }
+  if (r.ddVer) _ddVer = r.ddVer;
+  const seg = [['s2', '시즌 2'], ['s1', '시즌 1'], ['normal', '일반'], ['magolla', '막고라']]
+    .map(([k, l]) => `<button class="rc-seg${_rcFilter === k ? ' on' : ''}" data-rcf="${k}">${l}</button>`).join('');
+  let body;
+  if (!r.records.length) body = '<div class="cat-empty">기록이 아직 없어요</div>';
+  else if (_rcFilter === 'magolla') {
+    body = r.records.map(m => {
+      const bets = m.bets.map(b => `<div class="rc-dp"><span class="rc-dp-nm">${escH(b.name)}</span><span class="rc-dmg">${escH(b.pick)} 예측 · ${b.amount}G → ${b.payout >= 0 ? '+' : ''}${b.payout}G</span></div>`).join('') || '<div class="rc-dp"><span class="rc-dmg">베팅 없음</span></div>';
+      return `<div class="rc-row"><div class="rc-top"><span class="rc-res w">⚔️</span><span class="rc-mgf">${escH(m.f1)} <i>vs</i> ${escH(m.f2)}</span><span class="rc-size">승자 ${escH(m.winner)}</span><span class="rc-date">${_fmtD(m.ts)}</span></div><div class="rc-det open">${bets}</div></div>`;
+    }).join('');
+  } else if (_rcFilter === 'normal') {
+    body = r.records.map((m, i) => {
+      const open = _rcOpen.has('n' + i);
+      const det = m.players.map(p => `<div class="rc-dp ${p.win ? 'w' : ''}">${p.champ ? `<img class="rc-cimg s" src="${ddImg(p.champ)}" onerror="this.style.visibility='hidden'">` : ''}<span class="rc-dp-nm">${escH(p.name)}</span><span class="rc-kda">${p.k}/${p.d}/${p.a}</span><span class="rc-dmg">${(p.dmg || 0).toLocaleString()}</span></div>`).join('');
+      return `<div class="rc-row rc-click" data-rck="n${i}"><div class="rc-top"><span class="rc-res n">일반</span><span class="rc-size">${Math.round((m.gameTime || 0) / 60)}분</span><span class="rc-date">${_fmtD(m.ts)}</span><span class="rc-chev">${open ? '▴' : '▾'}</span></div><div class="rc-det${open ? ' open' : ''}">${det}</div></div>`;
+    }).join('');
+  } else {
+    body = r.records.map((m, i) => {
+      const key = 'c' + i, open = _rcOpen.has(key);
+      const blueWon = m.winner === 'blue';
+      const res = m.mine ? (m.won ? '<span class="rc-res w">승</span>' : '<span class="rc-res l">패</span>') : '<span class="rc-res n">관전</span>';
+      const kda = m.kda ? `<span class="rc-kda">${m.kda.k}/${m.kda.d}/${m.kda.a}</span>` : '';
+      const champ = m.myChamp ? `<img class="rc-cimg" src="${ddImg(m.myChamp)}" onerror="this.style.visibility='hidden'">` : '';
+      const awards = [m.mvpW && `🏆 ${escH(m.mvpW)}`, m.mvpL && `⭐ ${escH(m.mvpL)}`, (m.mannerW || m.mannerL) && `💎 ${[m.mannerW, m.mannerL].filter(Boolean).map(escH).join('·')}`].filter(Boolean).join(' · ');
+      const det = `<div class="rc-dt">${blueWon ? '🏆 ' : ''}1팀</div>${_rcDetailRows(m.detailA, m.winner, 'blue')}<div class="rc-dt">${!blueWon ? '🏆 ' : ''}2팀</div>${_rcDetailRows(m.detailB, m.winner, 'red')}${awards ? `<div class="rc-aw">${awards}</div>` : ''}`;
+      const tA = `<span class="rc-team ${blueWon ? 'win' : ''}">${m.teamA.map(escH).join(', ')}</span>`;
+      const tB = `<span class="rc-team ${!blueWon ? 'win' : ''}">${m.teamB.map(escH).join(', ')}</span>`;
+      return `<div class="rc-row rc-click ${m.mine ? (m.won ? 'mine-w' : 'mine-l') : ''}" data-rck="${key}"><div class="rc-top">${champ}${res}${kda}<span class="rc-size">${m.size}:${m.size} · </span><span class="rc-date">${_fmtD(m.ts)}</span><span class="rc-chev">${open ? '▴' : '▾'}</span></div><div class="rc-teams">${tA}<span class="rc-vs">vs</span>${tB}</div><div class="rc-det${open ? ' open' : ''}">${det}</div></div>`;
+    }).join('');
+  }
+  el.innerHTML = `<div class="rc-segs">${seg}</div>` + body;
+  el.querySelectorAll('[data-rcf]').forEach(b => b.onclick = () => { _rcFilter = b.dataset.rcf; _rcOpen.clear(); renderRecords(); });
+  el.querySelectorAll('.rc-click').forEach(row => row.querySelector('.rc-top').onclick = () => {
+    const k = row.dataset.rck;
+    if (_rcOpen.has(k)) _rcOpen.delete(k); else _rcOpen.add(k);
+    row.querySelector('.rc-det').classList.toggle('open', _rcOpen.has(k));
+    const ch = row.querySelector('.rc-chev'); if (ch) ch.textContent = _rcOpen.has(k) ? '▴' : '▾';
+  });
+}
+// ── 🏆 랭킹 — 홈처럼 TOP3 히어로 + 시즌 선택(2/1 읽기전용) ──
+let _rkSeason = 2;
 async function renderRanking(silent) {
   const el = $('rk-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
-  const r = await window.api.getRanking();
-  if (!r || !r.ok || !r.ranking.length) { if (!silent) el.innerHTML = '<div class="cat-empty">랭킹 정보가 아직 없어요</div>'; return; }
+  const r = await window.api.getRanking(_rkSeason);
+  if (!r || !r.ok) { if (!silent) el.innerHTML = '<div class="cat-empty">랭킹 정보가 아직 없어요</div>'; return; }
   const me = r.myName;
-  el.innerHTML = r.ranking.map(p => {
-    const medal = p.rank <= 3 ? ['🥇', '🥈', '🥉'][p.rank - 1] : `<span class="rk-num">${p.rank}</span>`;
-    const tc = (TB_TIER[p.tier] || TB_TIER.unranked)[1];   // 티어 색(홈)
-    const bar = p.tier !== 'challenger' ? `<div class="rk-bar"><i style="width:${Math.min(100, p.lp)}%;background:${tc}"></i></div>` : '';
-    return `<div class="rk-row${p.name === me ? ' mine' : ''}"><div class="rk-main"><span class="rk-rank">${medal}</span><span class="rk-name">${escH(p.name)}</span><span class="rk-tier" style="color:${tc}">${p.tierKr}</span><span class="rk-lp" style="color:${tc}">${p.lp} LP</span></div>${bar}</div>`;
+  const seg = [[2, '시즌 2'], [1, '시즌 1']].map(([k, l]) => `<button class="rc-seg${_rkSeason === k ? ' on' : ''}" data-rks="${k}">${l}</button>`).join('');
+  const heroes = r.ranking.slice(0, 3).map(p => {
+    const tc = (TB_TIER[p.tier] || TB_TIER.unranked)[1];
+    return `<div class="rk-hero${p.name === me ? ' mine' : ''}" style="--tc:${tc}"><div class="rk-hero-r">${['🥇', '🥈', '🥉'][p.rank - 1]}</div><div class="rk-hero-nm">${escH(p.name)}</div><div class="rk-hero-tier">${p.tierKr}</div><b class="rk-hero-lp">${p.lp} LP</b>${p.tier !== 'challenger' ? `<div class="rk-bar"><i style="width:${Math.min(100, p.lp)}%;background:${tc}"></i></div>` : ''}</div>`;
   }).join('');
+  const rest = r.ranking.slice(3).map(p => {
+    const tc = (TB_TIER[p.tier] || TB_TIER.unranked)[1];
+    const bar = p.tier !== 'challenger' ? `<div class="rk-bar"><i style="width:${Math.min(100, p.lp)}%;background:${tc}"></i></div>` : '';
+    return `<div class="rk-row${p.name === me ? ' mine' : ''}"><div class="rk-main"><span class="rk-rank"><span class="rk-num">${p.rank}</span></span><span class="rk-name">${escH(p.name)}</span><span class="rk-tier" style="color:${tc}">${p.tierKr}</span><span class="rk-lp" style="color:${tc}">${p.lp} LP</span></div>${bar}</div>`;
+  }).join('');
+  el.innerHTML = `<div class="rc-segs">${seg}</div>` + (r.ranking.length ? `<div class="rk-heroes">${heroes}</div>${rest}` : '<div class="cat-empty">랭킹 정보가 아직 없어요</div>');
+  el.querySelectorAll('[data-rks]').forEach(b => b.onclick = () => { _rkSeason = Number(b.dataset.rks); renderRanking(); });
 }
 
 // ── 🛒 상점 / 🃏 가챠 / 🎫 패스 (홈 로직 = main.js IPC·store.js) ─────────────
@@ -394,205 +447,45 @@ async function renderPass(silent) {
   });
 }
 
-// ── 🎟 스크래치 복권 (로직=main store.js·홈 1:1 / 여기선 표시·긁기만) ─────────
-async function renderLottery(silent) {
-  const el = $('lo-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
-  const r = await window.api.getLottery();
-  if (!r || !r.ok) { if (!silent) el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '복권을 불러오지 못했어요')}</div>`; return; }
-  $('lo-gold').textContent = `보유 ${r.gold}G`;
-  const pityKeyOf = { 1: 'gold', 2: 'prism' };
-  const cards = r.tiers.map(t => {
-    const free = r.free[t.idx] || 0;
-    const pity = pityKeyOf[t.idx] ? r.pity[pityKeyOf[t.idx]] : 0;
-    const bonus = t.idx > 0 ? (r.prizeBonus[t.idx] || 0) : 0;
-    return `<div class="lo-card t${t.idx}">
-      <div class="lo-hd"><b>${escH(t.name)}</b>${pity > 0 ? `<span class="lo-pity">🍀 +${pity}%p</span>` : ''}</div>
-      <small>${t.cells}칸 · ${t.matchCount}개 매칭 · 최대 ${t.top.toLocaleString()}G${t.hasSkull ? ` · 💀 -${t.skullPenalty}G` : ''}${bonus ? ` · 걸작 +${bonus}G` : ''}</small>
-      <div class="lo-btns">
-        <button class="sh-buy" data-lo-buy="${t.idx}" ${r.pending || r.gold < t.price ? 'disabled' : ''}>${t.price}G</button>
-        ${free > 0 ? `<button class="sh-buy lo-free" data-lo-free="${t.idx}" ${r.pending ? 'disabled' : ''}>무료권 ${free}장</button>` : ''}
-      </div></div>`;
-  }).join('');
-  const skullNote = r.skullRed > 0 ? `<div class="sh-note">⚒️ 장착 걸작 해골 감소 -${Math.round(r.skullRed * 100)}% 적용 중</div>` : '';
-  const resume = r.pending ? `<button class="ga-btn ten" id="lo-resume">🎟 긁던 복권 이어하기</button>` : '';
-  el.innerHTML = resume + cards + skullNote + '<div class="sh-note">홈페이지 복권과 동일한 확률·기록 (한 번에 1장)</div>';
-  el.querySelectorAll('[data-lo-buy]').forEach(b => b.onclick = () => loBuy(Number(b.dataset.loBuy), false));
-  el.querySelectorAll('[data-lo-free]').forEach(b => b.onclick = () => loBuy(Number(b.dataset.loFree), true));
-  const rs = $('lo-resume'); if (rs) rs.onclick = () => openScratch(r.pending, true);
+// ── 🎟🔨 복권·대장간 = 홈페이지 임베드(단일 webview·persist:aram) — 모션·소리·유미·로봇·도구 100% 동일 ──
+//    사장님: 네이티브 재현은 오른 3D·유미 쓰레기통·자동로봇까지 홈과 완전 동일해야 → 홈 화면 자체를 탭 안에 임베드.
+//    상점 탭(소비/장비/대장간 카테고리 포함)이라 강화권 구매↔강화↔장착 한 화면 연동(#6)도 홈 그대로.
+const HP_URL = 'https://sohada2.github.io/aram/';
+const HP_GOTO = {
+  lottery: "(function(){ if(typeof window.openLotteryHub==='function'){ window.openLotteryHub(); return true; } return false; })()",
+  forge: "(function(){ try{ if(typeof window.closeLotteryHub==='function') window.closeLotteryHub(); }catch(e){} var b=document.querySelector('.nav-tab-shop'); if(typeof window.showTab==='function'&&b){ window.showTab('tab-shop', b); setTimeout(function(){ try{ if(typeof window.gotoForgeTab==='function') window.gotoForgeTab(); else if(typeof window.switchShopCat==='function') window.switchShopCat('pass'); }catch(e){} }, 350); return true; } return false; })()",
+};
+let _hpWv = null, _hpReady = false;
+function ensureHpWv() {
+  if (_hpWv) return;
+  const host = $('hp-embed');
+  _hpWv = document.createElement('webview');
+  _hpWv.setAttribute('partition', 'persist:aram');   // 홈창(Shift+F6)과 같은 세션 — 닉네임 1회 선택이면 공유
+  _hpWv.setAttribute('allowpopups', '');
+  _hpWv.src = HP_URL;
+  _hpWv.addEventListener('dom-ready', () => {
+    _hpReady = true;
+    // 홈 상단 네비/코너 배지 숨김 — 복권·대장간에 집중(상점 내부 소비/장비/대장간 카테고리는 유지=한 화면 연동)
+    try { _hpWv.insertCSS('.nav-tabs{display:none!important} .corner-badge,.hall-of-fame-btn,.relay-event-btn,.mailbox-btn{display:none!important}'); } catch (_) {}
+  });
+  _hpWv.addEventListener('did-stop-loading', () => { const l = $('hp-load'); if (l) l.style.display = 'none'; });
+  host.appendChild(_hpWv);
 }
-async function loBuy(tierIdx, useFree) {
-  const res = await withCtrl(() => window.api.lotteryBuy(tierIdx, useFree));
-  if (!res || !res.ok) { spToast((res && res.err) || '구매 실패'); renderLottery(true); return; }
-  openScratch(res.rec, false);
+function hpGoto(target, tries) {
+  const js = HP_GOTO[target]; if (!js) return;
+  tries = tries || 0;
+  const retry = () => { if (tries < 40 && _curCat === target) setTimeout(() => hpGoto(target, tries + 1), 500); };
+  if (!_hpReady) { retry(); return; }
+  try { _hpWv.executeJavaScript(js, false).then(ok => { if (!ok) retry(); }).catch(retry); } catch (_) { retry(); }
 }
-// 긁기 모달 — 긁기 UI만 담당(정산은 main lotteryFinish=홈 공식). 해골 카운트 규칙=홈(당첨확정 후·자동공개·복원분 제외)
-function openScratch(rec, resume) {
-  document.getElementById('sc-ov')?.remove();
-  const cells = rec.slots.length;
-  const revealed = rec.slots.map((_, i) => !!(resume && Array.isArray(rec.revealed) && rec.revealed[i]));
-  let skullHits = 0, allDone = false, finished = false, anyScratch = revealed.some(Boolean);
-  const win = rec.win || null;
-  const matchNeed = (rec.tierIdx === 0) ? 2 : 3;
-  const ov = document.createElement('div'); ov.id = 'sc-ov';
-  ov.innerHTML = `<div class="sc-card">
-    <div class="sc-top"><b>${escH((['실버', '골드', '프리즘'][rec.tierIdx] || '') + ' 복권')}</b>${rec.free ? '<span class="sc-freetag">무료권</span>' : ''}${rec.pity > 0 ? `<span class="lo-pity">🍀 +${rec.pity}%p</span>` : ''}</div>
-    <div class="sc-grid c${cells}">${rec.slots.map((s, i) => `<div class="sc-cell" data-i="${i}"><span class="sc-sym${s.id === 'skull' ? ' skull' : ''}">${s.emoji}<i>${s.id === 'skull' ? '💀' : (s.gold + 'G')}</i></span><canvas class="sc-cv" width="76" height="76"></canvas></div>`).join('')}
-    <div class="sc-hint">긁어서 같은 문양 ${matchNeed}개를 맞추세요</div></div>
-    <div class="sc-result" id="sc-result"></div>
-    <div class="sc-btns">
-      <button class="btn-ghost2" id="sc-cancel" style="display:${!anyScratch && !resume ? '' : 'none'}">구매 취소</button>
-      <button class="btn-ghost2" id="sc-aside">보류 (나중에)</button>
-      <button class="btn-ghost2 sc-danger" id="sc-discard">버리기</button>
-    </div></div>`;
-  document.body.appendChild(ov);
-  const cellEls = [...ov.querySelectorAll('.sc-cell')];
-  const refresh = () => {
-    if ($('sc-cancel')) $('sc-cancel').style.display = (!anyScratch && !resume) ? '' : 'none';
-    const done = revealed.filter(Boolean).length;
-    if (!allDone && win) {
-      const got = rec.slots.filter((s, i) => revealed[i] && s.id === win.id).length;
-      if (got >= matchNeed) {   // 🏆 매칭 완성 — 남은 칸 자동 공개(패널티 없음) + 받기
-        allDone = true;
-        rec.slots.forEach((_, i) => { if (!revealed[i]) reveal(i, true); });
-        showResult();
-      }
-    }
-    if (!allDone && !win && done >= cells) { allDone = true; showResult(); }   // 꽝 = 전부 긁어야 확정
-  };
-  const showResult = () => {
-    const pen = (rec.tierIdx === 0 ? 0 : 10) * skullHits;
-    const net = (win ? win.gold : 0) - pen + (rec.emblemBonus || 0);
-    $('sc-result').innerHTML = win
-      ? `<div class="sc-win">🎉 ${escH(win.name)} 당첨! <b>+${net}G</b>${pen ? ` <small>(💀 -${pen})</small>` : ''}${rec.emblemBonus ? ` <small>(걸작 +${rec.emblemBonus})</small>` : ''}${rec.pityConv ? ' <small>🍀 보정</small>' : ''}</div><button class="ps-claim" id="sc-take">받기</button>`
-      : `<div class="sc-lose">꽝… 다음 기회에${pen ? ` <small>(💀 -${pen}G)</small>` : ''}</div><button class="ps-claim" id="sc-take">확인</button>`;
-    $('sc-aside').style.display = 'none'; $('sc-discard').style.display = 'none'; if ($('sc-cancel')) $('sc-cancel').style.display = 'none';
-    $('sc-take').onclick = async () => {
-      if (finished) return; finished = true;
-      const res = await withCtrl(() => window.api.lotteryFinish(skullHits));
-      spToast(res && res.ok ? (res.net > 0 ? `+${res.net}G 획득!` : res.net < 0 ? `${res.net}G (해골 패널티)` : '기록 완료') : (res && res.err) || '정산 실패');
-      ov.remove(); renderLottery(true);
-    };
-  };
-  const reveal = (i, fromSkip) => {
-    if (revealed[i]) return;
-    revealed[i] = true;
-    const cell = cellEls[i];
-    cell.querySelector('.sc-cv').style.opacity = '0';
-    cell.classList.add('open');
-    const isSkullHit = rec.slots[i].id === 'skull' && !fromSkip && !allDone;   // 홈 revealCell 규칙
-    if (isSkullHit) { skullHits++; cell.classList.add('hit'); }
-    refresh();
-  };
-  // 긁기 — destination-out 지우기, 55% 지워지면 공개
-  cellEls.forEach((cell, i) => {
-    const cv = cell.querySelector('.sc-cv'), ctx = cv.getContext('2d');
-    const g = ctx.createLinearGradient(0, 0, 76, 76);
-    g.addColorStop(0, '#8a8f9c'); g.addColorStop(0.5, '#c9cedb'); g.addColorStop(1, '#7c8290');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, 76, 76);
-    ctx.fillStyle = 'rgba(40,30,14,0.45)'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('긁기', 38, 42);
-    if (revealed[i]) { cv.style.opacity = '0'; cell.classList.add('open'); return; }   // 이어하기 복원(패널티 없음)
-    let down = false;
-    const scratch = e => {
-      const r2 = cv.getBoundingClientRect();
-      const x = (e.clientX - r2.left) * (76 / r2.width), y = (e.clientY - r2.top) * (76 / r2.height);
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill();
-      anyScratch = true;
-      if ($('sc-cancel')) $('sc-cancel').style.display = 'none';
-    };
-    const check = () => {
-      if (revealed[i]) return;
-      const d = ctx.getImageData(0, 0, 76, 76).data;
-      let clear = 0;
-      for (let p = 3; p < d.length; p += 16) if (d[p] < 120) clear++;   // 4px 스텝 샘플
-      if (clear / (d.length / 16) > 0.55) reveal(i, false);
-    };
-    cv.addEventListener('pointerdown', e => { down = true; cv.setPointerCapture(e.pointerId); scratch(e); });
-    cv.addEventListener('pointermove', e => { if (down) scratch(e); });
-    cv.addEventListener('pointerup', () => { down = false; check(); });
-    cv.addEventListener('pointerleave', () => { if (down) { down = false; check(); } });
-  });
-  $('sc-cancel').onclick = async () => {
-    const res = await withCtrl(() => window.api.lotteryCancel());
-    spToast(res && res.ok ? '구매 취소 — 환불됐어요' : (res && res.err) || '취소 실패');
-    ov.remove(); renderLottery(true);
-  };
-  $('sc-aside').onclick = async () => { await window.api.lotteryAside(revealed); ov.remove(); renderLottery(true); };
-  $('sc-discard').onclick = async () => {
-    if (!confirm('이 복권을 버릴까요?\n당첨이어도 골드를 받지 못하고, 구매비는 돌려받지 않아요.')) return;
-    const res = await withCtrl(() => window.api.lotteryDiscard());
-    spToast(res && res.ok ? '버렸어요' : (res && res.err) || '실패');
-    ov.remove(); renderLottery(true);
-  };
-  refresh();   // 이어하기: 이미 매칭 완성 상태면 즉시 결과
-}
-// ── 🔨 대장간 (로직=main store.js·홈 1:1 / 오른 3D 연출 없음) ────────────────
-const FORGE_TICKETS = [
-  { id: 'stable', name: '안정', pct: '100%', color: '#5fbf8a' },
-  { id: 'precise', name: '정밀', pct: '60%', color: '#e0b341' },
-  { id: 'overload', name: '과부하', pct: '30%', color: '#e0685a' },
-];
-async function renderForge(silent) {
-  const el = $('fg-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
-  const r = await window.api.getForge();
-  if (!r || !r.ok) { if (!silent) el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '대장간을 불러오지 못했어요')}</div>`; return; }
-  $('fg-gold').textContent = `보유 ${r.gold}G`;
-  const eq = r.emblems.find(e => e.equipped) || null;
-  const pips = em => `<span class="fg-pips">${Array.from({ length: 5 }, (_, i) => { const s = em.slots[i]; return `<i class="${s ? (s.ok ? 'ok' : 'no') : ''}"></i>`; }).join('')}</span>`;
-  const enhance = eq ? `<div class="sh-sec">강화 — 장착: <b style="color:#ffe39a">${escH(eq.nick || '+' + eq.level)}</b> <small>성능 ${eq.power} · ${eq.grade} · 슬롯 ${eq.slotsUsed}/5${eq.locked ? ' (소진)' : ''}</small></div>
-    <div class="fg-enh">${FORGE_TICKETS.map(t => `<button class="fg-tk" data-enh="${t.id}" style="--tc:${t.color}" ${eq.locked || !(r.tickets[t.id] > 0) ? 'disabled' : ''}><b>${t.name}</b><span>${t.pct} · 보유 ${r.tickets[t.id] || 0}</span></button>`).join('')}</div>
-    <div class="fg-enh"><button class="fg-tk fg-master" id="fg-reroll" ${r.essence < 1 ? 'disabled' : ''}><b>🏆 걸작 만들기</b><span>3줄 리롤 · 정수 ${r.essence}개</span></button></div>`
-    : '<div class="sh-note">강철심장을 장착하면 강화·걸작을 할 수 있어요 (아래 목록에서 장착)</div>';
-  const list = r.emblems.length ? r.emblems.map(em => `
-    <div class="fg-em${em.equipped ? ' on' : ''}">
-      <div class="fg-em-hd"><b>${escH(em.nick || '강철심장 +' + em.level)}</b><em class="g-${em.grade}">${em.grade}</em><small>성능 ${em.power}</small>${em.equipped ? '<span class="fg-eqtag">장착 중</span>' : ''}</div>
-      ${pips(em)}
-      <div class="fg-em-eff">${em.hasLines ? escH(em.effText || '효과 없음') : '걸작 미제작 — 장착 후 걸작 만들기'}</div>
-      <div class="fg-em-btns">
-        ${em.equipped ? '' : `<button class="sh-buy" data-fg-eq="${em.id}">장착</button>`}
-        <button class="sh-buy" data-fg-nick="${em.id}">애칭</button>
-        <button class="sh-buy sc-danger" data-fg-sell="${em.id}">판매 ${em.sellPrice}G</button>
-      </div>
-    </div>`).join('') : '<div class="cat-empty">보유한 강철심장이 없어요</div>';
-  el.innerHTML = enhance
-    + `<div class="sh-sec">보유 강철심장 <small>${r.count}/${r.maxOwn} · 장착 1개만 효과</small></div>${list}`
-    + `<div class="fg-enh"><button class="fg-tk" id="fg-buy" ${r.gold < r.basePrice || r.count >= r.maxOwn ? 'disabled' : ''}><b>+ 강철심장 구매</b><span>${r.basePrice}G</span></button></div>`
-    + '<div class="sh-note">강화권·정수 구매는 상점 탭 · 홈페이지 대장간과 동일한 확률·기록</div>';
-  el.querySelectorAll('[data-enh]').forEach(b => b.onclick = async () => {
-    b.disabled = true;
-    const res = await withCtrl(() => window.api.forgeEnhance(b.dataset.enh));
-    if (res && res.ok) spToast(res.result.ok ? `✨ 강화 성공! 성능 ${res.result.power} (+${res.result.level})` : `💥 강화 실패… (슬롯 ${res.result.slotsUsed}/5)`);
-    else spToast((res && res.err) || '강화 실패');
-    renderForge(true);
-  });
-  const rr = $('fg-reroll'); if (rr) rr.onclick = async () => {
-    if (!confirm('걸작의 정수 1개로 효과 3줄을 전부 다시 뽑을까요?\n(기존 걸작 효과는 사라져요)')) return;
-    rr.disabled = true;
-    const res = await withCtrl(() => window.api.forgeReroll());
-    spToast(res && res.ok ? '🏆 걸작 완성!' : (res && res.err) || '실패');
-    renderForge(true);
-  };
-  const fb = $('fg-buy'); if (fb) fb.onclick = async () => {
-    fb.disabled = true;
-    const res = await withCtrl(() => window.api.forgeBuyBase());
-    spToast(res && res.ok ? '⚒️ 강철심장 획득!' : (res && res.err) || '구매 실패');
-    renderForge(true);
-  };
-  el.querySelectorAll('[data-fg-eq]').forEach(b => b.onclick = async () => { const eq = await withCtrl(() => window.api.emblemEquip(Number(b.dataset.fgEq))); if (eq && !eq.ok && eq.err && !eq.ctrl) spToast(eq.err); renderForge(true); });
-  el.querySelectorAll('[data-fg-sell]').forEach(b => b.onclick = async () => {
-    const em = r.emblems.find(e => e.id === Number(b.dataset.fgSell));
-    if (!confirm(`이 강철심장(성능 ${em ? em.power : '?'})을 ${em ? em.sellPrice : '?'}G에 팔까요?\n강화·걸작이 함께 사라져요.`)) return;
-    const res = await withCtrl(() => window.api.forgeSell(Number(b.dataset.fgSell)));
-    spToast(res && res.ok ? `💰 판매 완료 +${res.refund}G` : (res && res.err) || '판매 실패');
-    renderForge(true);
-  });
-  el.querySelectorAll('[data-fg-nick]').forEach(b => b.onclick = async () => {
-    const nick = prompt('애칭 (최대 3글자, 비우면 제거)', '');
-    if (nick === null) return;
-    const res = await withCtrl(() => window.api.forgeNick(Number(b.dataset.fgNick), nick));
-    spToast(res && res.ok ? '저장했어요' : (res && res.err) || '실패');
-    renderForge(true);
-  });
+function hpEmbedFor(cat) {
+  const host = $('hp-embed'); if (!host) return;
+  const emb = cat === 'lottery' || cat === 'forge';
+  host.style.display = emb ? 'flex' : 'none';
+  if (!emb) return;
+  ensureHpWv();
+  if (_hpWv) { _hpWv.style.height = '99.99%'; requestAnimationFrame(() => { if (_hpWv) _hpWv.style.height = '100%'; }); }   // 뷰포트 고착 해제(홈창 quirk)
+  hpGoto(cat, 0);
 }
 
 // 초기 로드: 등록 플레이어 + 로그인 상태
@@ -610,4 +503,4 @@ async function renderForge(silent) {
   } catch (_) { showLogin(); }
 })();
 // 현재 탭만 조용히 갱신(깜빡임 없이) — 1분마다. 팀짜기 탭은 진행 방해 않게 제외
-setInterval(() => { if ($('s-app').style.display !== 'none' && _curCat !== 'team') renderCat(_curCat, true); }, 60000);
+setInterval(() => { if ($('s-app').style.display !== 'none') { updateWallet(); if (_curCat !== 'team') renderCat(_curCat, true); } }, 60000);

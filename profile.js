@@ -133,4 +133,37 @@ function computeMyStats(name, matches) {
   return { todayW, todayL, streakType, streakCount };
 }
 
-module.exports = { computeProfile, computeRecords, computeRanking, computeMyStats };
+// 📋 기록 확장 — 필터(s2/s1/normal/magolla) + 상세(참가자 스탯·수상) — 홈 기록 탭 정보 대응
+function computeRecordsEx(filter, matches, normalMatches, magolla, myName, limit = 30) {
+  const me = normName(myName || '');
+  if (filter === 'normal') {
+    return Object.values(normalMatches || {}).filter(m => m && Array.isArray(m.players))
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, limit)
+      .map(m => ({ kind: 'normal', ts: m.ts || 0, winSide: m.winSide || '', gameTime: m.gameTime || 0,
+        players: m.players.map(p => ({ name: p.summonerName || '', champ: p.champion || '', k: num(p.kills), d: num(p.deaths), a: num(p.assists), dmg: num(p.damage), cs: num(p.cs), win: !!p.isWin })) }));
+  }
+  if (filter === 'magolla') {
+    return Object.values(magolla || {}).filter(m => m && m.status === 'settled')
+      .sort((a, b) => (b.bettingStartAt || 0) - (a.bettingStartAt || 0)).slice(0, limit)
+      .map(m => ({ kind: 'magolla', ts: m.bettingStartAt || 0, f1: m.fighter1 || '', f2: m.fighter2 || '',
+        winner: (m.result && m.result.winner) || '', cond: (m.result && m.result.cond) || '',
+        bets: Object.values(m.bets || {}).map(b => ({ name: b.name || '', pick: b.winner || '', amount: num(b.amount), payout: num((m.payouts || {})[normName(b.name || '')]) })) }));
+  }
+  const season = filter === 's1' ? 1 : 2;
+  const list = Object.values(matches || {}).filter(m => m && (m.season ?? 0) === season && (m.teamA || m.teamB));
+  list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  return list.slice(0, limit).map(m => {
+    const inA = (m.teamA || []).some(n => normName(n) === me);
+    const inB = (m.teamB || []).some(n => normName(n) === me);
+    const mine = inA || inB;
+    const won = mine ? ((m.winner === 'blue' && inA) || (m.winner === 'red' && inB)) : null;
+    const p = m.participants && m.participants[me];
+    const det = nm => { const q = m.participants && m.participants[normName(nm)]; return q ? { champ: q.champion || '', k: num(q.kills), d: num(q.deaths), a: num(q.assists), dmg: num(q.damage), cs: num(q.cs) } : null; };
+    return { kind: 'custom', ts: m.timestamp || 0, teamA: m.teamA || [], teamB: m.teamB || [], winner: m.winner || '', size: (m.teamA || []).length,
+      mine, won, myChamp: (p && p.champion) || null, kda: p ? { k: num(p.kills), d: num(p.deaths), a: num(p.assists) } : null,
+      mvpW: m.mvpWinner || null, mvpL: m.mvpLoser || null, mannerW: m.mannerWinner || null, mannerL: m.mannerLoser || null,
+      detailA: (m.teamA || []).map(n => ({ name: n, ...(det(n) || {}) })), detailB: (m.teamB || []).map(n => ({ name: n, ...(det(n) || {}) })) };
+  });
+}
+
+module.exports = { computeProfile, computeRecords, computeRanking, computeMyStats, computeRecordsEx };

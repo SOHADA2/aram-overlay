@@ -16,7 +16,7 @@ const FIREBASE_API_KEY = 'AIzaSyAzRirJzvaqu6jelqUUjV_Tik1MgsALEE4';   // aram/in
 const TOGGLE_HOTKEY = 'Shift+F5';
 const { buildTeams, normName } = require('./teams');   // ⚔️ 홈페이지 makeTeams 1:1 이식
 const { availableGoldS2 } = require('./gold');         // 💰 아이템 구매 골드 검증(홈 calcPlayerGoldEarned S2 이식)
-const { computeProfile, computeRecords, computeRanking, computeMyStats } = require('./profile');   // 📊 프로필/기록/랭킹(홈 프로필 정보 이식)
+const { computeProfile, computeRecords, computeRanking, computeMyStats, computeRecordsEx } = require('./profile');   // 📊 프로필/기록/랭킹(홈 프로필 정보 이식)
 const store = require('./store');   // 🛒🃏🎫 상점/가챠/패스(홈 로직 이식)
 const bridge = require('./bridge');                    // 🔌 내장 브릿지(LCU EOG 캡처) — aram-bridge 완전 대체
 
@@ -261,7 +261,9 @@ const fetchLpPlayers = () => getJson(`${FIREBASE_DB}/season2/players.json`);
 const fetchSession   = () => getJson(`${FIREBASE_DB}/session.json`);
 const fetchPlayers   = () => getJson(`${FIREBASE_DB}/players.json`);   // 등록 플레이어(이름 목록)
 const fetchMatches   = () => getJson(`${FIREBASE_DB}/matches.json`);   // ⚔️ 팀짜기 승률 계산용(수 MB — 팀짤 때만)
-const fetchNormalMatches = () => getJson(`${FIREBASE_DB}/normal_matches.json`);   // 🎫 패스 퀘스트 판정용(일반게임도 스탯 인정)
+const fetchNormalMatches = () => getJson(`${FIREBASE_DB}/normal_matches.json`);   // 🎫 패스 퀘스트·기록 필터용
+const fetchMagolla = () => getJson(`${FIREBASE_DB}/magolla_matches.json`);   // ⚔️ 막고라 기록용
+const fetchLpSeason = (s) => getJson(`${FIREBASE_DB}/season${s}/players.json`);   // 🏆 시즌별 랭킹   // 🎫 패스 퀘스트 판정용(일반게임도 스탯 인정)
 const fetchSeason    = () => getJson(`${FIREBASE_DB}/config/currentSeason.json`);
 const fetchSettlement= () => getJson(`${FIREBASE_DB}/lastSettlement.json`);   // 💰 정산 결과(참여자 전파용)
 const fetchMatch     = (key) => getJson(`${FIREBASE_DB}/matches/${key}.json`);   // 💥 발동 효과(시너지·강철심장·아이템) 스냅샷
@@ -384,7 +386,7 @@ function createLeftPanel() {
     icon: path.join(__dirname, 'assets', 'icon.png'),
     alwaysOnTop: false, skipTaskbar: true, resizable: true, focusable: true,   // 클라와 같은 층위(로비 정보 패널)
     roundedCorners: false,   // 🪟 Win11 창 모서리 둥글림 끄기 → 클라에 각지게 딱 맞음
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, webviewTag: true },   // webview=복권/대장간 홈 임베드
   });
   leftWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   leftWin.loadFile('sidepanel/sidepanel.html');
@@ -964,6 +966,13 @@ async function getNormalMatchesCached() {   // 일반게임 기록 — 2분 캐�
   return _nmCache || {};
 }
 // 🛒 상점 조회 — 보유 골드·아이템 수·강화권·정수
+ipcMain.handle('wallet-data', async () => {   // 🪙 상단 재화(골드·뽑기·투기장 코인)
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false };
+  const matches = await getMatchesCached();
+  const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  return { ok: true, gold, claw: mg.data.clawCoins_s2 || 0, arena: mg.data.arenaCoins_s2 || 0 };
+});
 ipcMain.handle('shop-data', async () => {
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };

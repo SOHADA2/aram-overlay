@@ -46,18 +46,21 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 #cat-team .cat-scroll { padding-right:8px; }
 
 /* ── ⚔️ 팀짜기 톤앤매너(헥스텍) 오버라이드 ── */
-#cat-team .cat-scroll { padding:11px 12px 14px; }
-#cat-team .tb-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-#cat-team .tb-count { font-size:11.5px; color:var(--ink-soft); }
+#cat-team .cat-scroll { padding:9px 12px 8px; }
+#cat-team .tb-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+#cat-team .tb-count { font-size:11.5px; color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px; }
+#cat-team #tb-clear { -webkit-app-region:no-drag; cursor:pointer; font-size:9.5px; font-weight:800; color:var(--dim);
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:2px 7px; }
+#cat-team #tb-clear:hover { color:#ff9a8a; border-color:rgba(224,72,58,0.4); }
 #cat-team .tb-count b { font-family:'JetBrains Mono',monospace; font-size:15px; color:var(--gold); margin-right:2px; }
 #cat-team .tb-modes { display:flex; gap:4px; }
 #cat-team .tb-modes label { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; color:var(--dim);
   padding:4px 9px; border-radius:8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09); cursor:pointer; }
 #cat-team .tb-modes label:has(input:checked) { background:var(--gold-soft); border-color:var(--gold-line); color:#ffe39a; }
 #cat-team .tb-modes input { position:absolute; opacity:0; width:0; height:0; }
-#cat-team .tb-list { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:11px; }
-/* 홈 member-chip 톤: 커스텀 ✓박스 + 이름 + 티어 배지 · 드래그 다중 선택 */
-#cat-team .tb-item { display:flex; align-items:center; gap:6px; padding:7px 8px; border-radius:6px; cursor:pointer;
+#cat-team .tb-list { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:8px; }
+/* 홈 member-chip 톤: 커스텀 ✓박스 + 이름(온전히·LP 배지 없음) · 드래그 다중 선택 */
+#cat-team .tb-item { display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:6px; cursor:pointer;
   background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.09); transition:all .15s; min-width:0; overflow:hidden; user-select:none; }
 #cat-team .tb-item:hover { border-color:rgba(255,255,255,0.2); }
 #cat-team .tb-item.on { background:rgba(200,168,75,0.1); border-color:var(--gold-line); }
@@ -74,7 +77,7 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 #cat-team .btn-ghost { -webkit-app-region:no-drag; display:block; width:100%; cursor:pointer; padding:10px; border-radius:9px; margin-top:8px;
   font-size:12px; font-weight:800; color:var(--ink-soft); background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); }
 #cat-team .btn-ghost:hover { border-color:var(--gold-line); color:var(--ink); }
-#cat-team .foot-hint { margin-top:10px; font-size:9.5px; color:var(--dim); line-height:1.6; text-align:center; }
+#cat-team .foot-hint { margin-top:7px; font-size:9px; color:var(--dim); line-height:1.5; text-align:center; }
 #cat-team .tb-timer { text-align:center; padding:18px 0 12px; }
 #cat-team .tb-timer b { font-family:'JetBrains Mono',monospace; font-size:40px; color:var(--gold); text-shadow:0 0 20px rgba(240,200,90,0.5); }
 #cat-team .tb-timer span { display:block; font-size:11px; color:var(--dim); margin-top:2px; }
@@ -203,3 +206,40 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 .fg-pips i.ok { background:#5fbf8a; } .fg-pips i.no { background:#e0685a; }
 .fg-em-eff { font-size:9.5px; color:#ffd98a; line-height:1.5; word-break:keep-all; }
 .fg-em-btns { display:flex; gap:5px; }
+/* 🪙 상단 재화(아이디 대신) */
+.s-wallet { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:800; color:var(--ink-soft); white-space:nowrap; }
+.s-wallet .sw-g { font-family:'JetBrains Mono',monospace; font-size:13px; color:#ffe39a; }
+.s-wallet span { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim); }
+/* 🌐 복권·대장간 홈 임베드 */
+#panel .cat { position:relative; }
+#hp-embed { position:absolute; inset:0; z-index:5; display:flex; flex-direction:column; background:#060d14; }
+#hp-embed webview { flex:1; border:0; width:100%; height:100%; }
+#hp-load { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9aa0b4; font-size:12px; pointer-events:none; }
+/* 📋 기록 필터/상세 + 🏆 랭킹 히어로 */
+.rc-segs { display:flex; gap:5px; margin-bottom:2px; }
+.rc-seg { -webkit-app-region:no-drag; flex:1; cursor:pointer; padding:6px 4px; border-radius:8px; font-size:10.5px; font-weight:800;
+  color:var(--dim); background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); }
+.rc-seg.on { background:var(--gold-soft); border-color:var(--gold-line); color:#ffe39a; }
+.rc-click .rc-top { cursor:pointer; }
+.rc-chev { margin-left:4px; font-size:9px; color:var(--dim); flex-shrink:0; }
+.rc-det { display:none; margin-top:7px; border-top:1px solid rgba(255,255,255,0.07); padding-top:7px; flex-direction:column; gap:3px; }
+.rc-det.open { display:flex; }
+.rc-dt { font-size:9px; font-weight:800; color:var(--gold); margin:3px 0 1px; }
+.rc-dp { display:flex; align-items:center; gap:6px; padding:2px 0; opacity:0.75; }
+.rc-dp.w { opacity:1; }
+.rc-cimg.s { width:17px; height:17px; border-radius:4px; flex-shrink:0; background:rgba(255,255,255,0.05); }
+.rc-dp-nm { flex:1; min-width:0; font-size:10.5px; font-weight:700; color:#e8ecf6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rc-dp .rc-kda { font-size:9.5px; }
+.rc-dmg { flex-shrink:0; font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--dim); }
+.rc-aw { font-size:9.5px; color:#ffd98a; margin-top:5px; word-break:keep-all; }
+.rc-mgf { flex:1; min-width:0; font-size:11.5px; font-weight:800; color:#e8ecf6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rc-mgf i { font-style:normal; font-size:9px; color:var(--dim); }
+.rk-heroes { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.rk-hero { display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 6px 8px; border-radius:11px; text-align:center;
+  background:linear-gradient(165deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border:1px solid var(--hair); border-top:2px solid var(--tc, var(--gold)); }
+.rk-hero.mine { background:var(--gold-soft); border-color:var(--gold-line); }
+.rk-hero-r { font-size:19px; }
+.rk-hero-nm { font-size:11px; font-weight:800; color:#e8ecf6; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rk-hero-tier { font-size:9px; font-weight:800; color:var(--tc, var(--dim)); }
+.rk-hero-lp { font-family:'JetBrains Mono',monospace; font-size:14px; color:var(--tc, var(--gold)); }
+.rk-hero .rk-bar { width:100%; margin:4px 0 0; }

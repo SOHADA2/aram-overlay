@@ -7,10 +7,13 @@
   const PROFILE = { name: '애긔반달곰', lp: { tier: 'gold', tierKr: '골드', lp: 76, placementDone: true, promoActive: false, placementGames: 0, promoWins: 0, promoLosses: 0 }, arena: { games: 36, wins: 18, losses: 18, winrate: 50, form: [true, false, false, true, true, false, true, false, false, true], matchGold: 1910, avgGold: 53, mvp: 3, manner: 1 }, champs: { most: { champ: 'Yone', games: 12, wins: 7 }, best: { champ: 'Khazix', games: 5, wins: 4 } }, emblem: { nick: '해골', level: 2, power: 7, grade: '실버' }, synergy: { sid: 'void', tier: 2 }, buddy: { champion: 'Yone', count: 5, streakType: 'loss', streakCount: 1 } };
   const RANK = [{ rank: 1, name: '맹독 벌꿀오소리', tier: 'gold', tierKr: '골드', lp: 80 }, { rank: 2, name: '애긔반달곰', tier: 'gold', tierKr: '골드', lp: 76 }, { rank: 3, name: '울퉁쓰', tier: 'gold', tierKr: '골드', lp: 75 }, { rank: 4, name: '나랑듀오해듀오', tier: 'gold', tierKr: '골드', lp: 75 }, { rank: 5, name: '신규회원임', tier: 'silver', tierKr: '실버', lp: 40 }, { rank: 6, name: 'ap렉사이서폿', tier: 'diamond', tierKr: '다이아', lp: 12 }];
   const RECORDS = [
-    { ts: Date.now()-3600e3, date: '07-06', teamA: ['울퉁쓰', '애긔반달곰', '신규회원임'], teamB: ['ap렉사이서폿', '맹독 벌꿀오소리', '나랑듀오해듀오'], winner: 'blue', size: 3, mine: true, won: true, myChamp: 'Yone', kda: { k: 8, d: 2, a: 11 } },
-    { ts: Date.now()-26*3600e3, date: '07-06', teamA: ['ap렉사이서폿', '애긔반달곰'], teamB: ['울퉁쓰', '맹독 벌꿀오소리'], winner: 'red', size: 2, mine: true, won: false, myChamp: 'Khazix', kda: { k: 3, d: 7, a: 5 } },
-    { ts: Date.now()-50*3600e3, date: '07-05', teamA: ['울퉁쓰', '신규회원임'], teamB: ['ap렉사이서폿', '나랑듀오해듀오'], winner: 'blue', size: 2, mine: false, won: null, myChamp: null, kda: null },
+    { kind: "custom", ts: Date.now()-3600e3, teamA: ["울퉁쓰", "애긔반달곰", "신규회원임"], teamB: ["ap렉사이서폿", "맹독 벌꿀오소리", "나랑듀오해듀오"], winner: "blue", size: 3, mine: true, won: true, myChamp: "Yone", kda: { k: 8, d: 2, a: 11 },
+      mvpW: "애긔반달곰", mvpL: "ap렉사이서폿", mannerW: "신규회원임", mannerL: null,
+      detailA: [{ name: "울퉁쓰", champ: "Vex", k: 5, d: 4, a: 9, dmg: 21000, cs: 30 }, { name: "애긔반달곰", champ: "Yone", k: 8, d: 2, a: 11, dmg: 34000, cs: 45 }, { name: "신규회원임", champ: "Lux", k: 2, d: 5, a: 14, dmg: 18000, cs: 22 }],
+      detailB: [{ name: "ap렉사이서폿", champ: "Khazix", k: 7, d: 6, a: 4, dmg: 28000, cs: 38 }, { name: "맹독 벌꿀오소리", champ: "Teemo", k: 3, d: 7, a: 6, dmg: 15000, cs: 28 }, { name: "나랑듀오해듀오", champ: "Gwen", k: 4, d: 6, a: 5, dmg: 19000, cs: 33 }] },
   ];
+  const NORMALS = [{ kind: "normal", ts: Date.now()-7200e3, winSide: "blue", gameTime: 1260, players: [{ name: "애긔반달곰", champ: "Yone", k: 9, d: 3, a: 7, dmg: 31000, cs: 40, win: true }, { name: "울퉁쓰", champ: "Vex", k: 4, d: 5, a: 8, dmg: 17000, cs: 25, win: false }] }];
+  const MAGOLLA = [{ kind: "magolla", ts: Date.now()-86400e3, f1: "울퉁쓰", f2: "맹독 벌꿀오소리", winner: "울퉁쓰", cond: "tower", bets: [{ name: "애긔반달곰", pick: "울퉁쓰", amount: 50, payout: 60 }, { name: "신규회원임", pick: "맹독 벌꿀오소리", amount: 30, payout: -30 }] }];
 
   window.api = new Proxy({}, { get(_, k) {
     if (typeof k !== 'string') return undefined;
@@ -18,6 +21,7 @@
     if (k === 'getPlayers') return async () => ({ names: ['애긔반달곰', '울퉁쓰', 'ap렉사이서폿', '맹독 벌꿀오소리', '신규회원임', '나랑듀오해듀오'], myName: '애긔반달곰', isHost: true, webVersion: 'v2.45.566',
       lpMap: { '애긔반달곰': { tier: 'gold', lp: 76, placementDone: true }, '울퉁쓰': { tier: 'gold', lp: 75, placementDone: true }, 'ap렉사이서폿': { tier: 'diamond', lp: 12, placementDone: true, promoActive: true }, '맹독벌꿀오소리': { tier: 'gold', lp: 80, placementDone: true }, '신규회원임': { tier: 'silver', lp: 40, placementDone: true }, '나랑듀오해듀오': { placementDone: false, placementGames: 3 } } });
     if (k === 'getProfile') return async () => ({ ok: true, ddVer: '14.24.1', profile: PROFILE });
+    if (k === 'getWallet') return async () => ({ ok: true, gold: 1240, claw: 3, arena: 120 });
     if (k === 'getShop') return async () => ({ ok: true, gold: 1240, itemCounts: { s1_gamble: { n: 1, active: 1 } }, tickets: { stable: 3, precise: 1 }, essence: 2, emblems: 4 });
     if (k === 'getGacha') return async () => ({ ok: true, gold: 1240, yuumi: true,
       champs: [{ slug: 'Akshan', kr: '아크샨' }, { slug: 'Amumu', kr: '아무무' }, { slug: 'Brand', kr: '브랜드' }, { slug: 'DrMundo', kr: '문도 박사' }, { slug: 'Fizz', kr: '피즈' }, { slug: 'Gangplank', kr: '갱플랭크' }, { slug: 'Jhin', kr: '진' }, { slug: 'Khazix', kr: '카직스' }, { slug: 'Lulu', kr: '룰루' }, { slug: 'Malphite', kr: '말파이트' }, { slug: 'Malzahar', kr: '말자하' }, { slug: 'Mel', kr: '멜' }, { slug: 'Morgana', kr: '모르가나' }, { slug: 'Naafiri', kr: '나피리' }, { slug: 'Poppy', kr: '뽀삐' }, { slug: 'Rammus', kr: '람머스' }, { slug: 'Vayne', kr: '베인' }, { slug: 'Yasuo', kr: '야스오' }],
@@ -50,7 +54,7 @@
     if (k === 'forgeEnhance') return async () => ({ ok: true, result: { ok: Math.random() < 0.6, type: 'stable', level: 3, power: 8, slotsUsed: 4, locked: false } });
     if (k === 'forgeReroll') return async () => ({ ok: true, lines: ['winG', 'attend', 'lottoTkt'] });
     if (k === 'getRanking') return async () => ({ ok: true, ranking: RANK, myName: '애긔반달곰' });
-    if (k === 'getRecords') return async () => ({ ok: true, ddVer: '14.24.1', records: RECORDS, myName: '애긔반달곰' });
+    if (k === 'getRecords') return async (f) => ({ ok: true, ddVer: '14.24.1', filter: f, records: f === 'normal' ? NORMALS : f === 'magolla' ? MAGOLLA : f === 's1' ? [] : RECORDS, myName: '애긔반달곰' });
     return async () => ({ ok: true });
   } });
 

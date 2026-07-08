@@ -16,6 +16,7 @@
     <header id="sbar">
       <span class="s-ttl" id="s-ttl">🗡️ 아수라장 내전</span>
       <span class="s-me" id="s-me" style="display:none;"></span>
+      <span class="s-wallet" id="s-wallet" style="display:none;"></span>
       <label class="s-host" id="s-host-box" style="display:none;"><input type="checkbox" id="s-host"><span>👑 방장</span></label>
       <span class="s-sp"></span>
       <button id="s-change" style="display:none;">계정 변경</button>
@@ -54,7 +55,7 @@
           <div class="cat-scroll ui-scroll">
             <div id="tb-pick">
               <div class="tb-row">
-                <span class="tb-count"><b id="tb-num">0</b>명 선택</span>
+                <span class="tb-count"><b id="tb-num">0</b>명 선택 <button id="tb-clear" title="전체 선택 해제">해제</button></span>
                 <span class="tb-modes">
                   <label><input type="radio" name="tb-mode" value="balance" checked> 밸런스</label>
                   <label><input type="radio" name="tb-mode" value="random"> 랜덤</label>
@@ -79,8 +80,10 @@
         <section class="cat-view" id="cat-records"><div class="cat-hd">최근 기록</div><div id="rc-body" class="cat-scroll ui-scroll"></div></section>
         <section class="cat-view" id="cat-ranking"><div class="cat-hd">랭킹 <span class="cat-hd-sub">SEASON 2</span></div><div id="rk-body" class="cat-scroll ui-scroll"></div></section>
         <section class="cat-view" id="cat-shop"><div class="cat-hd">상점 <span class="cat-hd-sub" id="sh-gold"></span></div><div id="sh-body" class="cat-scroll ui-scroll"></div></section>
-        <section class="cat-view" id="cat-lottery"><div class="cat-hd">스크래치 복권 <span class="cat-hd-sub" id="lo-gold"></span></div><div id="lo-body" class="cat-scroll ui-scroll"></div></section>
-        <section class="cat-view" id="cat-forge"><div class="cat-hd">대장간 <span class="cat-hd-sub" id="fg-gold"></span></div><div id="fg-body" class="cat-scroll ui-scroll"></div></section>
+        <section class="cat-view" id="cat-lottery"></section>
+        <section class="cat-view" id="cat-forge"></section>
+        <!-- 🌐 복권·대장간 = 홈페이지 그대로 임베드(모션·소리·유미·로봇 100% 동일) — 단일 webview 공유 -->
+        <div id="hp-embed" style="display:none;"><div id="hp-load">홈페이지 불러오는 중…</div></div>
         <section class="cat-view" id="cat-gacha"><div class="cat-hd">챔피언 가챠 <span class="cat-hd-sub" id="ga-gold"></span></div><div id="ga-body" class="cat-scroll ui-scroll"></div></section>
         <section class="cat-view" id="cat-pass"><div class="cat-hd">시즌 2 패스 <span class="cat-hd-sub" id="ps-lv"></span></div><div id="ps-body" class="cat-scroll ui-scroll"></div></section>
       </div>

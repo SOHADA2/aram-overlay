@@ -22,8 +22,8 @@ contextBridge.exposeInMainWorld('api', {
   homeClose: () => ipcRenderer.send('home-close'),
   getPlayers: () => ipcRenderer.invoke('get-players'),
   getProfile: () => ipcRenderer.invoke('profile-data'),   // 📊 프로필 대시보드
-  getRecords: () => ipcRenderer.invoke('records-data'),   // 📋 기록
-  getRanking: () => ipcRenderer.invoke('ranking-data'),   // 🏆 랭킹
+  getRecords: (filter) => ipcRenderer.invoke('records-data', { filter }),   // 📋 기록(필터: s2/s1/normal/magolla)
+  getRanking: (season) => ipcRenderer.invoke('ranking-data', { season }),   // 🏆 랭킹(시즌 2/1)
   setMyName: (n) => ipcRenderer.send('set-myname', n),
   setHost: (v) => ipcRenderer.send('set-host', v),
   // ⚔️ 팀 짜기(방장 전용)
@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('api', {
   emblemEquip: (id) => ipcRenderer.invoke('emblem-equip', { id }),        // ⚒️ 강철심장 장착(id 또는 null=해제)
   synergyEquip: (sid, tier) => ipcRenderer.invoke('synergy-equip', { sid, tier }),  // 🃏 시너지 활성화
   // 🛒🃏🎫 상점/가챠/패스 (사이드패널 카테고리)
+  getWallet: () => ipcRenderer.invoke('wallet-data'),                     // 🪙 상단 재화
   getShop: () => ipcRenderer.invoke('shop-data'),
   buyTicket: (type, qty) => ipcRenderer.invoke('shop-buy-ticket', { type, qty }),
   getGacha: () => ipcRenderer.invoke('gacha-data'),
