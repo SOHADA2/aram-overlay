@@ -765,6 +765,12 @@ ipcMain.on('update-now', () => { app._quitting = true; try { autoUpdater.quitAnd
 ipcMain.on('update-later', () => { if (updateToastWin && !updateToastWin.isDestroyed()) updateToastWin.hide(); });          // 나중에 — 트레이 메뉴로 계속 가능
 ipcMain.on('open-web', () => shell.openExternal(WEB_URL));
 ipcMain.on('home-toggle', toggleHome);
+ipcMain.on('open-home', (_e, { goto }) => {   // 🛒 사이드패널 → 홈 창 딥링크(복권/대장간 = 홈페이지 그대로)
+  if (!homeWin) createHome();
+  homeWin.show();
+  const send = () => { try { if (homeWin && !homeWin.isDestroyed()) homeWin.webContents.send('home-goto', goto); } catch (_) {} };
+  if (homeWin.webContents.isLoading()) homeWin.webContents.once('did-finish-load', send); else send();
+});
 ipcMain.on('home-close', () => { if (homeWin) homeWin.hide(); });
 ipcMain.on('side-hide', () => { leftUserHid = true; hideLeftPanel(); });   // ◀ 내 정보 패널 닫기(트레이/도킹 재개로 다시 열림)
 ipcMain.on('set-myname', (_e, name) => {           // 내 이름(입장 ID) 저장 → 팀 판별

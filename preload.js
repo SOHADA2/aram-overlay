@@ -49,4 +49,6 @@ contextBridge.exposeInMainWorld('api', {
   gachaPull: (times) => ipcRenderer.invoke('gacha-pull', { times }),
   getPass: () => ipcRenderer.invoke('pass-data'),
   claimPass: (lv) => ipcRenderer.invoke('pass-claim', { lv }),
+  openHome: (goto) => ipcRenderer.send('open-home', { goto }),               // 🌐 홈 창 열기+딥링크(복권/대장간)
+  onHomeGoto: (cb) => ipcRenderer.on('home-goto', (_e, t) => cb(t)),
 });

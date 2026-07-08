@@ -289,7 +289,9 @@ async function renderShop(silent) {
     `<div class="sh-sec">전투 아이템 <small>아이템 시간·인벤토리에서 활성화</small></div>${combat}`
     + `<div class="sh-sec">강화권 <small>대장간 강화용(강화는 홈페이지에서)</small></div>${tickets}`
     + `<div class="sh-row"><span class="sh-dot" style="background:#e8a33d"></span><div class="sh-info"><b>걸작의 정수</b><small>구매는 내전 만렙(LV50) 해금 — 홈페이지에서</small></div><span class="sh-own">보유 ${r.essence}</span></div>`
-    + `<div class="sh-note">강철심장 ${r.emblems}개 보유 · 구매/판매·강화·복권은 홈페이지 상점에서</div>`;
+    + `<div class="sh-sec">바로가기 <small>홈페이지 그대로 열림 · 같은 계정·실시간 동기화</small></div>`
+    + `<div class="sh-row"><div class="sh-info"><b>복권</b><small>실버·골드·프리즘 스크래치 긁기</small></div><button class="sh-buy" data-home="lottery">열기</button></div>`
+    + `<div class="sh-row"><div class="sh-info"><b>대장간</b><small>강철심장 ${r.emblems}개 보유 · 강화(오른)·걸작·판매</small></div><button class="sh-buy" data-home="forge">열기</button></div>`;
   el.querySelectorAll('[data-buy-item]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     const res = await window.api.itemBuy(b.dataset.buyItem);
@@ -304,6 +306,7 @@ async function renderShop(silent) {
   };
   el.querySelectorAll('[data-buy-tk]').forEach(b => b.onclick = () => buyTk(b.dataset.buyTk, 1, b));
   el.querySelectorAll('[data-buy-tk5]').forEach(b => b.onclick = () => buyTk(b.dataset.buyTk5, 5, b));
+  el.querySelectorAll('[data-home]').forEach(b => b.onclick = () => { if (window.api.openHome) window.api.openHome(b.dataset.home); });
 }
 let _gaLastResults = null;   // 마지막 뽑기 결과(재렌더 시 유지)
 async function renderGacha(silent) {
