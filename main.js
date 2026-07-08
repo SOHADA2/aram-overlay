@@ -262,7 +262,8 @@ const fetchSession   = () => getJson(`${FIREBASE_DB}/session.json`);
 const fetchPlayers   = () => getJson(`${FIREBASE_DB}/players.json`);   // 등록 플레이어(이름 목록)
 const fetchMatches   = () => getJson(`${FIREBASE_DB}/matches.json`);   // ⚔️ 팀짜기 승률 계산용(수 MB — 팀짤 때만)
 const fetchNormalMatches = () => getJson(`${FIREBASE_DB}/normal_matches.json`);   // 🎫 패스 퀘스트·기록 필터용
-const fetchMagolla = () => getJson(`${FIREBASE_DB}/magolla_matches.json`);   // ⚔️ 막고라 기록용
+const fetchMagolla = () => getJson(`${FIREBASE_DB}/magolla_matches.json?orderBy="$key"&limitToLast=30`);   // ⚔️ 막고라 기록용(최근 30)
+const fetchMatchesRecent = () => getJson(`${FIREBASE_DB}/matches.json?orderBy="$key"&limitToLast=60`);   // 📋 기록 fast-path(최근 60·push키=시간순)
 const fetchLpSeason = (s) => getJson(`${FIREBASE_DB}/season${s}/players.json`);   // 🏆 시즌별 랭킹   // 🎫 패스 퀘스트 판정용(일반게임도 스탯 인정)
 const fetchSeason    = () => getJson(`${FIREBASE_DB}/config/currentSeason.json`);
 const fetchSettlement= () => getJson(`${FIREBASE_DB}/lastSettlement.json`);   // 💰 정산 결과(참여자 전파용)
@@ -803,10 +804,22 @@ ipcMain.handle('profile-data', async () => {
   const prof = computeProfile(config.myName, (mg && mg.data) || {}, matches, lpAll);
   return { ok: true, profile: prof, ddVer: _ddVer };
 });
-// 📋 기록 — 최근 시즌2 경기
-ipcMain.handle('records-data', async () => {
-  const matches = await getMatchesCached();
-  return { ok: true, records: computeRecords(config.myName || '', matches), ddVer: _ddVer, myName: config.myName || '' };
+// 📋 기록 — 필터(s2 내전/normal 일반/magolla 막고라) + 최근 60판 fast-path(수 MB 전체 다운로드 회피)
+ipcMain.handle('records-data', async (_e, arg) => {
+  const filter = (arg && arg.filter) || 's2';
+  const my = config.myName || '';
+  if (filter === 'normal') {
+    const nm = await getNormalMatchesCached();
+    return { ok: true, records: computeRecordsEx('normal', null, nm, null, my), ddVer: _ddVer, myName: my };
+  }
+  if (filter === 'magolla') {
+    const mg = await fetchMagolla().catch(() => null);
+    return { ok: true, records: computeRecordsEx('magolla', null, null, mg || {}, my), ddVer: _ddVer, myName: my };
+  }
+  const matches = (_matchesCache && Date.now() - _matchesCacheAt < 120000)
+    ? _matchesCache
+    : ((await fetchMatchesRecent().catch(() => null)) || await getMatchesCached());
+  return { ok: true, records: computeRecordsEx(filter, matches, null, null, my), ddVer: _ddVer, myName: my };
 });
 // 🏆 랭킹 — 시즌2 LP 순
 ipcMain.handle('ranking-data', async () => {
@@ -1213,6 +1226,7 @@ else {
     globalShortcut.register(TOGGLE_HOTKEY, toggleOverlay);
     globalShortcut.register('Shift+F6', toggleHome);   // 🌐 홈페이지 오버레이
     pollGame(); pollLp(); pollSession(); pollSettlement(); pollVersion(); pollMyStats(); startDockStream();
+    setTimeout(() => { getMatchesCached().catch(() => {}); }, 2500);   // ⚡ 매치 캐시 예열(기록/골드 첫 로딩 빠르게)
     setInterval(pollGame, 2500);
     setInterval(pollLp, 60000);
     setInterval(pollSession, 3000);

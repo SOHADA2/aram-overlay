@@ -206,12 +206,11 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 .fg-pips i.ok { background:#5fbf8a; } .fg-pips i.no { background:#e0685a; }
 .fg-em-eff { font-size:9.5px; color:#ffd98a; line-height:1.5; word-break:keep-all; }
 .fg-em-btns { display:flex; gap:5px; }
-/* 🪙 상단 재화(아이디 대신) — 칩 3개가 좌측 공간을 채움·시인성 */
-.s-wallet { flex:1; min-width:0; display:inline-flex; align-items:center; gap:7px; white-space:nowrap; overflow:hidden; }
-.s-wallet .sw-g { display:inline-flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:800; color:#ffe39a;
-  background:rgba(240,200,90,0.1); border:1px solid rgba(240,200,90,0.35); border-radius:9px; padding:5px 12px; }
-.s-wallet span { display:inline-flex; align-items:center; gap:4px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#cfd6e2;
-  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.11); border-radius:9px; padding:5px 10px; }
+/* 🪙 상단 재화(아이디 대신) — 골드=pill·코인=심플 텍스트(겹침 없음) */
+.s-wallet { flex:1; min-width:0; display:flex; align-items:center; gap:10px; white-space:nowrap; overflow:hidden; }
+.s-wallet .sw-g { flex-shrink:0; display:inline-flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:800; color:#ffe39a;
+  background:rgba(240,200,90,0.1); border:1px solid rgba(240,200,90,0.35); border-radius:9px; padding:4px 11px; }
+.s-wallet span { flex-shrink:1; min-width:0; overflow:hidden; text-overflow:ellipsis; font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:700; color:var(--dim); }
 /* 🌐 복권·대장간 홈 임베드 */
 #panel .cat { position:relative; }
 #hp-embed { position:absolute; inset:0; z-index:5; display:flex; flex-direction:column; background:#060d14; }

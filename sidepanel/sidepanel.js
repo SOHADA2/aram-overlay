@@ -253,7 +253,7 @@ async function renderRecords(silent) {
   const r = await window.api.getRecords(_rcFilter);
   if (!r || !r.ok) { if (!silent) el.innerHTML = '<div class="cat-empty">기록을 불러오지 못했어요</div>'; return; }
   if (r.ddVer) _ddVer = r.ddVer;
-  const seg = [['s2', '시즌 2'], ['s1', '시즌 1'], ['normal', '일반'], ['magolla', '막고라']]
+  const seg = [['s2', '내전'], ['normal', '일반'], ['magolla', '막고라']]
     .map(([k, l]) => `<button class="rc-seg${_rcFilter === k ? ' on' : ''}" data-rcf="${k}">${l}</button>`).join('');
   let body;
   if (!r.records.length) body = '<div class="cat-empty">기록이 아직 없어요</div>';
@@ -298,7 +298,7 @@ async function renderRanking(silent) {
   const r = await window.api.getRanking(_rkSeason);
   if (!r || !r.ok) { if (!silent) el.innerHTML = '<div class="cat-empty">랭킹 정보가 아직 없어요</div>'; return; }
   const me = r.myName;
-  const seg = [[2, '시즌 2'], [1, '시즌 1']].map(([k, l]) => `<button class="rc-seg${_rkSeason === k ? ' on' : ''}" data-rks="${k}">${l}</button>`).join('');
+
   const heroes = r.ranking.slice(0, 3).map(p => {
     const tc = (TB_TIER[p.tier] || TB_TIER.unranked)[1];
     return `<div class="rk-hero${p.name === me ? ' mine' : ''}" style="--tc:${tc}"><div class="rk-hero-r">${['🥇', '🥈', '🥉'][p.rank - 1]}</div><div class="rk-hero-nm">${escH(p.name)}</div><div class="rk-hero-tier">${p.tierKr}</div><b class="rk-hero-lp">${p.lp} LP</b>${p.tier !== 'challenger' ? `<div class="rk-bar"><i style="width:${Math.min(100, p.lp)}%;background:${tc}"></i></div>` : ''}</div>`;
@@ -308,8 +308,7 @@ async function renderRanking(silent) {
     const bar = p.tier !== 'challenger' ? `<div class="rk-bar"><i style="width:${Math.min(100, p.lp)}%;background:${tc}"></i></div>` : '';
     return `<div class="rk-row${p.name === me ? ' mine' : ''}"><div class="rk-main"><span class="rk-rank"><span class="rk-num">${p.rank}</span></span><span class="rk-name">${escH(p.name)}</span><span class="rk-tier" style="color:${tc}">${p.tierKr}</span><span class="rk-lp" style="color:${tc}">${p.lp} LP</span></div>${bar}</div>`;
   }).join('');
-  el.innerHTML = `<div class="rc-segs">${seg}</div>` + (r.ranking.length ? `<div class="rk-heroes">${heroes}</div>${rest}` : '<div class="cat-empty">랭킹 정보가 아직 없어요</div>');
-  el.querySelectorAll('[data-rks]').forEach(b => b.onclick = () => { _rkSeason = Number(b.dataset.rks); renderRanking(); });
+  el.innerHTML = r.ranking.length ? `<div class="rk-heroes">${heroes}</div>${rest}` : '<div class="cat-empty">랭킹 정보가 아직 없어요</div>';
 }
 
 // ── 🛒 상점 / 🃏 가챠 / 🎫 패스 (홈 로직 = main.js IPC·store.js) ─────────────
