@@ -48,12 +48,15 @@ if (window.api.onPlayers) window.api.onPlayers(({ lpMap }) => {
 function showLogin() {
   $('s-login').style.display = 'flex'; $('s-app').style.display = 'none';
   $('s-ttl').style.display = ''; $('s-me').style.display = 'none'; $('s-host-box').style.display = 'none'; $('s-change').style.display = 'none';
+  $('s-wallet').style.display = 'none';
+  const sp = $('s-sp'); if (sp) sp.style.display = '';
 }
 function showLogged() {
   $('s-login').style.display = 'none'; $('s-app').style.display = 'flex';
   $('s-ttl').style.display = 'none';
   $('s-me').style.display = 'none';   // 아이디는 클라 옆이라 생략(사장님) — 대신 재화 표시
   $('s-wallet').style.display = '';
+  const sp = $('s-sp'); if (sp) sp.style.display = 'none';   // 재화가 flex:1로 공간 사용
   updateWallet();
   $('s-host-box').style.display = ''; $('s-host').checked = _isHost;
   $('s-change').style.display = '';
@@ -465,12 +468,24 @@ function ensureHpWv() {
   _hpWv.src = HP_URL;
   _hpWv.addEventListener('dom-ready', () => {
     _hpReady = true;
-    // 홈 상단 네비/코너 배지 숨김 — 복권·대장간에 집중(상점 내부 소비/장비/대장간 카테고리는 유지=한 화면 연동)
-    try { _hpWv.insertCSS('.nav-tabs{display:none!important} .corner-badge,.hall-of-fame-btn,.relay-event-btn,.mailbox-btn{display:none!important}'); } catch (_) {}
+    // 홈 크롬 전부 제거(헤더/정보바/네비/코너배지/푸터/허브 닫기) → 복권·대장간 "그 화면만" 패널에 꽉 차게(네이티브처럼)
+    try {
+      _hpWv.insertCSS('header,.corner-badges-left,.live-mode-bar,#my-info-bar,.nav-tabs,footer,#attend-coach{display:none!important}'
+        + 'body{padding-top:4px!important}'
+        + '.lh-close{display:none!important}');   // 복권 탭 자체가 허브 화면이라 닫기 불필요(닫혀도 워치독이 복원)
+    } catch (_) {}
   });
   _hpWv.addEventListener('did-stop-loading', () => { const l = $('hp-load'); if (l) l.style.display = 'none'; });
   host.appendChild(_hpWv);
 }
+// 🐶 복권 탭 워치독 — 탭에 있는 동안 허브가 닫히면 다시 열어 "복권 화면 고정"(긁기/구매확인/로봇/쓰레기통 모달 중엔 개입 안 함)
+setInterval(() => {
+  if (_curCat !== 'lottery' || !_hpReady || !_hpWv) return;
+  try {
+    _hpWv.executeJavaScript("!!document.querySelector('.lh-overlay,.scard-overlay,.trash-overlay,[class*=\"abot\"],[class*=\"buy-confirm\"]')", false)
+      .then(busy => { if (!busy) hpGoto('lottery', 39); }).catch(() => {});
+  } catch (_) {}
+}, 1500);
 function hpGoto(target, tries) {
   const js = HP_GOTO[target]; if (!js) return;
   tries = tries || 0;
