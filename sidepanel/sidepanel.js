@@ -79,17 +79,67 @@ function renderCat(cat, silent) {
   else if (cat === 'ranking') renderRanking(silent);
   else if (cat === 'shop') renderShop(silent);
   else if (cat === 'gacha') renderGacha(silent);
-  else if (cat === 'lottery') renderLottery(silent);
-  else if (cat === 'forge') renderForge(silent);
   else if (cat === 'pass') renderPass(silent);
   else if (cat === 'team') tbRenderList();   // 진행 중 단계(run/done)는 건드리지 않음
+  // 복권·대장간은 홈 임베드가 표시(hpEmbedFor) — 네이티브 렌더 스킵
 }
 function switchCat(cat) {
   _curCat = cat;
   updateWallet();
+  hpEmbedFor(cat);   // 🌐 복권/대장간 = 홈페이지 임베드 표시 토글
   document.querySelectorAll('.rail-btn').forEach(b => b.classList.toggle('on', b.dataset.cat === cat));
   document.querySelectorAll('.cat-view').forEach(v => { v.style.display = (v.id === 'cat-' + cat) ? 'flex' : 'none'; });
   renderCat(cat, false);
+}
+
+// ── 🎟🔨 복권·대장간 = 홈페이지 임베드(단일 webview·persist:aram) — 오른 3D·긁기 모션·유미·로봇·아이템 100% 홈 그대로 ──
+const HP_URL = 'https://sohada2.github.io/aram/';
+const HP_GOTO = {
+  lottery: "(function(){ if(typeof window.openLotteryHub==='function'){ window.openLotteryHub(); return true; } return false; })()",
+  forge: "(function(){ try{ if(typeof window.closeLotteryHub==='function') window.closeLotteryHub(); }catch(e){} var b=document.querySelector('.nav-tab-shop'); if(typeof window.showTab==='function'&&b){ window.showTab('tab-shop', b); setTimeout(function(){ try{ if(typeof window.gotoForgeTab==='function') window.gotoForgeTab(); else if(typeof window.switchShopCat==='function') window.switchShopCat('pass'); }catch(e){} }, 350); return true; } return false; })()",
+};
+let _hpWv = null, _hpReady = false;
+function ensureHpWv() {
+  if (_hpWv) return;
+  const host = $('hp-embed'); if (!host) return;
+  _hpWv = document.createElement('webview');
+  _hpWv.setAttribute('partition', 'persist:aram');   // 홈창(Shift+F6)과 같은 세션 — 닉네임 1회 선택이면 공유
+  _hpWv.setAttribute('allowpopups', '');
+  _hpWv.src = HP_URL;
+  _hpWv.addEventListener('dom-ready', () => {
+    _hpReady = true;
+    try {   // 홈 크롬 제거 → 복권·대장간 "그 화면만" 패널에 꽉 차게(네이티브처럼)
+      _hpWv.insertCSS('header,.corner-badges-left,.live-mode-bar,#my-info-bar,.nav-tabs,footer,#attend-coach{display:none!important}'
+        + 'body{padding-top:4px!important}'
+        + '.lh-close{display:none!important}');
+    } catch (_) {}
+  });
+  _hpWv.addEventListener('did-stop-loading', () => { const l = $('hp-load'); if (l) l.style.display = 'none'; });
+  host.appendChild(_hpWv);
+}
+// 🐶 복권 탭 워치독 — 허브가 닫히면 다시 열어 "복권 화면 고정"(긁기/구매확인/로봇/쓰레기통 모달 중엔 개입 안 함)
+setInterval(() => {
+  if (_curCat !== 'lottery' || !_hpReady || !_hpWv) return;
+  try {
+    _hpWv.executeJavaScript("!!document.querySelector('.lh-overlay,.scard-overlay,.trash-overlay,[class*=\"abot\"],[class*=\"buy-confirm\"]')", false)
+      .then(busy => { if (!busy) hpGoto('lottery', 39); }).catch(() => {});
+  } catch (_) {}
+}, 1500);
+function hpGoto(target, tries) {
+  const js = HP_GOTO[target]; if (!js) return;
+  tries = tries || 0;
+  const retry = () => { if (tries < 40 && _curCat === target) setTimeout(() => hpGoto(target, tries + 1), 500); };
+  if (!_hpReady) { retry(); return; }
+  try { _hpWv.executeJavaScript(js, false).then(ok => { if (!ok) retry(); }).catch(retry); } catch (_) { retry(); }
+}
+function hpEmbedFor(cat) {
+  const host = $('hp-embed'); if (!host) return;
+  const emb = cat === 'lottery' || cat === 'forge';
+  host.style.display = emb ? 'flex' : 'none';
+  if (!emb) return;
+  ensureHpWv();
+  if (_hpWv) { _hpWv.style.height = '99.99%'; requestAnimationFrame(() => { if (_hpWv) _hpWv.style.height = '100%'; }); }   // 뷰포트 고착 해제(홈창 quirk)
+  hpGoto(cat, 0);
 }
 document.querySelectorAll('.rail-btn').forEach(b => b.addEventListener('click', () => switchCat(b.dataset.cat)));
 
