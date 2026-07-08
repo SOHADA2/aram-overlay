@@ -45,6 +45,10 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
 > **현재 배포 = v0.1.43** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
 
+### 📌 이 세션(2026-07-09) 진행 상황 — 다른 컴퓨터 이어가기 ★필독
+- **✅ 1판(저장 안 된 내전) Firebase 직접 복구 완료**: 사장님이 방장 오버레이만 믿었다가 라이브 계정이 실제로 안 돌아(=v0.1.41 근본원인) 1판 정산·저장이 통째로 누락됐던 것. 자동 데이터(session·eogStats)는 2판이 덮어 소실 → 사장님이 준 EOG 스샷 + 2판 lpBefore 스냅샷으로 순서 재계산해 복구. **매치 `-Ox12PiVFvUWdCnbWjM_`**(2판 `-Ox1CvSe…` 앞에 정렬·teamA 애긔/맹독/브랜딩 승·winner blue·itemEffects 도박권3+ap렉사이 승급전방어권) 추가 + LP PATCH 4명(애긔 골드100 승급전진입·맹독 골드100 승급전0-1·브랜딩 골드61·울퉁 골드81 / ap렉사이·조조 무변). **시너지/걸작은 미발동 처리**(RNG라 1판분 알 수 없음·사장님 동의). 골드는 매치기록서 자동 파생. 방법=익명auth(accounts:signUp)+RTDB REST(apiKey=index.html firebaseConfig). ⚠️**이미 적용됨=재적용 금지**. 백업 `backup_before_game1.json`은 **이 세션 로컬 scratchpad**라 다른 컴엔 없음(원복 필요 시 이 세션서만·아니면 Firebase가 최종). ⏭️미처리(무해): 2판 lpBefore는 pre-1판 그대로(undoLastMatch(2판) 쓰면 1판까지 되돌아감·거의 안 씀)·1판 아이템 인벤 미소모.
+- **⏳ 프로필 리디자인 = 사장님 결정 대기**: "프로필이 1열로 쭉 늘어져 가려진다" → v0.1.43로 우선 컴팩트화(CSS 축소)만 배포. 추가로 **claude.ai Artifact 목업 발행**(헥스텍 티어 육각문장 + 승률 도넛 + 최근폼 막대 W/L + 전적/챔피언/전투준비 카드 그룹핑). URL=`https://claude.ai/code/artifact/c24f5285-fc83-491a-a9cd-788d95c83c78`(WebFetch로 내용 조회 가능·같은 파일경로 `scratchpad/profile-mockup.html` 재발행 시 같은 URL 갱신). 목업 소스=이 세션 scratchpad(로컬). **사장님이 확정하면 실제 반영**: sidepanel.js `renderProfile`(현재 pf-hero/form/stats/champs/loadout HTML) + desktop.css `.pf-*` 를 목업 구조(도넛=conic-gradient·폼=막대·pips 등)로 교체. 결정 전엔 v0.1.43 컴팩트 상태 유지.
+
 ### 🎨 v0.1.43 사이드패널 프로필 컴팩트화 (2026-07-09)
 - 사장님: "프로필이 1열로 쭉 늘어져서 가려진다(잘린다)". → `desktop.css` `.pf-*`(사이드패널 프로필 렌더=sidepanel.js renderProfile·#pf-body) 전체 ~15~20% 축소: 이름 17→15·폼도트 20→16·스탯숫자 18→15·챔프카드 패딩/이미지 30→26·로드아웃 패딩↓·섹션 gap 8→7·hero 하단 구분선 추가. 세로 ~350→~285px로 줄여 한 화면에 들어오게. 렌더 로직·데이터 무변경(CSS만). (desktopWin=레거시 미사용이라 desktop.css 수정은 사이드패널에만 영향)
 
