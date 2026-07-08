@@ -115,8 +115,9 @@ function ensureHpWv() {
   _hpWv.addEventListener('dom-ready', () => {
     _hpReady = true;
     try {   // 홈 크롬 제거 → 복권·대장간 "그 화면만" 패널에 꽉 차게(네이티브처럼)
-      _hpWv.insertCSS('header,.corner-badges-left,.live-mode-bar,#my-info-bar,.nav-tabs,footer,#attend-coach{display:none!important}'
-        + 'body{padding-top:4px!important}'
+      _hpWv.insertCSS('header,.corner-badges-left,.live-mode-bar,#my-info-bar,.nav-tabs,footer,#attend-coach,.sync-bar,.version-badge,.sp-header{display:none!important}'
+        + 'body{padding-top:2px!important}'
+        + '.sp-cat-tabs{margin-top:2px!important}'   // '아이템 상점' 타이틀 숨김 → 대장간 카테고리 탭이 상단
         + '.lh-close{display:none!important}');
     } catch (_) {}
   });
