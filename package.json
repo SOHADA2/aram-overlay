@@ -33,6 +33,7 @@
       "bridge.js",
       "gold.js",
       "profile.js",
+      "store.js",
       "shared.css",
       "desktop/**",
       "overlay/**",

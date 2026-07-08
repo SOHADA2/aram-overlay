@@ -65,6 +65,9 @@ function renderCat(cat, silent) {
   if (cat === 'profile') renderProfile(silent);
   else if (cat === 'records') renderRecords(silent);
   else if (cat === 'ranking') renderRanking(silent);
+  else if (cat === 'shop') renderShop(silent);
+  else if (cat === 'gacha') renderGacha(silent);
+  else if (cat === 'pass') renderPass(silent);
   else if (cat === 'team') tbRenderList();   // 진행 중 단계(run/done)는 건드리지 않음
 }
 function switchCat(cat) {
@@ -249,6 +252,132 @@ async function renderRanking(silent) {
     const bar = p.tier !== 'challenger' ? `<div class="rk-bar"><i style="width:${Math.min(100, p.lp)}%;background:${tc}"></i></div>` : '';
     return `<div class="rk-row${p.name === me ? ' mine' : ''}"><div class="rk-main"><span class="rk-rank">${medal}</span><span class="rk-name">${escH(p.name)}</span><span class="rk-tier" style="color:${tc}">${p.tierKr}</span><span class="rk-lp" style="color:${tc}">${p.lp} LP</span></div>${bar}</div>`;
   }).join('');
+}
+
+// ── 🛒 상점 / 🃏 가챠 / 🎫 패스 (홈 로직 = main.js IPC·store.js) ─────────────
+function spToast(msg) {   // 사이드패널 간이 토스트
+  let t = $('sp-toast');
+  if (!t) { t = document.createElement('div'); t.id = 'sp-toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(spToast._t); spToast._t = setTimeout(() => t.classList.remove('on'), 2600);
+}
+const SHOP_COMBAT = [
+  { id: 's1_gamble',       name: '도박권',        desc: '승 +40 / 패 −30 LP', price: 60 },
+  { id: 's1_promo_shield', name: '승급전 방어권', desc: '승급전 패배 무효',   price: 100 },
+  { id: 's1_promo_win',    name: '승급전 승리권', desc: '승급전 승리 = 2승',   price: 100 },
+];
+const SHOP_TICKETS = [
+  { id: 'stable',   name: '안정 강화권',   sub: '성공 100% · 성능 +1', price: 40,  color: '#5fbf8a' },
+  { id: 'precise',  name: '정밀 강화권',   sub: '성공 60% · 성능 +3',  price: 100, color: '#e0b341' },
+  { id: 'overload', name: '과부하 강화권', sub: '성공 30% · 성능 +6',  price: 250, color: '#e0685a' },
+];
+async function renderShop(silent) {
+  const el = $('sh-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
+  const r = await window.api.getShop();
+  if (!r || !r.ok) { if (!silent) el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '상점을 불러오지 못했어요')}</div>`; return; }
+  $('sh-gold').textContent = `보유 ${r.gold}G`;
+  const combat = SHOP_COMBAT.map(ci => {
+    const c = r.itemCounts[ci.id] || { n: 0, active: 0 };
+    const own = c.n ? `<span class="sh-own">보유 ${c.n}${c.active ? ' · 켜짐' : ''}</span>` : '';
+    return `<div class="sh-row"><div class="sh-info"><b>${ci.name}</b><small>${ci.desc}</small></div>${own}<button class="sh-buy" data-buy-item="${ci.id}" ${r.gold < ci.price ? 'disabled' : ''}>${ci.price}G</button></div>`;
+  }).join('');
+  const tickets = SHOP_TICKETS.map(t => {
+    const n = r.tickets[t.id] || 0;
+    return `<div class="sh-row"><span class="sh-dot" style="background:${t.color}"></span><div class="sh-info"><b>${t.name}</b><small>${t.sub}</small></div>${n ? `<span class="sh-own">보유 ${n}</span>` : ''}<button class="sh-buy" data-buy-tk="${t.id}" ${r.gold < t.price ? 'disabled' : ''}>${t.price}G</button><button class="sh-buy sh-buy5" data-buy-tk5="${t.id}" ${r.gold < t.price * 5 ? 'disabled' : ''}>×5</button></div>`;
+  }).join('');
+  el.innerHTML =
+    `<div class="sh-sec">전투 아이템 <small>아이템 시간·인벤토리에서 활성화</small></div>${combat}`
+    + `<div class="sh-sec">강화권 <small>대장간 강화용(강화는 홈페이지에서)</small></div>${tickets}`
+    + `<div class="sh-row"><span class="sh-dot" style="background:#e8a33d"></span><div class="sh-info"><b>걸작의 정수</b><small>구매는 내전 만렙(LV50) 해금 — 홈페이지에서</small></div><span class="sh-own">보유 ${r.essence}</span></div>`
+    + `<div class="sh-note">강철심장 ${r.emblems}개 보유 · 구매/판매·강화·복권은 홈페이지 상점에서</div>`;
+  el.querySelectorAll('[data-buy-item]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const res = await window.api.itemBuy(b.dataset.buyItem);
+    spToast(res && res.ok ? '구매 완료' : (res && res.err) || '구매 실패');
+    renderShop(true);
+  });
+  const buyTk = async (type, qty, btn) => {
+    btn.disabled = true;
+    const res = await window.api.buyTicket(type, qty);
+    spToast(res && res.ok ? `구매 완료 (잔여 ${res.gold}G)` : (res && res.err) || '구매 실패');
+    renderShop(true);
+  };
+  el.querySelectorAll('[data-buy-tk]').forEach(b => b.onclick = () => buyTk(b.dataset.buyTk, 1, b));
+  el.querySelectorAll('[data-buy-tk5]').forEach(b => b.onclick = () => buyTk(b.dataset.buyTk5, 5, b));
+}
+let _gaLastResults = null;   // 마지막 뽑기 결과(재렌더 시 유지)
+async function renderGacha(silent) {
+  const el = $('ga-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
+  const r = await window.api.getGacha();
+  if (!r || !r.ok) { if (!silent) el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '가챠를 불러오지 못했어요')}</div>`; return; }
+  $('ga-gold').textContent = `보유 ${r.gold}G`;
+  const starTag = s => s === 3 ? '<em class="ga-s3">프리즘</em>' : s === 2 ? '<em class="ga-s2">골드</em>' : '<em class="ga-s1">파편</em>';
+  const resHtml = _gaLastResults
+    ? `<div class="ga-res">${_gaLastResults.map(x => `<span class="ga-card s${x.secret ? 'y' : x.star}">${escH(x.kr)}${x.secret ? ' 🐱' : ''} ${starTag(x.star)}</span>`).join('')}</div>` : '';
+  const coll = r.champs.map(c => {
+    const cd = r.cards[c.slug] || {};
+    const any = (cd.s1 || 0) + (cd.s2 || 0) + (cd.s3 || 0) > 0;
+    return `<div class="ga-row${any ? '' : ' none'}"><span class="ga-nm">${escH(c.kr)}</span><span class="ga-cnt"><i class="ga-s1">${cd.s1 || 0}</i><i class="ga-s2">${cd.s2 || 0}</i><i class="ga-s3">${cd.s3 || 0}</i></span></div>`;
+  }).join('');
+  const syn = r.synList.length ? r.synList.map(s => {
+    const nm = SYN_NAMES[s.sid] ? SYN_NAMES[s.sid][0] : s.sid;
+    return `<div class="ga-syn${s.active ? ' on' : ''}"><span>${escH(nm)} <em>${s.tier}성</em></span><button class="sh-buy" data-syn="${s.sid}" data-tier="${s.tier}">${s.active ? '✓ 활성' : '활성화'}</button></div>`;
+  }).join('') : '<div class="sh-note">완성된 시너지가 없어요 (같은 그룹 카드를 모으면 활성화 가능)</div>';
+  el.innerHTML =
+    `<div class="ga-pull"><button class="ga-btn" data-pull="1" ${r.gold < 50 ? 'disabled' : ''}>1회 뽑기 <b>50G</b></button><button class="ga-btn ten" data-pull="10" ${r.gold < 450 ? 'disabled' : ''}>10연 뽑기 <b>450G</b></button></div>`
+    + resHtml
+    + `<div class="sh-sec">컬렉션 <small>파편 · 골드 · 프리즘${r.yuumi ? ' · 🐱 유미 보유' : ''}</small></div><div class="ga-coll">${coll}</div>`
+    + `<div class="sh-sec">시너지 <small>완성된 그룹만 · 1개 활성</small></div>${syn}`;
+  el.querySelectorAll('[data-pull]').forEach(b => b.onclick = async () => {
+    el.querySelectorAll('[data-pull]').forEach(x => x.disabled = true);
+    const res = await window.api.gachaPull(Number(b.dataset.pull));
+    if (res && res.ok) { _gaLastResults = res.results; spToast(`뽑기 완료 (잔여 ${res.gold}G)`); }
+    else spToast((res && res.err) || '뽑기 실패 — 다시 시도해주세요');
+    renderGacha(true);
+  });
+  el.querySelectorAll('[data-syn]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const res = await window.api.synergyEquip(b.dataset.syn, Number(b.dataset.tier));
+    if (!res || !res.ok) spToast((res && res.err) || '변경 실패');
+    renderGacha(true);
+  });
+}
+async function renderPass(silent) {
+  const el = $('ps-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
+  const r = await window.api.getPass();
+  if (!r || !r.ok) { if (!silent) el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '패스를 불러오지 못했어요')}</div>`; return; }
+  $('ps-lv').textContent = `LV ${r.curLv}/${r.maxLv}`;
+  const chips = rw => {
+    const c = [];
+    if (rw.gold) c.push(`<span class="ps-chip gold">🪙 ${rw.gold}G</span>`);
+    if (rw.tickets) for (const t in rw.tickets) { const d = SHOP_TICKETS.find(x => x.id === t); c.push(`<span class="ps-chip" style="color:${d ? d.color : '#cbd5e1'}">${d ? d.name : t} ×${rw.tickets[t]}</span>`); }
+    if (rw.essence) c.push(`<span class="ps-chip ess">정수 ×${rw.essence}</span>`);
+    if (rw.title) c.push(`<span class="ps-chip title">칭호 "${escH(rw.title)}"</span>`);
+    return c.join('');
+  };
+  const rows = r.rows.map(q => {
+    let btn;
+    if (q.state === 'done') btn = '<span class="ps-state done">✓</span>';
+    else if (q.state === 'claimable') btn = `<button class="ps-claim" data-lv="${q.lv}">받기</button>`;
+    else if (q.state === 'current') btn = `<span class="ps-state prog">${q.prog ? `${q.prog[0]} / ${q.prog[1]}` : '진행 중'}</span>`;
+    else btn = '<span class="ps-state lock">🔒</span>';
+    return `<div class="ps-row ${q.state}${q.milestone ? ' mile' : ''}"><div class="ps-lvc">${q.icon}<b>LV${q.lv}</b></div><div class="ps-info"><b>${escH(q.name)}${q.state === 'current' ? ' <i class="ps-now">도전 중</i>' : ''}</b><small>${escH(q.desc)}</small><div class="ps-rw">${chips(q.reward)}</div></div><div class="ps-act">${btn}</div></div>`;
+  }).join('');
+  el.innerHTML =
+    `<div class="ps-head"><div class="ps-bar"><i style="width:${Math.round(r.curLv / r.maxLv * 100)}%"></i></div><small>퀘스트를 완료해 보상을 받아요 · 한 레벨씩 순서대로</small></div>${rows}`;
+  el.querySelectorAll('.ps-claim').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const res = await window.api.claimPass(Number(b.dataset.lv));
+    if (res && res.ok) {
+      const p = [];
+      if (res.reward.gold) p.push(`🪙${res.reward.gold}G`);
+      if (res.reward.tickets) for (const t in res.reward.tickets) p.push(`강화권×${res.reward.tickets[t]}`);
+      if (res.reward.essence) p.push(`정수×${res.reward.essence}`);
+      if (res.reward.title) p.push(`칭호 "${res.reward.title}"`);
+      spToast(`LV${b.dataset.lv} 보상 수령! ${p.join(' · ')}`);
+    } else spToast((res && res.err) || '수령 실패');
+    renderPass(true);
+  });
 }
 
 // 초기 로드: 등록 플레이어 + 로그인 상태

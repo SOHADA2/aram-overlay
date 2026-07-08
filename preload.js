@@ -42,4 +42,11 @@ contextBridge.exposeInMainWorld('api', {
   itemBuy: (id) => ipcRenderer.invoke('item-buy', { id }),                 // 🛒 구매
   emblemEquip: (id) => ipcRenderer.invoke('emblem-equip', { id }),        // ⚒️ 강철심장 장착(id 또는 null=해제)
   synergyEquip: (sid, tier) => ipcRenderer.invoke('synergy-equip', { sid, tier }),  // 🃏 시너지 활성화
+  // 🛒🃏🎫 상점/가챠/패스 (사이드패널 카테고리)
+  getShop: () => ipcRenderer.invoke('shop-data'),
+  buyTicket: (type, qty) => ipcRenderer.invoke('shop-buy-ticket', { type, qty }),
+  getGacha: () => ipcRenderer.invoke('gacha-data'),
+  gachaPull: (times) => ipcRenderer.invoke('gacha-pull', { times }),
+  getPass: () => ipcRenderer.invoke('pass-data'),
+  claimPass: (lv) => ipcRenderer.invoke('pass-claim', { lv }),
 });

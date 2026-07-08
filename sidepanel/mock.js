@@ -18,6 +18,23 @@
     if (k === 'getPlayers') return async () => ({ names: ['애긔반달곰', '울퉁쓰', 'ap렉사이서폿', '맹독 벌꿀오소리', '신규회원임', '나랑듀오해듀오'], myName: '애긔반달곰', isHost: true, webVersion: 'v2.45.566',
       lpMap: { '애긔반달곰': { tier: 'gold', lp: 76, placementDone: true }, '울퉁쓰': { tier: 'gold', lp: 75, placementDone: true }, 'ap렉사이서폿': { tier: 'diamond', lp: 12, placementDone: true, promoActive: true }, '맹독벌꿀오소리': { tier: 'gold', lp: 80, placementDone: true }, '신규회원임': { tier: 'silver', lp: 40, placementDone: true }, '나랑듀오해듀오': { placementDone: false, placementGames: 3 } } });
     if (k === 'getProfile') return async () => ({ ok: true, ddVer: '14.24.1', profile: PROFILE });
+    if (k === 'getShop') return async () => ({ ok: true, gold: 1240, itemCounts: { s1_gamble: { n: 1, active: 1 } }, tickets: { stable: 3, precise: 1 }, essence: 2, emblems: 4 });
+    if (k === 'getGacha') return async () => ({ ok: true, gold: 1240, yuumi: true,
+      champs: [{ slug: 'Akshan', kr: '아크샨' }, { slug: 'Amumu', kr: '아무무' }, { slug: 'Brand', kr: '브랜드' }, { slug: 'DrMundo', kr: '문도 박사' }, { slug: 'Fizz', kr: '피즈' }, { slug: 'Gangplank', kr: '갱플랭크' }, { slug: 'Jhin', kr: '진' }, { slug: 'Khazix', kr: '카직스' }, { slug: 'Lulu', kr: '룰루' }, { slug: 'Malphite', kr: '말파이트' }, { slug: 'Malzahar', kr: '말자하' }, { slug: 'Mel', kr: '멜' }, { slug: 'Morgana', kr: '모르가나' }, { slug: 'Naafiri', kr: '나피리' }, { slug: 'Poppy', kr: '뽀삐' }, { slug: 'Rammus', kr: '람머스' }, { slug: 'Vayne', kr: '베인' }, { slug: 'Yasuo', kr: '야스오' }],
+      cards: { Khazix: { s1: 4, s2: 1 }, Malzahar: { s1: 2, s3: 1 }, Yasuo: { s1: 7, s2: 2 }, Jhin: { s1: 3, s2: 1 } },
+      synList: [{ sid: 'void', tier: 2, active: true }, { sid: 'ionia', tier: 2, active: false }] });
+    if (k === 'gachaPull') return async () => ({ ok: true, gold: 1190, results: [{ slug: 'Vayne', kr: '베인', star: 1 }] });
+    if (k === 'getPass') return async () => ({ ok: true, curLv: 4, maxLv: 25, rows: [
+      { lv: 1, icon: '🎯', name: '첫 걸음', desc: '경기 1회 참여', milestone: false, state: 'done', prog: null, reward: { tickets: { stable: 2 } } },
+      { lv: 2, icon: '🏆', name: '첫 승리', desc: '승리 1회', milestone: false, state: 'done', prog: null, reward: { gold: 80 } },
+      { lv: 3, icon: '🗡️', name: '딜러 입문', desc: '한 판 딜량 10,000+', milestone: false, state: 'done', prog: null, reward: { tickets: { stable: 2 } } },
+      { lv: 4, icon: '⚔️', name: '3경기 참전', desc: '경기 3회 참여', milestone: false, state: 'done', prog: null, reward: { gold: 100 } },
+      { lv: 5, icon: '⭐', name: '킬 사냥꾼', desc: '한 판 킬 6+', milestone: true, state: 'claimable', prog: null, reward: { essence: 2 } },
+      { lv: 6, icon: '💪', name: '신뢰의 동료', desc: '한 판 어시 8+', milestone: false, state: 'locked', prog: null, reward: { tickets: { precise: 1 } } },
+      { lv: 7, icon: '🛡️', name: '살아남기', desc: '한 판 데스 5이하 + 승리', milestone: false, state: 'locked', prog: null, reward: { gold: 120 } },
+      { lv: 25, icon: '👑', name: '시즌의 정점', desc: '킬+어시 합 25+', milestone: true, state: 'locked', prog: null, reward: { gold: 500, title: '증바람의 증인' } },
+    ] });
+    if (k === 'claimPass') return async () => ({ ok: true, reward: { essence: 2 } });
     if (k === 'getRanking') return async () => ({ ok: true, ranking: RANK, myName: '애긔반달곰' });
     if (k === 'getRecords') return async () => ({ ok: true, ddVer: '14.24.1', records: RECORDS, myName: '애긔반달곰' });
     return async () => ({ ok: true });

@@ -17,6 +17,7 @@ const TOGGLE_HOTKEY = 'Shift+F5';
 const { buildTeams, normName } = require('./teams');   // ⚔️ 홈페이지 makeTeams 1:1 이식
 const { availableGoldS2 } = require('./gold');         // 💰 아이템 구매 골드 검증(홈 calcPlayerGoldEarned S2 이식)
 const { computeProfile, computeRecords, computeRanking, computeMyStats } = require('./profile');   // 📊 프로필/기록/랭킹(홈 프로필 정보 이식)
+const store = require('./store');   // 🛒🃏🎫 상점/가챠/패스(홈 로직 이식)
 const bridge = require('./bridge');                    // 🔌 내장 브릿지(LCU EOG 캡처) — aram-bridge 완전 대체
 
 let overlayWin = null, desktopWin = null, homeWin = null, tray = null;
@@ -260,6 +261,7 @@ const fetchLpPlayers = () => getJson(`${FIREBASE_DB}/season2/players.json`);
 const fetchSession   = () => getJson(`${FIREBASE_DB}/session.json`);
 const fetchPlayers   = () => getJson(`${FIREBASE_DB}/players.json`);   // 등록 플레이어(이름 목록)
 const fetchMatches   = () => getJson(`${FIREBASE_DB}/matches.json`);   // ⚔️ 팀짜기 승률 계산용(수 MB — 팀짤 때만)
+const fetchNormalMatches = () => getJson(`${FIREBASE_DB}/normal_matches.json`);   // 🎫 패스 퀘스트 판정용(일반게임도 스탯 인정)
 const fetchSeason    = () => getJson(`${FIREBASE_DB}/config/currentSeason.json`);
 const fetchSettlement= () => getJson(`${FIREBASE_DB}/lastSettlement.json`);   // 💰 정산 결과(참여자 전파용)
 const fetchMatch     = (key) => getJson(`${FIREBASE_DB}/matches/${key}.json`);   // 💥 발동 효과(시너지·강철심장·아이템) 스냅샷
@@ -901,6 +903,96 @@ ipcMain.handle('synergy-equip', async (_e, { sid, tier }) => {
   const r = await fbUpdate(`gold/${mg.key}`, { activeSynergy_s2: newVal });
   return { ok: r.ok, err: r.err };
 });
+// ── 🛒🃏🎫 상점/가챠/패스 (store.js = 홈 로직 이식·쓰기는 홈과 동일 필드) ──────
+let _nmCache = null, _nmCacheAt = 0;
+async function getNormalMatchesCached() {   // 일반게임 기록 — 2분 캐시
+  if (_nmCache && Date.now() - _nmCacheAt < 120000) return _nmCache;
+  const m = await fetchNormalMatches();
+  if (m) { _nmCache = m; _nmCacheAt = Date.now(); }
+  return _nmCache || {};
+}
+// 🛒 상점 조회 — 보유 골드·아이템 수·강화권·정수
+ipcMain.handle('shop-data', async () => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };
+  const matches = await getMatchesCached();
+  const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  const counts = {};
+  for (const it of (Array.isArray(mg.data.items_s2) ? mg.data.items_s2 : [])) {
+    if (!it || !it.id) continue;
+    counts[it.id] = counts[it.id] || { n: 0, active: 0 };
+    counts[it.id].n++; if (it.active) counts[it.id].active++;
+  }
+  return { ok: true, gold, itemCounts: counts, tickets: mg.data.emblemTickets_s2 || {}, essence: mg.data.emblemEssence_s2 || 0,
+    emblems: Array.isArray(mg.data.emblems_s2) ? mg.data.emblems_s2.filter(Boolean).length : 0 };
+});
+// 🛒 강화권 구매 — 홈 emblemBuyTicket 이식(goldSpent + goldSpendLog 기록)
+ipcMain.handle('shop-buy-ticket', async (_e, { type, qty }) => {
+  const def = store.EMBLEM_TICKETS[type];
+  if (!def) return { ok: false, err: '알 수 없는 강화권이에요' };
+  qty = Math.max(1, Math.min(20, Math.floor(qty || 1)));
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const matches = await getMatchesCached();
+  const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  const cost = def.price * qty;
+  if (gold < cost) return { ok: false, err: `골드 부족 (보유 ${gold}G · 필요 ${cost}G)` };
+  const tickets = { ...(mg.data.emblemTickets_s2 || {}) };
+  tickets[type] = (tickets[type] || 0) + qty;
+  const upd = { emblemTickets_s2: tickets, goldSpent_s2: (mg.data.goldSpent_s2 || 0) + cost, ...store.spendLogUpd(mg.data, 'emblem_ticket', `${def.name} ×${qty}`, cost) };
+  const r = await fbUpdate(`gold/${mg.key}`, upd);
+  return { ok: r.ok, err: r.err, gold: gold - cost };
+});
+// 🃏 가챠 조회 — 컬렉션·완성 시너지 목록(활성화는 기존 synergy-equip 재사용)
+ipcMain.handle('gacha-data', async () => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };
+  const matches = await getMatchesCached();
+  const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  const cards = mg.data.champCards_s2 || {};
+  const asyn = mg.data.activeSynergy_s2 || null;
+  const synList = Object.entries(SYN_MEMBERS).map(([sid, members]) => {
+    const t3 = members.every(s => ((cards[s] || {}).s3 || 0) >= 1);
+    const t2 = members.every(s => { const c = cards[s] || {}; return (c.s2 || 0) >= 1 || (c.s3 || 0) >= 1; });
+    const tier = t3 ? 3 : t2 ? 2 : 0;
+    return tier ? { sid, tier, active: !!(asyn && asyn.sid === sid && asyn.tier === tier) } : null;
+  }).filter(Boolean);
+  return { ok: true, gold, cards, champs: store.GACHA_CHAMPS, yuumi: !!mg.data.secretYuumi_s2, synList };
+});
+// 🃏 뽑기 — 홈 doGachaPull 이식(확률·기록·baseline·유미 전부 동일)
+ipcMain.handle('gacha-pull', async (_e, { times }) => {
+  times = times === 10 ? 10 : 1;
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const matches = await getMatchesCached();
+  const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  const cost = times === 1 ? 50 : 450;
+  if (gold < cost) return { ok: false, err: `골드 부족 (보유 ${gold}G · 필요 ${cost}G)` };
+  const { results, upd } = store.gachaPull(mg.data, times);
+  const r = await fbUpdate(`gold/${mg.key}`, upd);
+  if (!r.ok) return { ok: false, err: r.err || '뽑기 실패 — 다시 시도해주세요' };
+  return { ok: true, results, gold: gold - cost };
+});
+// 🎫 패스 — 조회/수령 (홈 S2 퀘스트 패스·순차 클레임·일반게임 스탯 포함)
+async function _passCtx() {
+  const [mg, matches, nm, playersRaw] = await Promise.all([fetchMyGold(), getMatchesCached(), getNormalMatchesCached(), fetchPlayers()]);
+  const players = playersRaw ? Object.values(playersRaw).filter(p => p && p.name) : [];
+  return { mg, matches, nm, players };
+}
+ipcMain.handle('pass-data', async () => {
+  const { mg, matches, nm, players } = await _passCtx();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };
+  return { ok: true, ...store.computePassRows(mg.data.name || config.myName, mg.data, matches, nm, players) };
+});
+ipcMain.handle('pass-claim', async (_e, { lv }) => {
+  const { mg, matches, nm, players } = await _passCtx();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const res = store.passClaim(mg.data.name || config.myName, mg.data, lv, matches, nm, players);
+  if (res.err) return { ok: false, err: res.err };
+  const r = await fbUpdate(`gold/${mg.key}`, res.upd);
+  return { ok: r.ok, err: r.err, reward: res.reward };
+});
+
 ipcMain.on('session-preview', () => {              // 팀 배정 뷰 미리보기(샘플)
   sampleActive = true; userHid = false; sessionData = SAMPLE_SESSION; showOverlay();
   if (overlayWin) {
