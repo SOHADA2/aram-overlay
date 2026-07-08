@@ -216,4 +216,398 @@ function passClaim(name, data, level, matches, normalMatches, players) {
   return { reward, upd };
 }
 
-module.exports = { EMBLEM_TICKETS, EMBLEM_TICKET_ORDER, EMBLEM_ESSENCE_PRICE, spendLogUpd, GACHA_CHAMPS, gachaPull, S2_PASS_MAX_LEVEL, computePassRows, passClaim };
+// ═══ 🔨 대장간(강철심장) — 홈 이식(emblemEnhance L10843·emblemMasterReroll L10773·emblemSell L10896·emblemBuyBase L10731) ═══
+const EMBLEM_SLOTS = 5, EMBLEM_LINES = 3, EMBLEM_BASE_PRICE = 150, EMBLEM_MAX_OWN = 15;
+const EMBLEM_EFFECT_POOL = ['matchG', 'winG', 'attend', 'mvpG', 'magollaG', 'winLP', 'lossLP', 'lottoTkt', 'yuumiCut', 'yuumiCool'];
+// 효과 정의(홈 EMBLEM_EFFECTS L10634 — base/cap/perCap·표기)
+const EMBLEM_FX = {
+  matchG:   { name: '경기 골드',   base: 5,  cap: 0,  fmt: v => `+${v}G` },
+  winG:     { name: '승리 골드',   base: 8,  cap: 0,  fmt: v => `+${v}G` },
+  attend:   { name: '출석 골드',   base: 15, cap: 0,  fmt: v => `+${v}G` },
+  mvpG:     { name: 'MVP 골드',    base: 15, cap: 0,  fmt: v => `+${v}G` },
+  magollaG: { name: '막고라 배당', base: 5,  cap: 60, fmt: v => `+${v}%` },
+  winLP:    { name: '승리 LP',     base: 2,  cap: 6,  fmt: v => `+${v}LP` },
+  lossLP:   { name: '패배 방어',   base: 2,  cap: 6,  fmt: v => `-${v}LP` },
+  lottoTkt: { name: '해골 감소',   base: 1,  cap: 1,  fmt: v => `-${Math.round(v * 100)}%` },
+  yuumiCut:  { name: '유미 파견',  base: 4,  cap: 30, perCap: 10, fmt: v => `-${v}분` },
+  yuumiCool: { name: '유미 휴식',  base: 4,  cap: 30, perCap: 10, fmt: v => `-${v}분` },
+};
+const LOTTO_SKULL_CAP = 0.70, LOTTO_SKULL_PER_LINE = 0.70 / 3;
+function getEmblems(data) {
+  data = data || {};
+  const arr = data.emblems_s2;
+  if (Array.isArray(arr)) return arr.filter(Boolean);
+  const single = data.emblem_s2;
+  if (single) return [{ id: 1, slots: single.slots || [], createdAt: single.createdAt || 0 }];
+  return [];
+}
+function getEquippedId(data) {
+  const arr = getEmblems(data); if (!arr.length) return null;
+  const eq = (data || {}).emblemEquipped_s2;
+  if (eq != null && arr.some(e => e.id === eq)) return eq;
+  if (eq === null) return null;
+  return arr[0].id;
+}
+function emblemLevel(em) { return em && em.slots ? em.slots.filter(s => s.ok).length : 0; }
+function emblemPower(em) { return em && em.slots ? em.slots.reduce((a, s) => a + (s.ok ? (EMBLEM_TICKETS[s.t] ? EMBLEM_TICKETS[s.t].power : 0) : 0), 0) : 0; }
+function emblemSlotsUsed(em) { return em && em.slots ? em.slots.length : 0; }
+function emblemLocked(em) { return emblemSlotsUsed(em) >= EMBLEM_SLOTS; }
+function emblemGrade(power) { return power <= 0 ? '미강화' : power < 10 ? '실버' : power < 25 ? '골드' : '프리즘'; }
+function emblemNextId(arr) { return arr.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1; }
+function emblemSellPrice(em) {
+  if (!em || !em.slots) return 0;
+  const invested = em.slots.reduce((a, s) => a + (EMBLEM_TICKETS[s.t] ? EMBLEM_TICKETS[s.t].price : 0), 0);
+  const power = emblemPower(em);
+  return Math.round(EMBLEM_BASE_PRICE * 0.5 + invested * 0.35 + power * power * 2);
+}
+function emblemRollLines() { return Array.from({ length: EMBLEM_LINES }, () => EMBLEM_EFFECT_POOL[Math.floor(Math.random() * EMBLEM_EFFECT_POOL.length)]); }
+// 효과 합산(홈 emblemEffectsOf L10685) + 줄 텍스트("해골 감소 -23% · …")
+function emblemEffectsOf(em) {
+  const power = emblemPower(em), mult = 1 + power * 0.1;
+  const lines = Array.isArray(em && em.lines) ? em.lines : [];
+  const eff = {};
+  for (const eid of EMBLEM_EFFECT_POOL) {
+    const cnt = lines.filter(l => l === eid).length;
+    const d = EMBLEM_FX[eid];
+    if (eid === 'lottoTkt') { eff[eid] = cnt ? Math.min(LOTTO_SKULL_CAP, cnt * LOTTO_SKULL_PER_LINE) : 0; continue; }
+    if (eid === 'winLP' || eid === 'lossLP') { eff[eid] = cnt ? Math.min(d.cap, cnt * d.base) : 0; continue; }
+    const per = cnt ? (d.perCap ? Math.min(d.perCap, Math.round(d.base * mult)) : Math.round(d.base * mult)) : 0;
+    let v = cnt * per;
+    if (d.cap && v > d.cap) v = d.cap;
+    eff[eid] = v;
+  }
+  return { power, eff };
+}
+function emblemEffText(em) {
+  const { eff } = emblemEffectsOf(em);
+  const parts = EMBLEM_EFFECT_POOL.filter(eid => eff[eid] > 0).map(eid => `${EMBLEM_FX[eid].name} ${EMBLEM_FX[eid].fmt(eff[eid])}`);
+  return parts.length ? parts.join(' · ') : '';
+}
+function purchaseLogAppend(data, item, extra) {
+  const entry = { ts: Date.now(), id: item.id, name: item.name, price: item.price };
+  if (extra) Object.assign(entry, extra);
+  return [...(data.purchaseLog_s2 || []), entry];
+}
+// 강화(장착품만·성공/실패 무관 슬롯 소모) → {err}|{upd,result}
+function forgeEnhance(data, type) {
+  const def = EMBLEM_TICKETS[type]; if (!def) return { err: '알 수 없는 강화권' };
+  const arr = getEmblems(data), eqId = getEquippedId(data);
+  const em = arr.find(e => e.id === eqId);
+  if (!em) return { err: '강철심장을 먼저 장착하세요' };
+  if (emblemLocked(em)) return { err: '강화 슬롯이 모두 소진됐어요 (5/5)' };
+  const tickets = { stable: 0, precise: 0, overload: 0, ...(data.emblemTickets_s2 || {}) };
+  if ((tickets[type] || 0) < 1) return { err: `${def.name}이 없어요` };
+  const ok = Math.random() < def.chance;
+  const slots = [...(em.slots || []), { t: type, ok }];
+  const newArr = arr.map(e => e.id === eqId ? { ...e, slots } : e);
+  tickets[type] -= 1;
+  const newEm = { ...em, slots };
+  return {
+    upd: { emblems_s2: newArr, emblem_s2: null, emblemEquipped_s2: eqId, emblemTickets_s2: tickets },
+    result: { ok, type, level: emblemLevel(newEm), power: emblemPower(newEm), slotsUsed: emblemSlotsUsed(newEm), locked: emblemLocked(newEm) },
+  };
+}
+// 걸작 만들기(정수 1 소모·3줄 리롤·중복 허용 균등)
+function forgeReroll(data) {
+  const arr = getEmblems(data), eqId = getEquippedId(data);
+  const em = arr.find(e => e.id === eqId);
+  if (!em) return { err: '강철심장을 먼저 장착하세요' };
+  const essence = data.emblemEssence_s2 || 0;
+  if (essence < 1) return { err: '걸작의 정수가 없어요' };
+  const newLines = emblemRollLines();
+  const newArr = arr.map(e => e.id === eqId ? { ...e, lines: newLines } : e);
+  return { upd: { emblems_s2: newArr, emblem_s2: null, emblemEquipped_s2: eqId, emblemEssence_s2: essence - 1 }, lines: newLines };
+}
+// 구매(150G·최대 15·첫 구매 자동 장착) — 골드 검증은 호출부(availableGoldS2)
+function forgeBuyBase(data) {
+  const arr = getEmblems(data);
+  if (arr.length >= EMBLEM_MAX_OWN) return { err: `강철심장은 최대 ${EMBLEM_MAX_OWN}개까지 보유할 수 있어요` };
+  const newId = emblemNextId(arr);
+  const newArr = [...arr, { id: newId, slots: [], lines: [], createdAt: Date.now() }];
+  const curEquipped = getEquippedId(data);
+  return { price: EMBLEM_BASE_PRICE, upd: {
+    emblems_s2: newArr, emblem_s2: null,
+    emblemEquipped_s2: (curEquipped != null) ? curEquipped : newId,
+    goldSpent_s2: (data.goldSpent_s2 ?? 0) + EMBLEM_BASE_PRICE,
+    ...spendLogUpd(data, 'emblem_base', '강철심장 구매', EMBLEM_BASE_PRICE),
+  } };
+}
+// 판매(환급=emblemSellG_s2 누적·purchaseLog 기록·장착품 팔면 재장착)
+function forgeSell(data, id) {
+  const arr = getEmblems(data);
+  const em = (id != null) ? arr.find(e => e.id === id) : arr.find(e => e.id === getEquippedId(data));
+  if (!em) return { err: '판매할 강철심장이 없어요' };
+  const refund = emblemSellPrice(em);
+  const newArr = arr.filter(e => e.id !== em.id);
+  const upd = {
+    emblems_s2: newArr, emblem_s2: null,
+    emblemSellG_s2: (data.emblemSellG_s2 ?? 0) + refund,
+    purchaseLog_s2: purchaseLogAppend(data, { id: 'emblem_sell', name: `강철심장 판매 (성능 ${emblemPower(em)})`, price: refund }, { type: 'sell' }),
+  };
+  if (getEquippedId(data) === em.id) upd.emblemEquipped_s2 = newArr.length ? newArr[0].id : null;
+  return { refund, upd };
+}
+// 애칭(≤3자·빈값=null)
+function forgeNick(data, id, nick) {
+  const arr = getEmblems(data);
+  if (!arr.some(e => e.id === id)) return { err: '없는 강철심장이에요' };
+  const nk = [...String(nick || '').trim()].slice(0, 3).join('');
+  return { upd: { emblems_s2: arr.map(e => e.id === id ? { ...e, nick: nk || null } : e) } };
+}
+// 무효 걸작 줄 자동 치유(홈 _healEmblemLines) — 변경 있을 때만 upd 반환
+function forgeHealUpd(data) {
+  const arr = getEmblems(data); if (!arr.length) return null;
+  const sanitize = lines => {
+    if (!Array.isArray(lines) || lines.length === 0) return [];
+    return Array.from({ length: EMBLEM_LINES }, (_, i) => EMBLEM_FX[lines[i]] ? lines[i] : EMBLEM_EFFECT_POOL[Math.floor(Math.random() * EMBLEM_EFFECT_POOL.length)]);
+  };
+  let changed = false;
+  const fixed = arr.map(e => {
+    const fl = sanitize(e.lines);
+    if (JSON.stringify(fl) !== JSON.stringify(e.lines || [])) { changed = true; return { ...e, lines: fl }; }
+    return e;
+  });
+  return changed ? { emblems_s2: fixed } : null;
+}
+// 대장간 화면용 직렬화 데이터
+function computeForgeView(data) {
+  const eqId = getEquippedId(data);
+  const emblems = getEmblems(data).map(e => ({
+    id: e.id, nick: e.nick || null, equipped: e.id === eqId,
+    level: emblemLevel(e), power: emblemPower(e), grade: emblemGrade(emblemPower(e)),
+    slots: (e.slots || []).map(s => ({ t: s.t, ok: !!s.ok })), slotsUsed: emblemSlotsUsed(e), locked: emblemLocked(e),
+    hasLines: Array.isArray(e.lines) && e.lines.length > 0, effText: emblemEffText(e), sellPrice: emblemSellPrice(e),
+  }));
+  return { emblems, count: emblems.length, maxOwn: EMBLEM_MAX_OWN, basePrice: EMBLEM_BASE_PRICE,
+    tickets: { stable: 0, precise: 0, overload: 0, ...(data.emblemTickets_s2 || {}) }, essence: data.emblemEssence_s2 || 0 };
+}
+
+// ═══ 🎟 스크래치 복권 — 홈 이식(SCRATCH_TIERS L27235·rollScratch L27309·_rollScratchPity L27284·buyItem scratch_tier L30691) ═══
+const SCRATCH_SKULL = { id: 'skull', emoji: '💀', name: '해골', gold: 0 };
+const SCRATCH_TIERS = [
+  { idx: 0, id: 'scratch_normal', name: '실버 복권', price: 70, cells: 4, skulls: 0, skullAppear: 0, skullPenalty: 0, matchCount: 2,
+    symbols: [
+      { id: 'clover', emoji: '🍀', name: '클로버', gold: 65, appear: 16 },
+      { id: 'snowflake', emoji: '❄️', name: '눈꽃', gold: 65, appear: 14 },
+      { id: 'flame', emoji: '🔥', name: '불꽃', gold: 75, appear: 13 },
+      { id: 'sword', emoji: '⚔️', name: '검', gold: 80, appear: 12 },
+      { id: 'lightning', emoji: '⚡', name: '번개', gold: 85, appear: 11 },
+      { id: 'moon', emoji: '🌙', name: '달', gold: 100, appear: 9 },
+      { id: 'shield', emoji: '🛡️', name: '방패', gold: 135, appear: 8 },
+      { id: 'star', emoji: '⭐', name: '별', gold: 220, appear: 7 },
+      { id: 'gem', emoji: '💠', name: '보석', gold: 310, appear: 5 },
+      { id: 'diamond', emoji: '💎', name: '다이아', gold: 425, appear: 5 },
+      { id: 'crown', emoji: '👑', name: '왕관', gold: 670, appear: 3 },
+    ] },
+  { idx: 1, id: 'scratch_advanced', name: '골드 복권', price: 200, cells: 6, skulls: 1, skullAppear: 20, skullPenalty: 10, matchCount: 3,
+    symbols: [
+      { id: 'clover', emoji: '🍀', name: '클로버', gold: 320, appear: 30 },
+      { id: 'sword', emoji: '⚔️', name: '검', gold: 440, appear: 22 },
+      { id: 'moon', emoji: '🌙', name: '달', gold: 600, appear: 18 },
+      { id: 'shield', emoji: '🛡️', name: '방패', gold: 870, appear: 13 },
+      { id: 'star', emoji: '⭐', name: '별', gold: 1450, appear: 9 },
+      { id: 'diamond', emoji: '💎', name: '다이아', gold: 2950, appear: 5 },
+      { id: 'crown', emoji: '👑', name: '왕관', gold: 5200, appear: 3 },
+    ] },
+  { idx: 2, id: 'scratch_premium', name: '프리즘 복권', price: 400, cells: 7, skulls: 2, skullAppear: 40, skullPenalty: 10, matchCount: 3,
+    symbols: [
+      { id: 'clover', emoji: '🍀', name: '클로버', gold: 690, appear: 28 },
+      { id: 'sword', emoji: '⚔️', name: '검', gold: 910, appear: 22 },
+      { id: 'moon', emoji: '🌙', name: '달', gold: 1250, appear: 18 },
+      { id: 'shield', emoji: '🛡️', name: '방패', gold: 1890, appear: 13 },
+      { id: 'star', emoji: '⭐', name: '별', gold: 3090, appear: 10 },
+      { id: 'diamond', emoji: '💎', name: '다이아', gold: 6000, appear: 6 },
+      { id: 'crown', emoji: '👑', name: '왕관', gold: 8580, appear: 3 },
+    ] },
+];
+const LOTTERY_PITY_CAP = 20;
+const LOTTERY_PITY_KEY = { 1: 'gold', 2: 'prism' };
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+// 홈 rollScratch 1:1 — data=내 gold 데이터(장착 걸작의 해골 감소 반영)
+function rollScratch(tierIdx, data) {
+  const tier = SCRATCH_TIERS[tierIdx] || SCRATCH_TIERS[0];
+  const { symbols, cells } = tier;
+  let skullAppear = tier.skullAppear || 0;
+  if (skullAppear > 0) {   // 🛡️ 강철심장 "해골 감소" — 장착 걸작 줄수 기반(홈 L27314)
+    try {
+      const em = getEmblems(data).find(e => e.id === getEquippedId(data));
+      const red = em ? (emblemEffectsOf(em).eff.lottoTkt || 0) : 0;
+      if (red > 0) skullAppear = Math.round(skullAppear * (1 - red));
+    } catch (_) {}
+  }
+  const matchCount = tier.matchCount || 2;
+  const totalSymAppear = symbols.reduce((s, x) => s + x.appear, 0);
+  const totalAll = totalSymAppear + skullAppear;
+  const pickWeighted = (pool) => {
+    const total = pool.reduce((s, x) => s + x.appear, 0);
+    const r = Math.random() * total;
+    let cumul = 0;
+    for (const sym of pool) { cumul += sym.appear; if (r < cumul) return sym; }
+    return pool[pool.length - 1];
+  };
+  const symArr = []; let skullCount = 0;
+  for (let i = 0; i < cells; i++) {
+    const r = Math.random() * totalAll;
+    if (r < totalSymAppear) {
+      let cumul = 0, picked = symbols[symbols.length - 1];
+      for (const sym of symbols) { cumul += sym.appear; if (r < cumul) { picked = sym; break; } }
+      symArr.push(picked);
+    } else skullCount++;
+  }
+  {   // cap = matchCount
+    const cap = matchCount;
+    const cnt = {};
+    for (let i = 0; i < symArr.length; i++) {
+      const sid = symArr[i].id;
+      cnt[sid] = (cnt[sid] || 0) + 1;
+      if (cnt[sid] > cap) {
+        const candidates = symbols.filter(s => (cnt[s.id] || 0) < cap);
+        if (candidates.length) {
+          const repl = pickWeighted(candidates);
+          cnt[sid]--; cnt[repl.id] = (cnt[repl.id] || 0) + 1; symArr[i] = repl;
+        }
+      }
+    }
+  }
+  {   // 다중 매칭 방지 — 가장 가치 큰 심볼만 winner
+    const cnt = {};
+    for (const s of symArr) cnt[s.id] = (cnt[s.id] || 0) + 1;
+    const matched = Object.keys(cnt).filter(id => cnt[id] >= matchCount);
+    if (matched.length > 1) {
+      const winnerId = matched.reduce((best, id) => {
+        const sym = symbols.find(s => s.id === id);
+        const bestSym = best ? symbols.find(s => s.id === best) : null;
+        return !bestSym || sym.gold > bestSym.gold ? id : best;
+      }, null);
+      for (const dupId of matched) {
+        if (dupId === winnerId) continue;
+        const cap2 = matchCount - 1;
+        const candidates = symbols.filter(s => s.id !== winnerId && (cnt[s.id] || 0) < cap2);
+        if (!candidates.length) continue;
+        const swapIdx = symArr.findIndex(s => s.id === dupId);
+        if (swapIdx < 0) continue;
+        const repl = pickWeighted(candidates);
+        cnt[dupId]--; cnt[repl.id] = (cnt[repl.id] || 0) + 1; symArr[swapIdx] = repl;
+      }
+    }
+  }
+  const counts = {};
+  for (const s of symArr) counts[s.id] = (counts[s.id] || 0) + 1;
+  let winSym = null;
+  for (const [id, cnt] of Object.entries(counts)) {
+    if (cnt >= matchCount) {
+      const sym = symbols.find(s => s.id === id);
+      if (sym && (!winSym || sym.gold > winSym.gold)) winSym = sym;
+    }
+  }
+  let slots;
+  if (winSym) {   // 쪼는 맛 — 당첨 심볼 1개는 마지막 셀 고정
+    const winInst = symArr.filter(s => s.id === winSym.id);
+    const otherInst = shuffle([...symArr.filter(s => s.id !== winSym.id), ...Array(skullCount).fill(SCRATCH_SKULL)]);
+    const winPos = new Set([cells - 1]);
+    const earlyPos = shuffle([...Array(cells - 1).keys()]);
+    for (let i = 0; i < winInst.length - 1; i++) winPos.add(earlyPos[i]);
+    slots = new Array(cells);
+    let oi = 0;
+    for (let i = 0; i < cells; i++) slots[i] = winPos.has(i) ? winSym : otherInst[oi++];
+  } else {
+    slots = shuffle([...symArr, ...Array(skullCount).fill(SCRATCH_SKULL)]);
+  }
+  return { slots, win: winSym, tier };
+}
+// 🍀 불운 스택 적용 롤(홈 _rollScratchPity 1:1) — 골드·프리즘만·꽝+1/해골+0.5/당첨=0/상한20
+function rollScratchPity(tierIdx, data) {
+  let result = rollScratch(tierIdx, data);
+  const k = LOTTERY_PITY_KEY[tierIdx];
+  if (!k) return { result };
+  const pityAll = { ...((data || {}).lotteryPity_s2 || {}) };
+  const prev = Math.min(LOTTERY_PITY_CAP, +pityAll[k] || 0);
+  if (!result.win && prev > 0 && Math.random() * 100 < prev) {
+    for (let i = 0; i < 60; i++) { const rr = rollScratch(tierIdx, data); if (rr.win) { result = rr; result.pityConv = true; break; } }
+  }
+  const skulls = (result.slots || []).reduce((n, s) => n + (s && s.id === 'skull' ? 1 : 0), 0);
+  pityAll[k] = result.win ? 0 : Math.min(LOTTERY_PITY_CAP, prev + 1 + skulls * 0.5);
+  result.pity = prev;
+  return { result, pityPatch: pityAll, pityPrev: prev, pityKey: k };
+}
+// 당첨 보너스(홈 _myLottoPrizeBonus) — 실버 차단·해골감소 줄 보유 시 성능 비례(줄당 min(30,성능)×줄수)
+function lottoPrizeBonus(data, tierIdx) {
+  if (tierIdx === 0) return 0;
+  const em = getEmblems(data).find(e => e.id === getEquippedId(data)); if (!em) return 0;
+  const lines = Array.isArray(em.lines) ? em.lines : [];
+  const cnt = lines.filter(l => l === 'lottoTkt').length;
+  if (!cnt) return 0;
+  const power = emblemPower(em);
+  return power > 0 ? Math.min(30, Math.round(power * 1)) * cnt : 0;
+}
+// 구매(유료/무료) — 홈 buyItem scratch_tier 분기 1:1. 골드 검증은 호출부. → {err}|{rec, upd}
+function lotteryBuy(data, tierIdx, useFree) {
+  const tier = SCRATCH_TIERS[tierIdx]; if (!tier) return { err: '없는 복권이에요' };
+  if (data.pendingScratch_s2 && Array.isArray(data.pendingScratch_s2.slots)) return { err: '진행 중인 복권이 있어요 — 이어서 긁어주세요' };
+  if (useFree) {
+    const ft = { ...(data.freeScratch_s2 || {}) };
+    if (!(ft[tierIdx] > 0)) return { err: '무료권이 없어요' };
+    ft[tierIdx] = Math.max(0, (ft[tierIdx] || 0) - 1);
+    const pt = rollScratchPity(tierIdx, data);
+    const rec = { tierIdx, slots: pt.result.slots, win: pt.result.win || null, free: true, emblemBonus: 0, toolId: null, revealed: [], at: Date.now(),
+      pity: pt.result.pity || 0, pityConv: !!pt.result.pityConv, pityPrev: pt.pityPrev ?? null, pityKey: pt.pityKey || null };   // pity*=오버레이 추가 필드(취소/이력용·홈 무해)
+    return { rec, upd: { freeScratch_s2: ft, ...(pt.pityPatch ? { lotteryPity_s2: pt.pityPatch } : {}), pendingScratch_s2: rec } };
+  }
+  const pt = rollScratchPity(tierIdx, data);
+  const bonus = pt.result.win ? lottoPrizeBonus(data, tierIdx) : 0;
+  const rec = { tierIdx, slots: pt.result.slots, win: pt.result.win || null, free: false, emblemBonus: bonus, toolId: null, revealed: [], at: Date.now(),
+    pity: pt.result.pity || 0, pityConv: !!pt.result.pityConv, pityPrev: pt.pityPrev ?? null, pityKey: pt.pityKey || null };
+  return { rec, price: tier.price, upd: {
+    goldSpent_s2: (data.goldSpent_s2 ?? 0) + tier.price,
+    ...(pt.pityPatch ? { lotteryPity_s2: pt.pityPatch } : {}),
+    pendingScratch_s2: rec,
+  } };
+}
+const _dateKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+// 완료 — 홈 onComplete/finishReveal 1:1: history.gold = winGold − skullPenalty + emblemBonus
+function lotteryFinish(data, rec, revealedSkulls) {
+  const tier = SCRATCH_TIERS[rec.tierIdx] || SCRATCH_TIERS[0];
+  const winGold = rec.win ? rec.win.gold : 0;
+  const skullPenalty = (tier.skullPenalty || 0) * (revealedSkulls || 0);
+  const net = winGold - skullPenalty + (rec.emblemBonus || 0);
+  const entry = { ts: Date.now(), date: _dateKey(), scratch: true, tierIdx: rec.tierIdx, win: rec.win ? rec.win.id : null,
+    gold: net, season: 2,
+    ...(rec.free ? { free: true } : {}),
+    ...(rec.emblemBonus ? { emblemBonus: rec.emblemBonus } : {}),
+    ...(rec.pity ? { pity: rec.pity } : {}), ...(rec.pityConv ? { pityConv: true } : {}) };
+  return { net, winGold, skullPenalty, upd: { pendingScratch_s2: null, lotteryHistory: [...(data.lotteryHistory || []), entry] } };
+}
+// 취소(한 획도 안 긁음) — 유료=환불·무료=1장 반환·pity 원복
+function lotteryCancel(data, rec) {
+  const tier = SCRATCH_TIERS[rec.tierIdx] || SCRATCH_TIERS[0];
+  const upd = { pendingScratch_s2: null };
+  if (rec.free) { const ft = { ...(data.freeScratch_s2 || {}) }; ft[rec.tierIdx] = (ft[rec.tierIdx] || 0) + 1; upd.freeScratch_s2 = ft; }
+  else upd.goldSpent_s2 = Math.max(0, (data.goldSpent_s2 ?? 0) - tier.price);
+  if (rec.pityKey != null && rec.pityPrev != null) { const p2 = { ...(data.lotteryPity_s2 || {}) }; p2[rec.pityKey] = rec.pityPrev; upd.lotteryPity_s2 = p2; }
+  return { upd };
+}
+// 버리기 — 당첨이어도 gold 0·구매비/무료권 반환 없음
+function lotteryDiscard(data, rec) {
+  const entry = { ts: Date.now(), date: _dateKey(), scratch: true, tierIdx: rec.tierIdx, win: null, gold: 0, discarded: true, season: 2, ...(rec.free ? { free: true } : {}) };
+  return { upd: { pendingScratch_s2: null, lotteryHistory: [...(data.lotteryHistory || []), entry] } };
+}
+function lotteryView(data) {
+  const pity = data.lotteryPity_s2 || {};
+  const em = getEmblems(data).find(e => e.id === getEquippedId(data));
+  const skullRed = em ? (emblemEffectsOf(em).eff.lottoTkt || 0) : 0;
+  return {
+    tiers: SCRATCH_TIERS.map(t => ({ idx: t.idx, name: t.name, price: t.price, cells: t.cells, matchCount: t.matchCount, skullPenalty: t.skullPenalty, hasSkull: t.skullAppear > 0, top: t.symbols[t.symbols.length - 1].gold })),
+    free: { 0: 0, 1: 0, 2: 0, ...(data.freeScratch_s2 || {}) },
+    pity: { gold: Math.min(LOTTERY_PITY_CAP, +pity.gold || 0), prism: Math.min(LOTTERY_PITY_CAP, +pity.prism || 0) },
+    pending: (data.pendingScratch_s2 && Array.isArray(data.pendingScratch_s2.slots)) ? data.pendingScratch_s2 : null,
+    skullRed, prizeBonus: { 1: lottoPrizeBonus(data, 1), 2: lottoPrizeBonus(data, 2) },
+  };
+}
+
+module.exports = { EMBLEM_TICKETS, EMBLEM_TICKET_ORDER, EMBLEM_ESSENCE_PRICE, spendLogUpd, GACHA_CHAMPS, gachaPull, S2_PASS_MAX_LEVEL, computePassRows, passClaim,
+  getEmblems, getEquippedId, emblemEffectsOf, forgeEnhance, forgeReroll, forgeBuyBase, forgeSell, forgeNick, forgeHealUpd, computeForgeView,
+  SCRATCH_TIERS, rollScratch, lotteryBuy, lotteryFinish, lotteryCancel, lotteryDiscard, lotteryView };

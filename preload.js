@@ -49,6 +49,20 @@ contextBridge.exposeInMainWorld('api', {
   gachaPull: (times) => ipcRenderer.invoke('gacha-pull', { times }),
   getPass: () => ipcRenderer.invoke('pass-data'),
   claimPass: (lv) => ipcRenderer.invoke('pass-claim', { lv }),
+  // 🔨 대장간
+  getForge: () => ipcRenderer.invoke('forge-data'),
+  forgeBuyBase: () => ipcRenderer.invoke('forge-buy-base'),
+  forgeEnhance: (type) => ipcRenderer.invoke('forge-enhance', { type }),
+  forgeReroll: () => ipcRenderer.invoke('forge-reroll'),
+  forgeSell: (id) => ipcRenderer.invoke('forge-sell', { id }),
+  forgeNick: (id, nick) => ipcRenderer.invoke('forge-nick', { id, nick }),
+  // 🎟 복권
+  getLottery: () => ipcRenderer.invoke('lottery-data'),
+  lotteryBuy: (tierIdx, useFree) => ipcRenderer.invoke('lottery-buy', { tierIdx, useFree }),
+  lotteryAside: (revealed) => ipcRenderer.invoke('lottery-aside', { revealed }),
+  lotteryFinish: (revealedSkulls) => ipcRenderer.invoke('lottery-finish', { revealedSkulls }),
+  lotteryCancel: () => ipcRenderer.invoke('lottery-cancel'),
+  lotteryDiscard: () => ipcRenderer.invoke('lottery-discard'),
   openHome: (goto) => ipcRenderer.send('open-home', { goto }),               // 🌐 홈 창 열기+딥링크(복권/대장간)
   onHomeGoto: (cb) => ipcRenderer.on('home-goto', (_e, t) => cb(t)),
   onHomeShown: (cb) => ipcRenderer.on('home-shown', () => cb()),             // 홈 창 표시/리사이즈 → webview 재레이아웃

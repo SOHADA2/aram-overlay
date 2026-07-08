@@ -35,6 +35,20 @@
       { lv: 25, icon: '👑', name: '시즌의 정점', desc: '킬+어시 합 25+', milestone: true, state: 'locked', prog: null, reward: { gold: 500, title: '증바람의 증인' } },
     ] });
     if (k === 'claimPass') return async () => ({ ok: true, reward: { essence: 2 } });
+    if (k === 'getLottery') return async () => ({ ok: true, gold: 1240,
+      tiers: [{ idx: 0, name: '실버 복권', price: 70, cells: 4, matchCount: 2, skullPenalty: 0, hasSkull: false, top: 670 }, { idx: 1, name: '골드 복권', price: 200, cells: 6, matchCount: 3, skullPenalty: 10, hasSkull: true, top: 5200 }, { idx: 2, name: '프리즘 복권', price: 400, cells: 7, matchCount: 3, skullPenalty: 10, hasSkull: true, top: 8580 }],
+      free: { 0: 1, 1: 0, 2: 0 }, pity: { gold: 4.5, prism: 0 }, pending: null, skullRed: 0.47, prizeBonus: { 1: 14, 2: 14 } });
+    if (k === 'lotteryBuy') return async (tierIdx) => ({ ok: true, rec: { tierIdx: 1, free: false, emblemBonus: 14, pity: 4.5, pityConv: false, revealed: [],
+      win: { id: 'clover', emoji: '🍀', name: '클로버', gold: 320 },
+      slots: [{ id: 'sword', emoji: '⚔️', name: '검', gold: 440 }, { id: 'clover', emoji: '🍀', name: '클로버', gold: 320 }, { id: 'skull', emoji: '💀', name: '해골', gold: 0 }, { id: 'clover', emoji: '🍀', name: '클로버', gold: 320 }, { id: 'moon', emoji: '🌙', name: '달', gold: 600 }, { id: 'clover', emoji: '🍀', name: '클로버', gold: 320 }] } });
+    if (k === 'lotteryFinish') return async () => ({ ok: true, net: 324, winGold: 320, skullPenalty: 10 });
+    if (k === 'getForge') return async () => ({ ok: true, gold: 1240, count: 2, maxOwn: 15, basePrice: 150, tickets: { stable: 3, precise: 1, overload: 0 }, essence: 2,
+      emblems: [
+        { id: 1, nick: '해골', equipped: true, level: 2, power: 7, grade: '실버', slots: [{ t: 'stable', ok: true }, { t: 'overload', ok: true }, { t: 'precise', ok: false }], slotsUsed: 3, locked: false, hasLines: true, effText: '막고라 배당 +9% · 해골 감소 -23%', sellPrice: 269 },
+        { id: 2, nick: null, equipped: false, level: 1, power: 3, grade: '실버', slots: [{ t: 'precise', ok: true }], slotsUsed: 1, locked: false, hasLines: false, effText: '', sellPrice: 128 },
+      ] });
+    if (k === 'forgeEnhance') return async () => ({ ok: true, result: { ok: Math.random() < 0.6, type: 'stable', level: 3, power: 8, slotsUsed: 4, locked: false } });
+    if (k === 'forgeReroll') return async () => ({ ok: true, lines: ['winG', 'attend', 'lottoTkt'] });
     if (k === 'getRanking') return async () => ({ ok: true, ranking: RANK, myName: '애긔반달곰' });
     if (k === 'getRecords') return async () => ({ ok: true, ddVer: '14.24.1', records: RECORDS, myName: '애긔반달곰' });
     return async () => ({ ok: true });

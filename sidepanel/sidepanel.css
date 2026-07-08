@@ -150,3 +150,56 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
   background:linear-gradient(180deg,#e8c84a,#c89b3c); color:#1a1206; border:none; box-shadow:0 2px 8px rgba(200,155,60,0.3); }
 .ps-state { font-size:11px; color:var(--dim); font-weight:800; }
 .ps-state.done { color:#7fe0c8; } .ps-state.prog { font-family:'JetBrains Mono',monospace; font-size:10px; color:#ffe39a; }
+
+/* ── 🎟 복권 ── */
+.lo-card { display:flex; flex-direction:column; gap:5px; padding:10px 11px; background:rgba(255,255,255,0.03); border:1px solid var(--hair); border-radius:10px; }
+.lo-card.t1 { border-color:rgba(255,192,48,0.35); } .lo-card.t2 { border-color:rgba(224,155,255,0.4); }
+.lo-hd { display:flex; align-items:center; gap:7px; } .lo-hd b { font-size:13px; color:#e8ecf6; }
+.lo-card small { font-size:9.5px; color:var(--dim); }
+.lo-btns { display:flex; gap:6px; margin-top:2px; }
+.lo-pity { font-size:9px; font-weight:800; color:#7fe0c8; background:rgba(10,200,185,0.1); border:1px solid rgba(10,200,185,0.35); border-radius:6px; padding:1px 6px; }
+.lo-free { background:rgba(10,200,185,0.12); color:#7fe0c8; border-color:rgba(10,200,185,0.4); }
+/* 긁기 모달 */
+#sc-ov { position:fixed; inset:0; z-index:5000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(4,8,14,0.94); padding:16px; overflow-y:auto; }
+.sc-card { width:100%; max-width:300px; background:linear-gradient(165deg,#171310,#0b0906); border:1px solid var(--gold-line); border-radius:14px; padding:14px 13px; margin:auto 0 0; }
+.sc-top { display:flex; align-items:center; gap:7px; margin-bottom:10px; } .sc-top b { font-size:14px; font-weight:900; color:#ffe39a; }
+.sc-freetag { font-size:9px; font-weight:800; color:#7fe0c8; border:1px solid rgba(10,200,185,0.4); border-radius:6px; padding:1px 6px; }
+.sc-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:9px; justify-items:center; }
+.sc-grid.c6, .sc-grid.c7 { grid-template-columns:repeat(3,1fr); }
+.sc-cell { position:relative; width:76px; height:76px; border-radius:50%; overflow:hidden; background:rgba(0,0,0,0.4); border:2px solid rgba(200,170,110,0.35); }
+.sc-cell.open { border-color:var(--gold-line); }
+.sc-cell.hit { border-color:#e0483a; box-shadow:0 0 10px rgba(224,72,58,0.4); }
+.sc-sym { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:24px; line-height:1; }
+.sc-sym i { font-style:normal; font-size:9px; font-weight:800; color:#ffd98a; margin-top:3px; }
+.sc-sym.skull i { color:#ff8a7a; }
+.sc-cv { position:absolute; inset:0; width:100%; height:100%; cursor:pointer; transition:opacity .25s; touch-action:none; }
+.sc-hint { font-size:9.5px; color:var(--dim); text-align:center; margin-top:9px; }
+.sc-result { width:100%; max-width:300px; text-align:center; display:flex; flex-direction:column; gap:8px; }
+.sc-win { font-size:14px; font-weight:900; color:#ffe39a; } .sc-win b { font-size:17px; }
+.sc-lose { font-size:13px; font-weight:800; color:var(--dim); }
+.sc-win small, .sc-lose small { font-size:10px; font-weight:600; color:var(--dim); }
+.sc-btns { display:flex; gap:7px; width:100%; max-width:300px; margin-bottom:auto; }
+.btn-ghost2 { -webkit-app-region:no-drag; flex:1; cursor:pointer; padding:9px 6px; border-radius:9px; font-size:11px; font-weight:800;
+  color:var(--ink-soft); background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); }
+.btn-ghost2:hover { border-color:var(--gold-line); color:var(--ink); }
+.sc-danger { color:#ff9a8a !important; border-color:rgba(224,72,58,0.4) !important; }
+/* ── 🔨 대장간 ── */
+.fg-enh { display:flex; gap:6px; }
+.fg-tk { -webkit-app-region:no-drag; flex:1; cursor:pointer; display:flex; flex-direction:column; gap:2px; align-items:center; padding:9px 6px; border-radius:10px;
+  background:rgba(255,255,255,0.04); border:1px solid var(--tc, rgba(255,255,255,0.14)); }
+.fg-tk b { font-size:12px; color:var(--tc, #e8ecf6); } .fg-tk span { font-size:9px; color:var(--dim); }
+.fg-tk:hover { background:rgba(255,255,255,0.08); }
+.fg-tk:disabled { opacity:0.4; cursor:default; }
+.fg-tk.fg-master { border-color:rgba(232,163,61,0.5); } .fg-tk.fg-master b { color:#e8a33d; }
+.fg-em { display:flex; flex-direction:column; gap:6px; padding:9px 11px; background:rgba(255,255,255,0.03); border:1px solid var(--hair); border-radius:10px; }
+.fg-em.on { border-color:var(--gold-line); background:var(--gold-soft); }
+.fg-em-hd { display:flex; align-items:center; gap:6px; }
+.fg-em-hd b { font-size:12.5px; color:#e8ecf6; } .fg-em-hd small { font-size:9.5px; color:var(--dim); }
+.fg-em-hd em { font-style:normal; font-size:9.5px; font-weight:800; }
+.g-실버 { color:#cfd6e0; } .g-골드 { color:#ffc030; } .g-프리즘 { color:#e09bff; } .g-미강화 { color:#8a94a6; }
+.fg-eqtag { margin-left:auto; font-size:8.5px; font-weight:800; color:#ffe39a; background:rgba(240,200,90,0.14); border:1px solid rgba(240,200,90,0.4); border-radius:6px; padding:1px 6px; }
+.fg-pips { display:flex; gap:4px; }
+.fg-pips i { width:16px; height:7px; border-radius:3px; background:rgba(255,255,255,0.09); }
+.fg-pips i.ok { background:#5fbf8a; } .fg-pips i.no { background:#e0685a; }
+.fg-em-eff { font-size:9.5px; color:#ffd98a; line-height:1.5; word-break:keep-all; }
+.fg-em-btns { display:flex; gap:5px; }

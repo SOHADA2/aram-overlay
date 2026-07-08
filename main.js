@@ -1001,6 +1001,117 @@ ipcMain.handle('pass-claim', async (_e, { lv }) => {
   return { ok: r.ok, err: r.err, reward: res.reward };
 });
 
+// ── 🔨 대장간 (store.js = 홈 대장간 로직 1:1) ─────────────────────────────
+ipcMain.handle('forge-data', async () => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };
+  const heal = store.forgeHealUpd(mg.data);   // 무효 걸작 줄 자동 치유(홈 _healEmblemLines)
+  if (heal) { await fbUpdate(`gold/${mg.key}`, heal); Object.assign(mg.data, heal); }
+  const matches = await getMatchesCached();
+  const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  return { ok: true, gold, ...store.computeForgeView(mg.data) };
+});
+ipcMain.handle('forge-buy-base', async () => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const matches = await getMatchesCached();
+  const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  const res = store.forgeBuyBase(mg.data);
+  if (res.err) return { ok: false, err: res.err };
+  if (gold < res.price) return { ok: false, err: `골드 부족 (보유 ${gold}G · 필요 ${res.price}G)` };
+  const r = await fbUpdate(`gold/${mg.key}`, res.upd);
+  return { ok: r.ok, err: r.err };
+});
+ipcMain.handle('forge-enhance', async (_e, { type }) => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const res = store.forgeEnhance(mg.data, type);
+  if (res.err) return { ok: false, err: res.err };
+  const r = await fbUpdate(`gold/${mg.key}`, res.upd);
+  return { ok: r.ok, err: r.err, result: res.result };
+});
+ipcMain.handle('forge-reroll', async () => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const res = store.forgeReroll(mg.data);
+  if (res.err) return { ok: false, err: res.err };
+  const r = await fbUpdate(`gold/${mg.key}`, res.upd);
+  return { ok: r.ok, err: r.err, lines: res.lines };
+});
+ipcMain.handle('forge-sell', async (_e, { id }) => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const res = store.forgeSell(mg.data, id);
+  if (res.err) return { ok: false, err: res.err };
+  const r = await fbUpdate(`gold/${mg.key}`, res.upd);
+  return { ok: r.ok, err: r.err, refund: res.refund };
+});
+ipcMain.handle('forge-nick', async (_e, { id, nick }) => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const res = store.forgeNick(mg.data, id, nick);
+  if (res.err) return { ok: false, err: res.err };
+  const r = await fbUpdate(`gold/${mg.key}`, res.upd);
+  return { ok: r.ok, err: r.err };
+});
+// ── 🎟 스크래치 복권 (store.js = 홈 buyItem scratch_tier 분기 1:1) ──────────
+ipcMain.handle('lottery-data', async () => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };
+  const matches = await getMatchesCached();
+  const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  return { ok: true, gold, ...store.lotteryView(mg.data) };
+});
+ipcMain.handle('lottery-buy', async (_e, { tierIdx, useFree }) => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  if (!useFree) {
+    const matches = await getMatchesCached();
+    const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+    const tier = store.SCRATCH_TIERS[tierIdx];
+    if (tier && gold < tier.price) return { ok: false, err: `골드 부족 (보유 ${gold}G · 필요 ${tier.price}G)` };
+  }
+  const res = store.lotteryBuy(mg.data, tierIdx, !!useFree);
+  if (res.err) return { ok: false, err: res.err };
+  const r = await fbUpdate(`gold/${mg.key}`, res.upd);
+  if (!r.ok) return { ok: false, err: r.err || '구매 실패' };
+  return { ok: true, rec: res.rec };
+});
+ipcMain.handle('lottery-aside', async (_e, { revealed }) => {   // 보류 — 긁은 칸 저장
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false };
+  const rec = mg.data.pendingScratch_s2;
+  if (!rec || !Array.isArray(rec.slots)) return { ok: false };
+  const r = await fbUpdate(`gold/${mg.key}`, { pendingScratch_s2: { ...rec, revealed: Array.isArray(revealed) ? revealed : [] } });
+  return { ok: r.ok };
+});
+ipcMain.handle('lottery-finish', async (_e, { revealedSkulls }) => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const rec = mg.data.pendingScratch_s2;
+  if (!rec || !Array.isArray(rec.slots)) return { ok: false, err: '진행 중인 복권이 없어요' };
+  const res = store.lotteryFinish(mg.data, rec, Math.max(0, Math.floor(revealedSkulls || 0)));
+  const r = await fbUpdate(`gold/${mg.key}`, res.upd);
+  return { ok: r.ok, err: r.err, net: res.net, winGold: res.winGold, skullPenalty: res.skullPenalty };
+});
+ipcMain.handle('lottery-cancel', async () => {   // 한 획도 안 긁은 취소 = 환불
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const rec = mg.data.pendingScratch_s2;
+  if (!rec || !Array.isArray(rec.slots)) return { ok: false, err: '진행 중인 복권이 없어요' };
+  if (Array.isArray(rec.revealed) && rec.revealed.some(Boolean)) return { ok: false, err: '이미 긁기 시작해 취소할 수 없어요' };
+  const r = await fbUpdate(`gold/${mg.key}`, store.lotteryCancel(mg.data, rec).upd);
+  return { ok: r.ok, err: r.err };
+});
+ipcMain.handle('lottery-discard', async () => {
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const rec = mg.data.pendingScratch_s2;
+  if (!rec || !Array.isArray(rec.slots)) return { ok: false, err: '진행 중인 복권이 없어요' };
+  const r = await fbUpdate(`gold/${mg.key}`, store.lotteryDiscard(mg.data, rec).upd);
+  return { ok: r.ok, err: r.err };
+});
+
 ipcMain.on('session-preview', () => {              // 팀 배정 뷰 미리보기(샘플)
   sampleActive = true; userHid = false; sessionData = SAMPLE_SESSION; showOverlay();
   if (overlayWin) {

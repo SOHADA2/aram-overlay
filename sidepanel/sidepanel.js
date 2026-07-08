@@ -66,6 +66,8 @@ function renderCat(cat, silent) {
   else if (cat === 'records') renderRecords(silent);
   else if (cat === 'ranking') renderRanking(silent);
   else if (cat === 'shop') renderShop(silent);
+  else if (cat === 'lottery') renderLottery(silent);
+  else if (cat === 'forge') renderForge(silent);
   else if (cat === 'gacha') renderGacha(silent);
   else if (cat === 'pass') renderPass(silent);
   else if (cat === 'team') tbRenderList();   // 진행 중 단계(run/done)는 건드리지 않음
@@ -289,9 +291,9 @@ async function renderShop(silent) {
     `<div class="sh-sec">전투 아이템 <small>아이템 시간·인벤토리에서 활성화</small></div>${combat}`
     + `<div class="sh-sec">강화권 <small>대장간 강화용(강화는 홈페이지에서)</small></div>${tickets}`
     + `<div class="sh-row"><span class="sh-dot" style="background:#e8a33d"></span><div class="sh-info"><b>걸작의 정수</b><small>구매는 내전 만렙(LV50) 해금 — 홈페이지에서</small></div><span class="sh-own">보유 ${r.essence}</span></div>`
-    + `<div class="sh-sec">바로가기 <small>홈페이지 그대로 열림 · 같은 계정·실시간 동기화</small></div>`
-    + `<div class="sh-row"><div class="sh-info"><b>복권</b><small>실버·골드·프리즘 스크래치 긁기</small></div><button class="sh-buy" data-home="lottery">열기</button></div>`
-    + `<div class="sh-row"><div class="sh-info"><b>대장간</b><small>강철심장 ${r.emblems}개 보유 · 강화(오른)·걸작·판매</small></div><button class="sh-buy" data-home="forge">열기</button></div>`;
+    + `<div class="sh-sec">바로가기</div>`
+    + `<div class="sh-row"><div class="sh-info"><b>복권</b><small>실버·골드·프리즘 스크래치 긁기</small></div><button class="sh-buy" data-cat-go="lottery">이동</button></div>`
+    + `<div class="sh-row"><div class="sh-info"><b>대장간</b><small>강철심장 ${r.emblems}개 보유 · 강화·걸작·판매</small></div><button class="sh-buy" data-cat-go="forge">이동</button></div>`;
   el.querySelectorAll('[data-buy-item]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     const res = await window.api.itemBuy(b.dataset.buyItem);
@@ -306,7 +308,7 @@ async function renderShop(silent) {
   };
   el.querySelectorAll('[data-buy-tk]').forEach(b => b.onclick = () => buyTk(b.dataset.buyTk, 1, b));
   el.querySelectorAll('[data-buy-tk5]').forEach(b => b.onclick = () => buyTk(b.dataset.buyTk5, 5, b));
-  el.querySelectorAll('[data-home]').forEach(b => b.onclick = () => { if (window.api.openHome) window.api.openHome(b.dataset.home); });
+  el.querySelectorAll('[data-cat-go]').forEach(b => b.onclick = () => switchCat(b.dataset.catGo));
 }
 let _gaLastResults = null;   // 마지막 뽑기 결과(재렌더 시 유지)
 async function renderGacha(silent) {
@@ -380,6 +382,207 @@ async function renderPass(silent) {
       spToast(`LV${b.dataset.lv} 보상 수령! ${p.join(' · ')}`);
     } else spToast((res && res.err) || '수령 실패');
     renderPass(true);
+  });
+}
+
+// ── 🎟 스크래치 복권 (로직=main store.js·홈 1:1 / 여기선 표시·긁기만) ─────────
+async function renderLottery(silent) {
+  const el = $('lo-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
+  const r = await window.api.getLottery();
+  if (!r || !r.ok) { if (!silent) el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '복권을 불러오지 못했어요')}</div>`; return; }
+  $('lo-gold').textContent = `보유 ${r.gold}G`;
+  const pityKeyOf = { 1: 'gold', 2: 'prism' };
+  const cards = r.tiers.map(t => {
+    const free = r.free[t.idx] || 0;
+    const pity = pityKeyOf[t.idx] ? r.pity[pityKeyOf[t.idx]] : 0;
+    const bonus = t.idx > 0 ? (r.prizeBonus[t.idx] || 0) : 0;
+    return `<div class="lo-card t${t.idx}">
+      <div class="lo-hd"><b>${escH(t.name)}</b>${pity > 0 ? `<span class="lo-pity">🍀 +${pity}%p</span>` : ''}</div>
+      <small>${t.cells}칸 · ${t.matchCount}개 매칭 · 최대 ${t.top.toLocaleString()}G${t.hasSkull ? ` · 💀 -${t.skullPenalty}G` : ''}${bonus ? ` · 걸작 +${bonus}G` : ''}</small>
+      <div class="lo-btns">
+        <button class="sh-buy" data-lo-buy="${t.idx}" ${r.pending || r.gold < t.price ? 'disabled' : ''}>${t.price}G</button>
+        ${free > 0 ? `<button class="sh-buy lo-free" data-lo-free="${t.idx}" ${r.pending ? 'disabled' : ''}>무료권 ${free}장</button>` : ''}
+      </div></div>`;
+  }).join('');
+  const skullNote = r.skullRed > 0 ? `<div class="sh-note">⚒️ 장착 걸작 해골 감소 -${Math.round(r.skullRed * 100)}% 적용 중</div>` : '';
+  const resume = r.pending ? `<button class="ga-btn ten" id="lo-resume">🎟 긁던 복권 이어하기</button>` : '';
+  el.innerHTML = resume + cards + skullNote + '<div class="sh-note">홈페이지 복권과 동일한 확률·기록 (한 번에 1장)</div>';
+  el.querySelectorAll('[data-lo-buy]').forEach(b => b.onclick = () => loBuy(Number(b.dataset.loBuy), false));
+  el.querySelectorAll('[data-lo-free]').forEach(b => b.onclick = () => loBuy(Number(b.dataset.loFree), true));
+  const rs = $('lo-resume'); if (rs) rs.onclick = () => openScratch(r.pending, true);
+}
+async function loBuy(tierIdx, useFree) {
+  const res = await window.api.lotteryBuy(tierIdx, useFree);
+  if (!res || !res.ok) { spToast((res && res.err) || '구매 실패'); renderLottery(true); return; }
+  openScratch(res.rec, false);
+}
+// 긁기 모달 — 긁기 UI만 담당(정산은 main lotteryFinish=홈 공식). 해골 카운트 규칙=홈(당첨확정 후·자동공개·복원분 제외)
+function openScratch(rec, resume) {
+  document.getElementById('sc-ov')?.remove();
+  const cells = rec.slots.length;
+  const revealed = rec.slots.map((_, i) => !!(resume && Array.isArray(rec.revealed) && rec.revealed[i]));
+  let skullHits = 0, allDone = false, finished = false, anyScratch = revealed.some(Boolean);
+  const win = rec.win || null;
+  const matchNeed = (rec.tierIdx === 0) ? 2 : 3;
+  const ov = document.createElement('div'); ov.id = 'sc-ov';
+  ov.innerHTML = `<div class="sc-card">
+    <div class="sc-top"><b>${escH((['실버', '골드', '프리즘'][rec.tierIdx] || '') + ' 복권')}</b>${rec.free ? '<span class="sc-freetag">무료권</span>' : ''}${rec.pity > 0 ? `<span class="lo-pity">🍀 +${rec.pity}%p</span>` : ''}</div>
+    <div class="sc-grid c${cells}">${rec.slots.map((s, i) => `<div class="sc-cell" data-i="${i}"><span class="sc-sym${s.id === 'skull' ? ' skull' : ''}">${s.emoji}<i>${s.id === 'skull' ? '💀' : (s.gold + 'G')}</i></span><canvas class="sc-cv" width="76" height="76"></canvas></div>`).join('')}
+    <div class="sc-hint">긁어서 같은 문양 ${matchNeed}개를 맞추세요</div></div>
+    <div class="sc-result" id="sc-result"></div>
+    <div class="sc-btns">
+      <button class="btn-ghost2" id="sc-cancel" style="display:${!anyScratch && !resume ? '' : 'none'}">구매 취소</button>
+      <button class="btn-ghost2" id="sc-aside">보류 (나중에)</button>
+      <button class="btn-ghost2 sc-danger" id="sc-discard">버리기</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const cellEls = [...ov.querySelectorAll('.sc-cell')];
+  const refresh = () => {
+    if ($('sc-cancel')) $('sc-cancel').style.display = (!anyScratch && !resume) ? '' : 'none';
+    const done = revealed.filter(Boolean).length;
+    if (!allDone && win) {
+      const got = rec.slots.filter((s, i) => revealed[i] && s.id === win.id).length;
+      if (got >= matchNeed) {   // 🏆 매칭 완성 — 남은 칸 자동 공개(패널티 없음) + 받기
+        allDone = true;
+        rec.slots.forEach((_, i) => { if (!revealed[i]) reveal(i, true); });
+        showResult();
+      }
+    }
+    if (!allDone && !win && done >= cells) { allDone = true; showResult(); }   // 꽝 = 전부 긁어야 확정
+  };
+  const showResult = () => {
+    const pen = (rec.tierIdx === 0 ? 0 : 10) * skullHits;
+    const net = (win ? win.gold : 0) - pen + (rec.emblemBonus || 0);
+    $('sc-result').innerHTML = win
+      ? `<div class="sc-win">🎉 ${escH(win.name)} 당첨! <b>+${net}G</b>${pen ? ` <small>(💀 -${pen})</small>` : ''}${rec.emblemBonus ? ` <small>(걸작 +${rec.emblemBonus})</small>` : ''}${rec.pityConv ? ' <small>🍀 보정</small>' : ''}</div><button class="ps-claim" id="sc-take">받기</button>`
+      : `<div class="sc-lose">꽝… 다음 기회에${pen ? ` <small>(💀 -${pen}G)</small>` : ''}</div><button class="ps-claim" id="sc-take">확인</button>`;
+    $('sc-aside').style.display = 'none'; $('sc-discard').style.display = 'none'; if ($('sc-cancel')) $('sc-cancel').style.display = 'none';
+    $('sc-take').onclick = async () => {
+      if (finished) return; finished = true;
+      const res = await window.api.lotteryFinish(skullHits);
+      spToast(res && res.ok ? (res.net > 0 ? `+${res.net}G 획득!` : res.net < 0 ? `${res.net}G (해골 패널티)` : '기록 완료') : (res && res.err) || '정산 실패');
+      ov.remove(); renderLottery(true);
+    };
+  };
+  const reveal = (i, fromSkip) => {
+    if (revealed[i]) return;
+    revealed[i] = true;
+    const cell = cellEls[i];
+    cell.querySelector('.sc-cv').style.opacity = '0';
+    cell.classList.add('open');
+    const isSkullHit = rec.slots[i].id === 'skull' && !fromSkip && !allDone;   // 홈 revealCell 규칙
+    if (isSkullHit) { skullHits++; cell.classList.add('hit'); }
+    refresh();
+  };
+  // 긁기 — destination-out 지우기, 55% 지워지면 공개
+  cellEls.forEach((cell, i) => {
+    const cv = cell.querySelector('.sc-cv'), ctx = cv.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 76, 76);
+    g.addColorStop(0, '#8a8f9c'); g.addColorStop(0.5, '#c9cedb'); g.addColorStop(1, '#7c8290');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 76, 76);
+    ctx.fillStyle = 'rgba(40,30,14,0.45)'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('긁기', 38, 42);
+    if (revealed[i]) { cv.style.opacity = '0'; cell.classList.add('open'); return; }   // 이어하기 복원(패널티 없음)
+    let down = false;
+    const scratch = e => {
+      const r2 = cv.getBoundingClientRect();
+      const x = (e.clientX - r2.left) * (76 / r2.width), y = (e.clientY - r2.top) * (76 / r2.height);
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill();
+      anyScratch = true;
+      if ($('sc-cancel')) $('sc-cancel').style.display = 'none';
+    };
+    const check = () => {
+      if (revealed[i]) return;
+      const d = ctx.getImageData(0, 0, 76, 76).data;
+      let clear = 0;
+      for (let p = 3; p < d.length; p += 16) if (d[p] < 120) clear++;   // 4px 스텝 샘플
+      if (clear / (d.length / 16) > 0.55) reveal(i, false);
+    };
+    cv.addEventListener('pointerdown', e => { down = true; cv.setPointerCapture(e.pointerId); scratch(e); });
+    cv.addEventListener('pointermove', e => { if (down) scratch(e); });
+    cv.addEventListener('pointerup', () => { down = false; check(); });
+    cv.addEventListener('pointerleave', () => { if (down) { down = false; check(); } });
+  });
+  $('sc-cancel').onclick = async () => {
+    const res = await window.api.lotteryCancel();
+    spToast(res && res.ok ? '구매 취소 — 환불됐어요' : (res && res.err) || '취소 실패');
+    ov.remove(); renderLottery(true);
+  };
+  $('sc-aside').onclick = async () => { await window.api.lotteryAside(revealed); ov.remove(); renderLottery(true); };
+  $('sc-discard').onclick = async () => {
+    if (!confirm('이 복권을 버릴까요?\n당첨이어도 골드를 받지 못하고, 구매비는 돌려받지 않아요.')) return;
+    const res = await window.api.lotteryDiscard();
+    spToast(res && res.ok ? '버렸어요' : (res && res.err) || '실패');
+    ov.remove(); renderLottery(true);
+  };
+  refresh();   // 이어하기: 이미 매칭 완성 상태면 즉시 결과
+}
+// ── 🔨 대장간 (로직=main store.js·홈 1:1 / 오른 3D 연출 없음) ────────────────
+const FORGE_TICKETS = [
+  { id: 'stable', name: '안정', pct: '100%', color: '#5fbf8a' },
+  { id: 'precise', name: '정밀', pct: '60%', color: '#e0b341' },
+  { id: 'overload', name: '과부하', pct: '30%', color: '#e0685a' },
+];
+async function renderForge(silent) {
+  const el = $('fg-body'); if (!silent || !el.innerHTML.trim()) el.innerHTML = '<div class="cat-load">불러오는 중…</div>';
+  const r = await window.api.getForge();
+  if (!r || !r.ok) { if (!silent) el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '대장간을 불러오지 못했어요')}</div>`; return; }
+  $('fg-gold').textContent = `보유 ${r.gold}G`;
+  const eq = r.emblems.find(e => e.equipped) || null;
+  const pips = em => `<span class="fg-pips">${Array.from({ length: 5 }, (_, i) => { const s = em.slots[i]; return `<i class="${s ? (s.ok ? 'ok' : 'no') : ''}"></i>`; }).join('')}</span>`;
+  const enhance = eq ? `<div class="sh-sec">강화 — 장착: <b style="color:#ffe39a">${escH(eq.nick || '+' + eq.level)}</b> <small>성능 ${eq.power} · ${eq.grade} · 슬롯 ${eq.slotsUsed}/5${eq.locked ? ' (소진)' : ''}</small></div>
+    <div class="fg-enh">${FORGE_TICKETS.map(t => `<button class="fg-tk" data-enh="${t.id}" style="--tc:${t.color}" ${eq.locked || !(r.tickets[t.id] > 0) ? 'disabled' : ''}><b>${t.name}</b><span>${t.pct} · 보유 ${r.tickets[t.id] || 0}</span></button>`).join('')}</div>
+    <div class="fg-enh"><button class="fg-tk fg-master" id="fg-reroll" ${r.essence < 1 ? 'disabled' : ''}><b>🏆 걸작 만들기</b><span>3줄 리롤 · 정수 ${r.essence}개</span></button></div>`
+    : '<div class="sh-note">강철심장을 장착하면 강화·걸작을 할 수 있어요 (아래 목록에서 장착)</div>';
+  const list = r.emblems.length ? r.emblems.map(em => `
+    <div class="fg-em${em.equipped ? ' on' : ''}">
+      <div class="fg-em-hd"><b>${escH(em.nick || '강철심장 +' + em.level)}</b><em class="g-${em.grade}">${em.grade}</em><small>성능 ${em.power}</small>${em.equipped ? '<span class="fg-eqtag">장착 중</span>' : ''}</div>
+      ${pips(em)}
+      <div class="fg-em-eff">${em.hasLines ? escH(em.effText || '효과 없음') : '걸작 미제작 — 장착 후 걸작 만들기'}</div>
+      <div class="fg-em-btns">
+        ${em.equipped ? '' : `<button class="sh-buy" data-fg-eq="${em.id}">장착</button>`}
+        <button class="sh-buy" data-fg-nick="${em.id}">애칭</button>
+        <button class="sh-buy sc-danger" data-fg-sell="${em.id}">판매 ${em.sellPrice}G</button>
+      </div>
+    </div>`).join('') : '<div class="cat-empty">보유한 강철심장이 없어요</div>';
+  el.innerHTML = enhance
+    + `<div class="sh-sec">보유 강철심장 <small>${r.count}/${r.maxOwn} · 장착 1개만 효과</small></div>${list}`
+    + `<div class="fg-enh"><button class="fg-tk" id="fg-buy" ${r.gold < r.basePrice || r.count >= r.maxOwn ? 'disabled' : ''}><b>+ 강철심장 구매</b><span>${r.basePrice}G</span></button></div>`
+    + '<div class="sh-note">강화권·정수 구매는 상점 탭 · 홈페이지 대장간과 동일한 확률·기록</div>';
+  el.querySelectorAll('[data-enh]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const res = await window.api.forgeEnhance(b.dataset.enh);
+    if (res && res.ok) spToast(res.result.ok ? `✨ 강화 성공! 성능 ${res.result.power} (+${res.result.level})` : `💥 강화 실패… (슬롯 ${res.result.slotsUsed}/5)`);
+    else spToast((res && res.err) || '강화 실패');
+    renderForge(true);
+  });
+  const rr = $('fg-reroll'); if (rr) rr.onclick = async () => {
+    if (!confirm('걸작의 정수 1개로 효과 3줄을 전부 다시 뽑을까요?\n(기존 걸작 효과는 사라져요)')) return;
+    rr.disabled = true;
+    const res = await window.api.forgeReroll();
+    spToast(res && res.ok ? '🏆 걸작 완성!' : (res && res.err) || '실패');
+    renderForge(true);
+  };
+  const fb = $('fg-buy'); if (fb) fb.onclick = async () => {
+    fb.disabled = true;
+    const res = await window.api.forgeBuyBase();
+    spToast(res && res.ok ? '⚒️ 강철심장 획득!' : (res && res.err) || '구매 실패');
+    renderForge(true);
+  };
+  el.querySelectorAll('[data-fg-eq]').forEach(b => b.onclick = async () => { await window.api.emblemEquip(Number(b.dataset.fgEq)); renderForge(true); });
+  el.querySelectorAll('[data-fg-sell]').forEach(b => b.onclick = async () => {
+    const em = r.emblems.find(e => e.id === Number(b.dataset.fgSell));
+    if (!confirm(`이 강철심장(성능 ${em ? em.power : '?'})을 ${em ? em.sellPrice : '?'}G에 팔까요?\n강화·걸작이 함께 사라져요.`)) return;
+    const res = await window.api.forgeSell(Number(b.dataset.fgSell));
+    spToast(res && res.ok ? `💰 판매 완료 +${res.refund}G` : (res && res.err) || '판매 실패');
+    renderForge(true);
+  });
+  el.querySelectorAll('[data-fg-nick]').forEach(b => b.onclick = async () => {
+    const nick = prompt('애칭 (최대 3글자, 비우면 제거)', '');
+    if (nick === null) return;
+    const res = await window.api.forgeNick(Number(b.dataset.fgNick), nick);
+    spToast(res && res.ok ? '저장했어요' : (res && res.err) || '실패');
+    renderForge(true);
   });
 }
 
