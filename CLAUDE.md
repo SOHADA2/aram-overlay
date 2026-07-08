@@ -43,7 +43,10 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.42** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.43** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🎨 v0.1.43 사이드패널 프로필 컴팩트화 (2026-07-09)
+- 사장님: "프로필이 1열로 쭉 늘어져서 가려진다(잘린다)". → `desktop.css` `.pf-*`(사이드패널 프로필 렌더=sidepanel.js renderProfile·#pf-body) 전체 ~15~20% 축소: 이름 17→15·폼도트 20→16·스탯숫자 18→15·챔프카드 패딩/이미지 30→26·로드아웃 패딩↓·섹션 gap 8→7·hero 하단 구분선 추가. 세로 ~350→~285px로 줄여 한 화면에 들어오게. 렌더 로직·데이터 무변경(CSS만). (desktopWin=레거시 미사용이라 desktop.css 수정은 사이드패널에만 영향)
 
 ### 🟢 v0.1.42 "라이브 오류" 오탐 수정 + 업데이트↔팀 상관관계 규명 (2026-07-09)
 - **증상**: v0.1.41 배포 후 방장 배지가 **"⚠️ 라이브 오류"** 로 뜸. **진단**: config/liveOwner에 "Chrome·Windows"가 하트비트 중=**liveWin이 실제로 소유권 잡고 정상 작동**. 원인=`enterLiveMode()`가 `setLiveMode(true)`(소유권 claim 성공) **후** `updateLiveHouseGold()`(`calcLotteryHouseGold`가 goldData 미로드 시 throw 가능) 등에서 예외 → 내 코드가 그 예외를 '오류'로 오판(라이브 진입은 이미 성공인데).
