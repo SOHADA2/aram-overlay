@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('api', {
   // 🗳️ 투표
   voteCast: (mvpPick, mannerPick) => ipcRenderer.invoke('vote-cast', { mvpPick, mannerPick }),
   voteClear: () => ipcRenderer.invoke('vote-clear'),
+  forceSettle: () => ipcRenderer.invoke('force-settle'),   // 🖥️ 방장: 미투표자 있어도 지금까지의 표로 정산 마감
   // 💰 정산
   onSettlement: (cb) => ipcRenderer.on('settlement', (_e, d) => cb(d)),
   onMystats: (cb) => ipcRenderer.on('mystats', (_e, d) => cb(d)),   // 🎮 인게임 오늘전적·연승

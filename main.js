@@ -528,6 +528,7 @@ function toggleOverlay() {
 }
 
 function broadcast(channel, payload) {
+  if (channel === 'session' && payload && typeof payload === 'object') payload.isHost = !!config.isHost;   // 🗳️ 방장 여부 동봉(오버레이 '정산 마감' 버튼용)
   for (const w of [overlayWin, leftWin, desktopWin]) if (w && !w.isDestroyed()) w.webContents.send(channel, payload);
 }
 
@@ -853,6 +854,21 @@ ipcMain.handle('vote-clear', async (_e) => {   // ↩ 다시 선택(투표 취�
   await fbDelete(`session/mvp/${team}Votes/${k}`);
   await fbDelete(`session/manner/${team}Votes/${k}`);
   return { ok: true };
+});
+// 🖥️ 정산 마감 — 방장 오버레이가 숨은 라이브 계정(liveWin)에 "지금까지의 표로 정산 발행"을 지시.
+//   전원 투표해야만 자동 확정되는데, 미투표자가 있으면 '건너뛰기' 버튼이 (숨은) 라이브 계정에만 있어 아무도 못 눌러
+//   정산창이 영영 안 뜸 → 방장이 이 버튼으로 강제 마감. overlayForceSettle=현재까지의 표로 확정→저장→finalizeVotes→lastSettlement 발행.
+ipcMain.handle('force-settle', async () => {
+  if (!config.isHost) return { ok: false, err: '방장 오버레이에서만 정산을 마감할 수 있어요' };
+  if (!liveWin || liveWin.isDestroyed()) return { ok: false, err: '라이브 계정 준비 중이에요 — 방장 체크 후 잠시 뒤 다시 시도해줘요' };
+  try {
+    const r = await liveWin.webContents.executeJavaScript(
+      `(window.overlayForceSettle ? window.overlayForceSettle() : (window.skipAll && window.skipAll(), 'skip'))`
+    );
+    return { ok: true, r };
+  } catch (e) {
+    return { ok: false, err: String((e && e.message) || e) };
+  }
 });
 // 🎒 아이템 활성화 토글 — 홈 toggleItemActive 이식(items_s2 배열 재작성·상호배제 규칙). 골드 무관.
 const ITEM_CONFLICT = { s1_gamble: ['s1_lp2x'], s1_lp2x: ['s1_gamble'], s1_promo_shield: ['s1_promo_win'], s1_promo_win: ['s1_promo_shield'] };

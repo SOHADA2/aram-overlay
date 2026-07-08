@@ -8,7 +8,7 @@ const fbKeyOf = name => nn(name).replace(/\s+/g, '_');                // 홈페�
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 
-let sessionData = null, myName = '', roster = [], lpMap = {}, inGame = false, phaseLabel = '대기';
+let sessionData = null, myName = '', roster = [], lpMap = {}, inGame = false, phaseLabel = '대기', myIsHost = false;
 
 el('close').addEventListener('click', () => window.api.hideOverlay());
 
@@ -16,7 +16,7 @@ let settleData = null;   // 💰 최근 정산 {settle, lpNow}
 let itemData = null, _itemPhaseKey = 0, _itemSeenAt = 0, _itemBusy = false, _itOpen = new Set();   // 🎒 아이템 페이즈(_itOpen=펼친 아코디언)
 window.api.onState(({ inGame: ig, label }) => { inGame = !!ig; phaseLabel = label || (ig ? '게임 중' : '대기'); render(); });
 window.api.onPlayers(({ players, lpMap: m }) => { roster = players || []; if (m) lpMap = m; render(); });
-window.api.onSession(({ session, myName: mn, lpMap: m }) => { sessionData = session || null; if (mn !== undefined) myName = mn || ''; if (m) lpMap = m; render(); });
+window.api.onSession(({ session, myName: mn, lpMap: m, isHost }) => { sessionData = session || null; if (mn !== undefined) myName = mn || ''; if (m) lpMap = m; if (isHost !== undefined) myIsHost = !!isHost; render(); });
 window.api.onMyName(name => { myName = name || ''; render(); });
 window.api.onDocked(v => { document.body.classList.toggle('docked', !!v); });   // 🖥️ 도킹 중=각진 모서리
 window.api.onSettlement(d => { settleData = d || null; render(); });
@@ -194,9 +194,21 @@ function renderVoteProgress() {
   const s = sessionData, A = s.teamA || [], B = s.teamB || [];
   const done = (team, name) => !!(s.mvp[team + 'Votes'] && s.mvp[team + 'Votes'][fbKeyOf(name)]);
   const chip = (team, name) => `<span class="vt-chip ${done(team, name) ? 'ok' : ''}">${done(team, name) ? '✅' : '⏳'} ${esc(name)}</span>`;
+  const pending = A.filter(n => !done('teamA', n)).length + B.filter(n => !done('teamB', n)).length;
   el('vt-progress').innerHTML =
     `<div class="vt-prow"><span class="t-blue">1팀</span>${A.map(n => chip('teamA', n)).join('')}</div>` +
-    `<div class="vt-prow"><span class="t-red">2팀</span>${B.map(n => chip('teamB', n)).join('')}</div>`;
+    `<div class="vt-prow"><span class="t-red">2팀</span>${B.map(n => chip('teamB', n)).join('')}</div>` +
+    (myIsHost ? `<button id="vt-force" class="ui-btn-ghost vt-force">⏭️ 정산 마감${pending ? ` · 미투표 ${pending}명 무시` : ''}</button><div class="vt-force-hint">방장 전용 · 정산창이 안 뜰 때 눌러요</div>` : '');
+  if (myIsHost) {
+    const fb = el('vt-force');
+    if (fb) fb.onclick = async () => {
+      if (fb.disabled) return;
+      const t0 = fb.textContent; fb.disabled = true; fb.textContent = '정산 발행 중…';
+      const r = await window.api.forceSettle();
+      if (r && r.ok) { fb.textContent = '✅ 정산 발행 요청됨 — 곧 정산창이 떠요'; }
+      else { fb.textContent = '⚠️ ' + ((r && r.err) || '실패'); setTimeout(() => { fb.disabled = false; fb.textContent = t0; }, 2800); }
+    };
+  }
 }
 
 // ── 💰 정산 뷰 ──────────────────────────────────────────────────────────

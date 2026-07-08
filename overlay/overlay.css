@@ -136,6 +136,8 @@ footer { padding:6px 11px; font-size:9px; color:#5f6478; border-top:1px solid rg
 .vt-chip { font-family:var(--f-mono); font-size:8.5px; color:var(--dim); background:rgba(255,255,255,0.04);
   border:1px solid rgba(255,255,255,0.07); border-radius:5px; padding:2px 6px; white-space:nowrap; }
 .vt-chip.ok { color:var(--win); border-color:rgba(124,252,154,0.3); }
+.vt-force { width:100%; margin-top:9px; font-size:11px; }
+.vt-force-hint { text-align:center; font-size:8.5px; color:var(--dim); margin-top:4px; }
 
 /* ── 💰 정산 뷰 ── */
 .st-banner { text-align:center; font-size:12px; padding:8px; border-radius:10px; margin-bottom:9px;
