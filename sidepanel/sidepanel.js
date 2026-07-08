@@ -70,6 +70,12 @@ async function updateWallet() {
   if (!w || !w.ok) return;
   $('s-wallet').innerHTML = `<b class="sw-g">🪙 ${w.gold.toLocaleString()}</b>${w.claw ? `<span>🕹️ ${w.claw}</span>` : ''}${w.arena ? `<span>🗡️ ${w.arena}</span>` : ''}`;
 }
+// 소비/획득 직후 골드 즉시 반영(응답의 잔여 골드로 · fetch 없이) → 상단 재화바 바로바로 갱신
+function setWalletGold(gold) {
+  if (typeof gold !== 'number') { updateWallet(); return; }
+  const w = $('s-wallet'); const g = w && w.querySelector('.sw-g');
+  if (g) g.textContent = `🪙 ${gold.toLocaleString()}`; else updateWallet();
+}
 
 // ── 레일 전환 ────────────────────────────────────────────────────────────
 let _curCat = 'profile';
@@ -440,6 +446,7 @@ async function renderShop(silent) {
   const buyTk = async (type, qty, btn) => {
     btn.disabled = true;
     const res = await withCtrl(() => window.api.buyTicket(type, qty));
+    if (res && res.ok) setWalletGold(res.gold);   // 상단 재화바 즉시 반영
     spToast(res && res.ok ? `구매 완료 (잔여 ${res.gold}G)` : (res && res.err) || '구매 실패');
     renderShop(true);
   };
@@ -473,7 +480,7 @@ async function renderGacha(silent) {
   el.querySelectorAll('[data-pull]').forEach(b => b.onclick = async () => {
     el.querySelectorAll('[data-pull]').forEach(x => x.disabled = true);
     const res = await withCtrl(() => window.api.gachaPull(Number(b.dataset.pull)));
-    if (res && res.ok) { _gaLastResults = res.results; spToast(`뽑기 완료 (잔여 ${res.gold}G)`); }
+    if (res && res.ok) { _gaLastResults = res.results; setWalletGold(res.gold); spToast(`뽑기 완료 (잔여 ${res.gold}G)`); }
     else spToast((res && res.err) || '뽑기 실패 — 다시 시도해주세요');
     renderGacha(true);
   });
@@ -516,6 +523,7 @@ async function renderPass(silent) {
       if (res.reward.tickets) for (const t in res.reward.tickets) p.push(`강화권×${res.reward.tickets[t]}`);
       if (res.reward.essence) p.push(`정수×${res.reward.essence}`);
       if (res.reward.title) p.push(`칭호 "${res.reward.title}"`);
+      if (res.reward.gold) updateWallet();   // 골드 보상 → 상단 재화바 갱신
       spToast(`LV${b.dataset.lv} 보상 수령! ${p.join(' · ')}`);
     } else spToast((res && res.err) || '수령 실패');
     renderPass(true);
@@ -806,3 +814,5 @@ async function renderForge(silent) {
 })();
 // 현재 탭만 조용히 갱신(깜빡임 없이) — 1분마다. 팀짜기 탭은 진행 방해 않게 제외
 setInterval(() => { if ($('s-app').style.display !== 'none') { updateWallet(); if (_curCat !== 'team') renderCat(_curCat, true); } }, 60000);
+// 복권·대장간(홈 임베드)은 여기서 소비를 감지 못하니, 그 탭에 있는 동안은 재화바를 자주 갱신(내 노드만 조회라 가벼움)
+setInterval(() => { if ($('s-app').style.display !== 'none' && (_curCat === 'lottery' || _curCat === 'forge')) updateWallet(); }, 5000);

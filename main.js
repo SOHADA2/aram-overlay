@@ -321,11 +321,18 @@ async function fbUpdate(pathStr, value) {   // 노드 일부 필드만 갱신(PA
   return { ok: r.status === 200, err: r.status === 200 ? null : `쓰기 실패(HTTP ${r.status})` };
 }
 // 🎒 내 gold 노드({key, name, items_s2, ...}) 찾기 — 이름 매칭
+let _myGoldKey = null;   // 내 gold 노드 키 캐시 → 재화 갱신 시 전체 gold.json 대신 내 노드만(가벼움)
 async function fetchMyGold() {
-  const all = await fetchGoldAll();
-  if (!all || !config.myName) return null;
+  if (!config.myName) return null;
   const me = normName(config.myName);
-  for (const k in all) { if (all[k] && normName(all[k].name || '') === me) return { key: k, data: all[k] }; }
+  if (_myGoldKey) {   // 캐시된 키 → 내 노드만 가볍게 조회
+    const d = await getJson(`${FIREBASE_DB}/gold/${_myGoldKey}.json`);
+    if (d && normName(d.name || '') === me) return { key: _myGoldKey, data: d };
+    _myGoldKey = null;   // 키 어긋나면(계정 변경 등) 재스캔
+  }
+  const all = await fetchGoldAll();
+  if (!all) return null;
+  for (const k in all) { if (all[k] && normName(all[k].name || '') === me) { _myGoldKey = k; return { key: k, data: all[k] }; } }
   return null;
 }
 // 내 시즌2 LP 상태(배치/승급전 — 아이템 활성화 조건)
@@ -779,7 +786,7 @@ ipcMain.on('open-home', (_e, { goto }) => {   // 🛒 사이드패널 → 홈 �
 ipcMain.on('home-close', () => { if (homeWin) homeWin.hide(); });
 ipcMain.on('side-hide', () => { leftUserHid = true; hideLeftPanel(); });   // ◀ 내 정보 패널 닫기(트레이/도킹 재개로 다시 열림)
 ipcMain.on('set-myname', (_e, name) => {           // 내 이름(입장 ID) 저장 → 팀 판별
-  config.myName = name || ''; saveConfig();
+  config.myName = name || ''; saveConfig(); _myGoldKey = null;   // 계정 바뀌면 gold 키 캐시 무효화
   broadcast('myname', config.myName);
   broadcast('session', { session: sessionData, myName: config.myName, lpMap });
 });
