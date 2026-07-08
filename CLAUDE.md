@@ -43,7 +43,12 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.26** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.40** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🗳️ v0.1.40 방장 '정산 마감' 버튼 — 미투표자 있어 정산창 안 뜰 때 (2026-07-08·홈 v2.45.575) ★실기 미검증
+- **증상(사장님)**: "게임 완료·투표까지 했는데 정산창이 안 떠." **근본원인**: 정산(`lastSettlement`) 발행은 라이브 계정 `finalizeVotes`가 하는데, 그건 **전원 투표 시 `autoConfirmMvp`가 돌아야** 트리거됨(홈 `_tryAutoSave`=선택승자+양쪽 confirmed 필요). **한 명이라도 투표를 안 하면** 자동 확정이 안 되고, 유일한 탈출구인 홈 **'건너뛰기'(`skipAll`) 버튼은 `liveMode` 전용=숨은 라이브 웹뷰(`liveWin`)에만** 있어 **아무도 못 눌러** 정산이 영영 발행 안 됨(오버레이만으로 진행 시).
+- **수정**: 오버레이 투표 화면(`renderVoteProgress`)에 **방장 전용 '정산 마감' 버튼**. main.js `force-settle` IPC(`config.isHost`+`liveWin` 게이트)→`liveWin.webContents.executeJavaScript('window.overlayForceSettle()')`. **홈 신규 `window.overlayForceSettle`**(skipAll 옆)=이미 확정이면 재발행(`finalizeVotes`/`_tryAutoSave`), 아니면 `autoConfirmMvp()`(지금까지의 표로 확정→저장→발행). 구버전 홈이면 `window.skipAll` 폴백(수상 없이 발행). `broadcast('session')`에 `isHost` 동봉→오버레이 `myIsHost`로 버튼 노출·미투표 인원수 표시. CSS `.vt-force`/`.vt-force-hint`.
+- ⚠️**실기 미검증**: 개발환경에 게임/라이브 Firebase 없음. 사장님 실내전에서 확인 필요 — 정산 안 뜨면 방장이 투표화면 '정산 마감' 클릭 → 3초 내 정산창. liveWin 없으면(방장 미체크) 에러 토스트로 안내.
 
 ### ⚠️ v0.1.19~26 도킹 정밀화·클라 톤 통일 (최신·위 항목보다 우선)
 - **도킹 좌표 = DWM 보이는 경계**: `GetWindowRect`는 클라의 투명 리사이즈 테두리(~7px)까지 포함 → 패널이 떠 보임. 도킹 스트림 C#이 `DwmGetWindowAttribute(h,9,…)`(DWMWA_EXTENDED_FRAME_BOUNDS·실패 시 GetWindowRect 폴백)로 **실제 보이는 가장자리** 사용. + `applyDock`/`applyDockLeft`가 클라 쪽으로 **2px 겹침**(틈 완전 제거).
