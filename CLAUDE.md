@@ -51,6 +51,7 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - **클라 톤 통일(헤더/라인/배경)**: 좌·우 패널 **동일**. 헤더(`header`/`#sbar`) `min-height:80px`(클라 상단 네비바 높이·세로 가운데)·상단 `border-top:2px solid #785A28`(클라 골드 라인)·하단 `border-bottom:1px solid rgba(255,255,255,0.11)`(클라 얇은 회색 구분선). 배경 `~#061117`(클라 로비 톤·블루끼 뺀 블랙, `rgba(9,19,26,0.985)~rgba(4,12,19,0.985)` 그라데이션·sidepanel body #061117). ⚠️라인 높이(80px)·색은 **사장님 실기 스샷+색상선택기 값으로 픽셀 튜닝된 값**(추가 조정 시 이 값에서 ±).
 - **사이드패널 레일**: 상단 `.rail-logo`(⚔️) 제거(중복)·`#panel .rail{padding-top:10px}`.
 - **⚔️ 팀짜기 참가자 = 홈 member-chip 톤 + 드래그 선택(2026-07-08)**: 네이티브 체크박스 목록 → 홈페이지식 칩(커스텀 ✓박스 `.tb-check`+이름+**티어 배지** `.tb-badge`[배치 N/5·승급전·티어 NLP·S1_TIER_META 색]·티어→LP 정렬). **드래그 다중 선택**(홈 initDragSelect 이식·마우스: mousedown=누른 칩 반대상태 목표→지나는 칩 전부 적용→mouseup 저장). 데이터=main.js `pollLp`에 placementDone/promoActive/placementGames 추가(additive)+`get-players`에 lpMap 동봉(비면 1회 pollLp)+sidepanel `onPlayers`로 실시간 갱신. mock getPlayers에 lpMap 샘플.
+- **📊 프로필/기록/랭킹도 홈 톤 정합(2026-07-08)**: sidepanel.js+desktop.js(중복 렌더러 양쪽) 동일 적용 — ①프로필: 티어 배지/LP 숫자 **티어색**(TB_TIER)+**LP 바**(`.pf-lpbar`·정규전만, 배치/승급전/챌린저 제외)+승급전 `N승 N패`(profile.js lp에 promoWins/promoLosses 추가)+시너지 ★★→**N성**·그룹 이모지 제거 ②기록: **날짜**(`.rc-date` M/D HH:mm·ts 기반) ③랭킹: 티어명/LP **티어색**+행마다 **LP 바**(`.rk-bar`·챌 제외·`.rk-row`가 column+`.rk-main`로 구조 변경). mock에 tier/ts 필드 보강.
 - **⏭️ 미착수 제안**: 배경을 **클라 상태별 동적**으로(홈=더 블랙 / 사용자게임 로비=블루). 브릿지가 LCU gameflow-phase(Lobby/None) 감지 가능 → 상태 IPC로 패널 bg 전환 구현 여지(사장님 요청 시). 지금은 #061117 정적.
 
 ### 옛 요약: v0.1.10~17 (창구조 대개편·마커·z레이어·아코디언 등)

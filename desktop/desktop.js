@@ -81,6 +81,11 @@ document.querySelectorAll('.rail-btn').forEach(b => b.addEventListener('click', 
 // ── 프로필/기록/랭킹 렌더 ──────────────────────────────────────────────────
 const escH = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const SYN_NAMES = { warrior: ['검을 뽑아라', '⚔️'], marksman: ['탄환 세례', '🎯'], assassin: ['그림자 주자', '🌑'], ionia: ['검무', '🌸'], shurima: ['나는 왕이다', '👑'], tank: ['강철 심장', '🛡️'], demacia: ['여명의 의지', '☀️'], bilgewater: ['해적의 보물', '🏴‍☠️'], support: ['신성한 개입', '💚'], mage: ['유레카', '🎲'], void: ['공허 균열', '🌀'] };
+// 티어 색(홈 S1_TIER_META) — 프로필/랭킹 배지·바
+const TB_TIER = {
+  unranked: ['언랭', '#8a94a6'], bronze: ['브론즈', '#f0a040'], silver: ['실버', '#b8c8dc'], gold: ['골드', '#ffc030'],
+  platinum: ['플래티넘', '#18dece'], diamond: ['다이아', '#60a0ff'], master: ['마스터', '#c055ff'], grandmaster: ['그마', '#ff4a4a'], challenger: ['챌린저', '#ffe040'],
+};
 let _ddVer = '14.24.1';
 const ddImg = champ => `https://ddragon.leagueoflegends.com/cdn/${_ddVer}/img/champion/${String(champ || '').replace(/[^A-Za-z0-9]/g, '')}.png`;
 function champCard(cls, label, c) {
@@ -95,15 +100,18 @@ async function renderProfile() {
   if (!r || !r.ok) { el.innerHTML = `<div class="cat-empty">${escH((r && r.err) || '프로필을 불러오지 못했어요')}</div>`; return; }
   if (r.ddVer) _ddVer = r.ddVer;
   const p = r.profile, lp = p.lp, a = p.arena;
+  const tc = lp ? (TB_TIER[lp.tier] || TB_TIER.unranked)[1] : TB_TIER.unranked[1];
   const lpHtml = lp
-    ? `<span class="pf-tier">${lp.tierKr}</span><span class="pf-lpn">${lp.placementDone ? lp.lp + ' LP' : '배치 ' + lp.placementGames + '/5'}</span>${lp.promoActive ? '<span class="pf-promo">승급전</span>' : ''}`
+    ? `<span class="pf-tier" style="background:${tc}">${lp.tierKr}</span><span class="pf-lpn" style="color:${tc}">${lp.placementDone ? lp.lp + ' LP' : '배치 ' + lp.placementGames + '/5'}</span>${lp.promoActive ? `<span class="pf-promo">승급전 ${lp.promoWins}승 ${lp.promoLosses}패</span>` : ''}`
     : `<span class="pf-tier">배치</span><span class="pf-lpn">기록 없음</span>`;
+  const lpBar = (lp && lp.placementDone && !lp.promoActive && lp.tier !== 'challenger')
+    ? `<div class="pf-lpbar"><i style="width:${Math.min(100, lp.lp)}%;background:${tc}"></i></div>` : '';
   const form = a.form.length ? a.form.map(w => `<i class="pf-dot ${w ? 'w' : 'l'}">${w ? 'W' : 'L'}</i>`).join('') : '<span class="pf-dim">아직 경기 없음</span>';
-  const syn = (p.synergy && SYN_NAMES[p.synergy.sid]) ? `<div class="pf-line"><span class="pf-k">🃏 시너지</span><span class="pf-v">${SYN_NAMES[p.synergy.sid][1]} ${SYN_NAMES[p.synergy.sid][0]} <em>${'★'.repeat(p.synergy.tier)}</em></span></div>` : '';
+  const syn = (p.synergy && SYN_NAMES[p.synergy.sid]) ? `<div class="pf-line"><span class="pf-k">🃏 시너지</span><span class="pf-v">${SYN_NAMES[p.synergy.sid][0]} <em>${p.synergy.tier}성</em></span></div>` : '';
   const em = p.emblem ? `<div class="pf-line"><span class="pf-k">⚒️ 강철심장</span><span class="pf-v">${p.emblem.nick ? escH(p.emblem.nick) : '+' + p.emblem.level} · 성능 ${p.emblem.power} · <em>${p.emblem.grade}</em></span></div>` : '';
   const bd = p.buddy ? `<div class="pf-line"><span class="pf-k">🧸 단짝</span><span class="pf-v">${escH(p.buddy.champion)} · 함께 ${p.buddy.count}회${p.buddy.streakCount > 1 ? ` · ${p.buddy.streakType === 'win' ? '🔥' : '💧'}${p.buddy.streakCount}` : ''}</span></div>` : '';
   el.innerHTML =
-    `<div class="pf-hero"><div class="pf-name">${escH(p.name)}</div><div class="pf-lp">${lpHtml}</div></div>`
+    `<div class="pf-hero"><div class="pf-name">${escH(p.name)}</div><div class="pf-lp">${lpHtml}</div>${lpBar}</div>`
     + `<div class="pf-form">${form}</div>`
     + `<div class="pf-stats"><div class="pf-s"><b>${a.wins}</b><span>승</span></div><div class="pf-s"><b>${a.losses}</b><span>패</span></div><div class="pf-s"><b class="pf-wr">${a.winrate}%</b><span>승률</span></div><div class="pf-s"><b>${a.games}</b><span>경기</span></div></div>`
     + `<div class="pf-gold">누적 <b>+${a.matchGold}G</b> · 판당 <b>+${a.avgGold}G</b>${a.mvp ? ` · 🏆 ${a.mvp}` : ''}${a.manner ? ` · 💎 ${a.manner}` : ''}</div>`
@@ -121,9 +129,11 @@ async function renderRecords() {
     const res = m.mine ? (m.won ? '<span class="rc-res w">승</span>' : '<span class="rc-res l">패</span>') : '<span class="rc-res n">관전</span>';
     const kda = m.kda ? `<span class="rc-kda">${m.kda.k}/${m.kda.d}/${m.kda.a}</span>` : '';
     const champ = m.myChamp ? `<img class="rc-cimg" src="${ddImg(m.myChamp)}" onerror="this.style.visibility='hidden'">` : '';
+    const d = m.ts ? new Date(m.ts) : null;
+    const date = d ? `<span class="rc-date">${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</span>` : '';
     const tA = `<span class="rc-team ${blueWon ? 'win' : ''}">${m.teamA.map(escH).join(', ')}</span>`;
     const tB = `<span class="rc-team ${!blueWon ? 'win' : ''}">${m.teamB.map(escH).join(', ')}</span>`;
-    return `<div class="rc-row ${m.mine ? (m.won ? 'mine-w' : 'mine-l') : ''}"><div class="rc-top">${champ}${res}${kda}<span class="rc-size">${m.size}:${m.size}</span></div><div class="rc-teams">${tA}<span class="rc-vs">vs</span>${tB}</div></div>`;
+    return `<div class="rc-row ${m.mine ? (m.won ? 'mine-w' : 'mine-l') : ''}"><div class="rc-top">${champ}${res}${kda}<span class="rc-size">${m.size}:${m.size}${date ? ' · ' : ''}</span>${date}</div><div class="rc-teams">${tA}<span class="rc-vs">vs</span>${tB}</div></div>`;
   }).join('');
 }
 async function renderRanking() {
@@ -133,7 +143,9 @@ async function renderRanking() {
   const me = r.myName;
   el.innerHTML = r.ranking.map(p => {
     const medal = p.rank <= 3 ? ['🥇', '🥈', '🥉'][p.rank - 1] : `<span class="rk-num">${p.rank}</span>`;
-    return `<div class="rk-row${p.name === me ? ' mine' : ''}"><span class="rk-rank">${medal}</span><span class="rk-name">${escH(p.name)}</span><span class="rk-tier">${p.tierKr}</span><span class="rk-lp">${p.lp} LP</span></div>`;
+    const tc = (TB_TIER[p.tier] || TB_TIER.unranked)[1];
+    const bar = p.tier !== 'challenger' ? `<div class="rk-bar"><i style="width:${Math.min(100, p.lp)}%;background:${tc}"></i></div>` : '';
+    return `<div class="rk-row${p.name === me ? ' mine' : ''}"><div class="rk-main"><span class="rk-rank">${medal}</span><span class="rk-name">${escH(p.name)}</span><span class="rk-tier" style="color:${tc}">${p.tierKr}</span><span class="rk-lp" style="color:${tc}">${p.lp} LP</span></div>${bar}</div>`;
   }).join('');
 }
 

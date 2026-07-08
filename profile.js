@@ -71,7 +71,7 @@ function computeProfile(name, gold, matches, lpAll) {
   }
   return {
     name,
-    lp: lp ? { tier: lp.tier || 'unranked', tierKr: TIER_KR[lp.tier] || '배치', lp: num(lp.lp), placementDone: lp.placementDone !== false, promoActive: !!lp.promoActive, placementGames: num(lp.placementGames), placementWins: num(lp.placementWins) } : null,
+    lp: lp ? { tier: lp.tier || 'unranked', tierKr: TIER_KR[lp.tier] || '배치', lp: num(lp.lp), placementDone: lp.placementDone !== false, promoActive: !!lp.promoActive, placementGames: num(lp.placementGames), placementWins: num(lp.placementWins), promoWins: num(lp.promoWins), promoLosses: num(lp.promoLosses) } : null,
     arena: { games: st.games, wins: st.wins, losses: st.losses, winrate: st.games ? Math.round(st.wins / st.games * 100) : 0, form: st.form, matchGold, avgGold: st.games ? Math.round(matchGold / st.games) : 0, mvp: st.mvp, manner: st.manner },
     champs: { most: st.most, best: st.best },
     emblem,

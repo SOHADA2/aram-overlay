@@ -129,6 +129,8 @@ select:focus { outline:none; border-color:var(--gold); }
 .pf-tier { font-family:var(--f-mono); font-size:11px; font-weight:700; color:#1a1206; background:linear-gradient(180deg,#ffe08a,#f0c060); padding:2px 9px; border-radius:8px; }
 .pf-lpn { font-size:13px; font-weight:800; color:var(--gold); }
 .pf-promo { font-size:9px; color:#ff9a9a; border:1px solid rgba(255,120,120,0.4); border-radius:6px; padding:1px 6px; }
+.pf-lpbar { height:5px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden; margin:8px 14px 0; }
+.pf-lpbar i { display:block; height:100%; border-radius:3px; }
 .pf-form { display:flex; gap:3px; justify-content:center; flex-wrap:wrap; }
 .pf-dot { width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; font-family:var(--f-mono); }
 .pf-dot.w { background:var(--gold-soft); color:var(--gold); border:1px solid var(--gold-line); }
@@ -160,17 +162,21 @@ select:focus { outline:none; border-color:var(--gold); }
 .rc-res.w { background:var(--gold-soft); color:var(--gold); } .rc-res.l { background:rgba(255,120,120,0.13); color:#ff9a9a; } .rc-res.n { background:rgba(255,255,255,0.05); color:var(--dim); }
 .rc-kda { font-family:var(--f-mono); font-size:10px; color:#cfd4e6; }
 .rc-size { margin-left:auto; font-size:9px; color:var(--dim); }
+.rc-date { font-size:9px; color:var(--dim); font-family:var(--f-mono); flex-shrink:0; }
 .rc-teams { display:flex; align-items:center; gap:6px; font-size:9.5px; }
 .rc-team { flex:1; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .rc-team.win { color:#e8ecf6; }
 .rc-team:last-child { text-align:right; } .rc-vs { font-size:8px; color:var(--dim); flex-shrink:0; }
 
-/* 랭킹 */
-.rk-row { display:flex; align-items:center; gap:9px; padding:8px 10px; background:rgba(255,255,255,0.03); border:1px solid var(--hair); border-radius:9px; }
+/* 랭킹 — 홈 미니카드 톤(티어색 + LP 바) */
+.rk-row { display:flex; flex-direction:column; gap:6px; padding:8px 10px; background:rgba(255,255,255,0.03); border:1px solid var(--hair); border-radius:9px; }
 .rk-row.mine { border-color:var(--gold-line); background:var(--gold-soft); }
+.rk-main { display:flex; align-items:center; gap:9px; }
 .rk-rank { width:22px; text-align:center; font-size:14px; flex-shrink:0; } .rk-num { font-family:var(--f-mono); font-size:11px; color:var(--dim); font-weight:700; }
 .rk-name { flex:1; font-size:12px; font-weight:700; color:#e8ecf6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.rk-tier { font-size:9px; color:var(--dim); flex-shrink:0; }
+.rk-tier { font-size:9px; color:var(--dim); flex-shrink:0; font-weight:800; }
 .rk-lp { font-family:var(--f-mono); font-size:11px; font-weight:800; color:var(--gold); flex-shrink:0; }
+.rk-bar { height:4px; border-radius:2px; background:rgba(255,255,255,0.07); overflow:hidden; margin-left:31px; }
+.rk-bar i { display:block; height:100%; border-radius:2px; opacity:0.85; }
 
 /* ── ⚔️ 팀 짜기(방장 전용) ─────────────────────────────────────────────── */
 #teambuild { max-width: 360px; }

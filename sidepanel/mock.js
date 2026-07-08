@@ -4,12 +4,12 @@
   if (window.api) return;
 
   const cb = {};
-  const PROFILE = { name: '애긔반달곰', lp: { tierKr: '골드', lp: 76, placementDone: true, promoActive: false, placementGames: 0 }, arena: { games: 36, wins: 18, losses: 18, winrate: 50, form: [true, false, false, true, true, false, true, false, false, true], matchGold: 1910, avgGold: 53, mvp: 3, manner: 1 }, champs: { most: { champ: 'Yone', games: 12, wins: 7 }, best: { champ: 'Khazix', games: 5, wins: 4 } }, emblem: { nick: '해골', level: 2, power: 7, grade: '실버' }, synergy: { sid: 'void', tier: 2 }, buddy: { champion: 'Yone', count: 5, streakType: 'loss', streakCount: 1 } };
-  const RANK = [{ rank: 1, name: '맹독 벌꿀오소리', tierKr: '골드', lp: 80 }, { rank: 2, name: '애긔반달곰', tierKr: '골드', lp: 76 }, { rank: 3, name: '울퉁쓰', tierKr: '골드', lp: 75 }, { rank: 4, name: '나랑듀오해듀오', tierKr: '골드', lp: 75 }, { rank: 5, name: '신규회원임', tierKr: '골드', lp: 40 }, { rank: 6, name: 'ap렉사이서폿', tierKr: '다이아', lp: 12 }];
+  const PROFILE = { name: '애긔반달곰', lp: { tier: 'gold', tierKr: '골드', lp: 76, placementDone: true, promoActive: false, placementGames: 0, promoWins: 0, promoLosses: 0 }, arena: { games: 36, wins: 18, losses: 18, winrate: 50, form: [true, false, false, true, true, false, true, false, false, true], matchGold: 1910, avgGold: 53, mvp: 3, manner: 1 }, champs: { most: { champ: 'Yone', games: 12, wins: 7 }, best: { champ: 'Khazix', games: 5, wins: 4 } }, emblem: { nick: '해골', level: 2, power: 7, grade: '실버' }, synergy: { sid: 'void', tier: 2 }, buddy: { champion: 'Yone', count: 5, streakType: 'loss', streakCount: 1 } };
+  const RANK = [{ rank: 1, name: '맹독 벌꿀오소리', tier: 'gold', tierKr: '골드', lp: 80 }, { rank: 2, name: '애긔반달곰', tier: 'gold', tierKr: '골드', lp: 76 }, { rank: 3, name: '울퉁쓰', tier: 'gold', tierKr: '골드', lp: 75 }, { rank: 4, name: '나랑듀오해듀오', tier: 'gold', tierKr: '골드', lp: 75 }, { rank: 5, name: '신규회원임', tier: 'silver', tierKr: '실버', lp: 40 }, { rank: 6, name: 'ap렉사이서폿', tier: 'diamond', tierKr: '다이아', lp: 12 }];
   const RECORDS = [
-    { ts: 3, date: '07-06', teamA: ['울퉁쓰', '애긔반달곰', '신규회원임'], teamB: ['ap렉사이서폿', '맹독 벌꿀오소리', '나랑듀오해듀오'], winner: 'blue', size: 3, mine: true, won: true, myChamp: 'Yone', kda: { k: 8, d: 2, a: 11 } },
-    { ts: 2, date: '07-06', teamA: ['ap렉사이서폿', '애긔반달곰'], teamB: ['울퉁쓰', '맹독 벌꿀오소리'], winner: 'red', size: 2, mine: true, won: false, myChamp: 'Khazix', kda: { k: 3, d: 7, a: 5 } },
-    { ts: 1, date: '07-05', teamA: ['울퉁쓰', '신규회원임'], teamB: ['ap렉사이서폿', '나랑듀오해듀오'], winner: 'blue', size: 2, mine: false, won: null, myChamp: null, kda: null },
+    { ts: Date.now()-3600e3, date: '07-06', teamA: ['울퉁쓰', '애긔반달곰', '신규회원임'], teamB: ['ap렉사이서폿', '맹독 벌꿀오소리', '나랑듀오해듀오'], winner: 'blue', size: 3, mine: true, won: true, myChamp: 'Yone', kda: { k: 8, d: 2, a: 11 } },
+    { ts: Date.now()-26*3600e3, date: '07-06', teamA: ['ap렉사이서폿', '애긔반달곰'], teamB: ['울퉁쓰', '맹독 벌꿀오소리'], winner: 'red', size: 2, mine: true, won: false, myChamp: 'Khazix', kda: { k: 3, d: 7, a: 5 } },
+    { ts: Date.now()-50*3600e3, date: '07-05', teamA: ['울퉁쓰', '신규회원임'], teamB: ['ap렉사이서폿', '나랑듀오해듀오'], winner: 'blue', size: 2, mine: false, won: null, myChamp: null, kda: null },
   ];
 
   window.api = new Proxy({}, { get(_, k) {
