@@ -441,6 +441,8 @@ function createHome() {
   homeWin.setAlwaysOnTop(true, 'screen-saver');
   homeWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   homeWin.loadFile('home/home.html');
+  homeWin.on('show', () => { try { homeWin.webContents.send('home-shown'); } catch (_) {} });   // webview 뷰포트 재레이아웃 트리거
+  homeWin.on('resize', () => { try { homeWin.webContents.send('home-shown'); } catch (_) {} });
   homeWin.on('closed', () => { homeWin = null; });
 }
 function toggleHome() {
