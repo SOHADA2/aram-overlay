@@ -9,14 +9,15 @@ const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 
 let sessionData = null, myName = '', roster = [], lpMap = {}, inGame = false, phaseLabel = '대기', myIsHost = false;
+let _gamePlayed = false, _lastFormedSeen = 0;   // 🏁 이번 팀결성으로 게임이 이미 진행됐는지 — 게임 후엔 '팀 배정'으로 되돌아가지 않고 '정산 대기'로 (다음 팀결성 때 리셋)
 
 el('close').addEventListener('click', () => window.api.hideOverlay());
 
 let settleData = null;   // 💰 최근 정산 {settle, lpNow}
 let itemData = null, _itemPhaseKey = 0, _itemSeenAt = 0, _itemBusy = false, _itOpen = new Set();   // 🎒 아이템 페이즈(_itOpen=펼친 아코디언)
-window.api.onState(({ inGame: ig, label }) => { inGame = !!ig; phaseLabel = label || (ig ? '게임 중' : '대기'); render(); });
+window.api.onState(({ inGame: ig, label }) => { const was = inGame; inGame = !!ig; if (inGame && !was) _gamePlayed = true; phaseLabel = label || (ig ? '게임 중' : '대기'); render(); });
 window.api.onPlayers(({ players, lpMap: m }) => { roster = players || []; if (m) lpMap = m; render(); });
-window.api.onSession(({ session, myName: mn, lpMap: m, isHost }) => { sessionData = session || null; if (mn !== undefined) myName = mn || ''; if (m) lpMap = m; if (isHost !== undefined) myIsHost = !!isHost; render(); });
+window.api.onSession(({ session, myName: mn, lpMap: m, isHost }) => { sessionData = session || null; const f = (session && session.teamsFormedAt) || 0; if (f && f !== _lastFormedSeen) { _lastFormedSeen = f; _gamePlayed = false; } if (mn !== undefined) myName = mn || ''; if (m) lpMap = m; if (isHost !== undefined) myIsHost = !!isHost; render(); });
 window.api.onMyName(name => { myName = name || ''; render(); });
 window.api.onDocked(v => { document.body.classList.toggle('docked', !!v); });   // 🖥️ 도킹 중=각진 모서리
 window.api.onSettlement(d => { settleData = d || null; render(); });
@@ -72,6 +73,9 @@ function renderRoster() {
   el('roster-h').style.display = has ? 'block' : 'none';
   el('pcount').textContent = has ? `${roster.length}명` : '';
   el('status').style.display = has ? 'none' : 'block';
+  if (!has) el('status').innerHTML = _gamePlayed
+    ? '🏁 경기 종료<br><span class="status-sub">정산을 기다리는 중이에요.<br>잠시 후 투표·정산이 자동으로 떠요.</span>'
+    : '⚔️ 팀짜기 대기 중<br><span class="status-sub">방장이 팀을 짜거나 게임을 시작하면<br>여기에 자동으로 떠요.</span>';
   el('players').innerHTML = roster.map(p => {
     const r = lpMap[norm(p.name)];
     const lp = r ? `<span class="lp">${TIER_SHORT[r.tier] || '?'} ${r.lp}</span>` : `<span class="lp none">—</span>`;
@@ -721,7 +725,7 @@ function render() {
     renderVote(); showView('vote'); el('phase').textContent = '투표'; return;
   }
   if (inGame) { renderIngame(); showView('ingame'); el('phase').textContent = '게임 중'; return; }   // 🎮 전투 중=내 빌드+승패 LP(팀 명단 숨김)
-  if (hasTeams) { renderTeam(); showView('team'); el('phase').textContent = phaseLabel === '미리보기' ? '미리보기' : '팀 배정'; }
-  else { renderRoster(); showView('roster'); el('phase').textContent = phaseLabel; }
+  if (hasTeams && !_gamePlayed) { renderTeam(); showView('team'); el('phase').textContent = phaseLabel === '미리보기' ? '미리보기' : '팀 배정'; return; }   // 팀 결성 직후~게임 전만 '팀 배정'
+  renderRoster(); showView('roster'); el('phase').textContent = _gamePlayed ? '정산 대기' : phaseLabel;   // 게임 후엔 '팀 배정'으로 안 돌아가고 정산 대기(투표·정산 뜨면 위에서 가로챔)
 }
 render();
