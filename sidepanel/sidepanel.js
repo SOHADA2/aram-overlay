@@ -114,8 +114,11 @@ function ensureHpWv() {
   _hpWv.src = HP_URL;
   _hpWv.addEventListener('dom-ready', () => {
     _hpReady = true;
-    try {   // 홈 크롬 제거 → 복권·대장간 "그 화면만" 패널에 꽉 차게(네이티브처럼)
+    // 시즌2·막고라·대장간 인트로 팝업 억제 — 홈이 이 플래그로 "봤음" 처리(데이터 로드 후 뜨므로 여기서 심으면 안 뜸)
+    try { _hpWv.executeJavaScript("try{['s2TutorialSeen','mgIntroSeen','forgeTutSeen'].forEach(function(k){localStorage.setItem(k,'1');});}catch(e){}", false); } catch (_) {}
+    try {   // 홈 크롬 제거 + 인트로 오버레이 숨김(백업) → 복권·대장간 "그 화면만" 패널에 꽉 차게
       _hpWv.insertCSS('header,.corner-badges-left,.live-mode-bar,#my-info-bar,.nav-tabs,footer,#attend-coach,.sync-bar,.version-badge,.sp-header{display:none!important}'
+        + '.mgintro-overlay,#mgintro-popup,.s2tut-overlay{display:none!important}'   // 시즌2·막고라 인트로 모달 억제(백업)
         + 'body{padding-top:2px!important}'
         + '.sp-cat-tabs{margin-top:2px!important}'   // '아이템 상점' 타이틀 숨김 → 대장간 카테고리 탭이 상단
         + '.lh-close{display:none!important}');
