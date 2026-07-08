@@ -835,6 +835,7 @@ ipcMain.handle('vote-clear', async (_e) => {   // ↩ 다시 선택(투표 취�
 // 🎒 아이템 활성화 토글 — 홈 toggleItemActive 이식(items_s2 배열 재작성·상호배제 규칙). 골드 무관.
 const ITEM_CONFLICT = { s1_gamble: ['s1_lp2x'], s1_lp2x: ['s1_gamble'], s1_promo_shield: ['s1_promo_win'], s1_promo_win: ['s1_promo_shield'] };
 ipcMain.handle('item-toggle', async (_e, { id }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };
   const items = Array.isArray(mg.data.items_s2) ? mg.data.items_s2.map(x => ({ ...x })) : [];
@@ -869,6 +870,7 @@ async function getMatchesCached() {   // 골드 계산용 matches(수 MB) — 2�
   return _matchesCache || {};
 }
 ipcMain.handle('item-buy', async (_e, { id }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const def = BUYABLE_ITEMS[id];
   if (!def) return { ok: false, err: '구매할 수 없는 아이템이에요' };
   const mg = await fetchMyGold();
@@ -884,6 +886,7 @@ ipcMain.handle('item-buy', async (_e, { id }) => {
 });
 // ⚒️ 강철심장 장착 — 홈 emblemEquip 이식. emblemEquipped_s2 = id(또는 null=해제).
 ipcMain.handle('emblem-equip', async (_e, { id }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const arr = Array.isArray(mg.data.emblems_s2) ? mg.data.emblems_s2 : [];
@@ -899,6 +902,7 @@ const SYN_MEMBERS = {
   mage: ['Brand', 'Malzahar', 'Mel'], void: ['Khazix', 'Malzahar'],
 };
 ipcMain.handle('synergy-equip', async (_e, { sid, tier }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const members = SYN_MEMBERS[sid];
@@ -911,6 +915,46 @@ ipcMain.handle('synergy-equip', async (_e, { sid, tier }) => {
   const r = await fbUpdate(`gold/${mg.key}`, { activeSynergy_s2: newVal });
   return { ok: r.ok, err: r.err };
 });
+// ── 🔒 계정 조작 잠금(B안·홈 _ctrlGuard 대응) — 같은 계정 동시 '쓰기' 사고 방지 ──
+//    accountSession/{fbKey} = { deviceId, app, label, at, hb }. 보기는 자유·조작 권한만 한 기기.
+//    비어있음/stale(75s)/내 기기 → 자동 클레임 후 통과. 다른 기기 조작 중 → {ctrl:true} 반환(렌더러가 확인 후 takeControl).
+const ACCT_STALE = 75000;
+const acctKey = () => config.myName ? normName(config.myName).replace(/\s+/g, '_') : null;
+let _acctHb = null;
+async function claimControl() {
+  const k = acctKey(); if (!k) return;
+  await fbSet(`accountSession/${k}`, { deviceId: config.deviceId, app: 'overlay', label: '내전 오버레이', at: Date.now(), hb: Date.now() });
+  if (!_acctHb) _acctHb = setInterval(async () => {   // 하트비트 — 아직 내가 권한자일 때만 갱신
+    const kk = acctKey(); if (!kk) return;
+    try {
+      const s = await getJson(`${FIREBASE_DB}/accountSession/${kk}.json`);
+      if (s && s.deviceId === config.deviceId) await fbUpdate(`accountSession/${kk}`, { hb: Date.now() });
+    } catch (_) {}
+  }, 25000);
+}
+async function ensureControl() {
+  const k = acctKey(); if (!k) return { ok: true };   // 닉네임 없으면 기존 가드가 걸러냄
+  let s = null;
+  try { s = await getJson(`${FIREBASE_DB}/accountSession/${k}.json`); } catch (_) {}
+  const fresh = s && s.hb && (Date.now() - s.hb) < ACCT_STALE;
+  if (fresh && s.deviceId !== config.deviceId) {
+    const who = s.app === 'web' ? (s.label || '웹(브라우저)') : (s.label || '다른 기기');
+    return { ok: false, err: `🔒 지금 ${who}에서 이 계정을 조작 중이에요` };
+  }
+  if (!fresh || s.deviceId !== config.deviceId) await claimControl();   // 비었거나 stale → 인계
+  return { ok: true };
+}
+async function releaseControl() {   // 종료 시 반납 → 다른 기기가 조용히 인계
+  const k = acctKey(); if (!k) return;
+  try {
+    const s = await getJson(`${FIREBASE_DB}/accountSession/${k}.json`);
+    if (s && s.deviceId === config.deviceId) await fbSet(`accountSession/${k}`, null);
+  } catch (_) {}
+}
+app.on('before-quit', () => { releaseControl(); });
+ipcMain.handle('take-control', async () => { await claimControl(); return { ok: true }; });
+const CTRL_FAIL = c => ({ ok: false, ctrl: true, err: c.err });
+
 // ── 🛒🃏🎫 상점/가챠/패스 (store.js = 홈 로직 이식·쓰기는 홈과 동일 필드) ──────
 let _nmCache = null, _nmCacheAt = 0;
 async function getNormalMatchesCached() {   // 일반게임 기록 — 2분 캐시
@@ -936,6 +980,7 @@ ipcMain.handle('shop-data', async () => {
 });
 // 🛒 강화권 구매 — 홈 emblemBuyTicket 이식(goldSpent + goldSpendLog 기록)
 ipcMain.handle('shop-buy-ticket', async (_e, { type, qty }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const def = store.EMBLEM_TICKETS[type];
   if (!def) return { ok: false, err: '알 수 없는 강화권이에요' };
   qty = Math.max(1, Math.min(20, Math.floor(qty || 1)));
@@ -969,6 +1014,7 @@ ipcMain.handle('gacha-data', async () => {
 });
 // 🃏 뽑기 — 홈 doGachaPull 이식(확률·기록·baseline·유미 전부 동일)
 ipcMain.handle('gacha-pull', async (_e, { times }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   times = times === 10 ? 10 : 1;
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
@@ -993,6 +1039,7 @@ ipcMain.handle('pass-data', async () => {
   return { ok: true, ...store.computePassRows(mg.data.name || config.myName, mg.data, matches, nm, players) };
 });
 ipcMain.handle('pass-claim', async (_e, { lv }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const { mg, matches, nm, players } = await _passCtx();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const res = store.passClaim(mg.data.name || config.myName, mg.data, lv, matches, nm, players);
@@ -1012,6 +1059,7 @@ ipcMain.handle('forge-data', async () => {
   return { ok: true, gold, ...store.computeForgeView(mg.data) };
 });
 ipcMain.handle('forge-buy-base', async () => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const matches = await getMatchesCached();
@@ -1023,6 +1071,7 @@ ipcMain.handle('forge-buy-base', async () => {
   return { ok: r.ok, err: r.err };
 });
 ipcMain.handle('forge-enhance', async (_e, { type }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const res = store.forgeEnhance(mg.data, type);
@@ -1031,6 +1080,7 @@ ipcMain.handle('forge-enhance', async (_e, { type }) => {
   return { ok: r.ok, err: r.err, result: res.result };
 });
 ipcMain.handle('forge-reroll', async () => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const res = store.forgeReroll(mg.data);
@@ -1039,6 +1089,7 @@ ipcMain.handle('forge-reroll', async () => {
   return { ok: r.ok, err: r.err, lines: res.lines };
 });
 ipcMain.handle('forge-sell', async (_e, { id }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const res = store.forgeSell(mg.data, id);
@@ -1047,6 +1098,7 @@ ipcMain.handle('forge-sell', async (_e, { id }) => {
   return { ok: r.ok, err: r.err, refund: res.refund };
 });
 ipcMain.handle('forge-nick', async (_e, { id, nick }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const res = store.forgeNick(mg.data, id, nick);
@@ -1063,6 +1115,7 @@ ipcMain.handle('lottery-data', async () => {
   return { ok: true, gold, ...store.lotteryView(mg.data) };
 });
 ipcMain.handle('lottery-buy', async (_e, { tierIdx, useFree }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   if (!useFree) {
@@ -1086,6 +1139,7 @@ ipcMain.handle('lottery-aside', async (_e, { revealed }) => {   // 보류 — �
   return { ok: r.ok };
 });
 ipcMain.handle('lottery-finish', async (_e, { revealedSkulls }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const rec = mg.data.pendingScratch_s2;
@@ -1094,7 +1148,8 @@ ipcMain.handle('lottery-finish', async (_e, { revealedSkulls }) => {
   const r = await fbUpdate(`gold/${mg.key}`, res.upd);
   return { ok: r.ok, err: r.err, net: res.net, winGold: res.winGold, skullPenalty: res.skullPenalty };
 });
-ipcMain.handle('lottery-cancel', async () => {   // 한 획도 안 긁은 취소 = 환불
+ipcMain.handle('lottery-cancel', async () => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금   // 한 획도 안 긁은 취소 = 환불
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const rec = mg.data.pendingScratch_s2;
@@ -1104,6 +1159,7 @@ ipcMain.handle('lottery-cancel', async () => {   // 한 획도 안 긁은 취소
   return { ok: r.ok, err: r.err };
 });
 ipcMain.handle('lottery-discard', async () => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
   const rec = mg.data.pendingScratch_s2;
@@ -1137,6 +1193,7 @@ else {
   app.whenReady().then(() => {
     CONFIG_PATH = path.join(app.getPath('userData'), 'aram-overlay-config.json');
     config = loadConfig();
+    if (!config.deviceId) { config.deviceId = 'ov_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36); saveConfig(); }   // 🔒 계정 조작 잠금용 기기 ID
     createOverlay();
     createLeftPanel(); // ▶ 내 정보 패널(로그인·방장·팀짜기) = 메인 창
     createSlotWin();   // 📍 내 팀 마커(미리 로드 → 팀 배정 시 흰 박스 없이 바로 표시)

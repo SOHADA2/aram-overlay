@@ -463,6 +463,15 @@ function updateItemBar(secs) {
   bar.classList.toggle('urgent', urgent);
   const t = bar.closest('.it-timer'); if (t) t.classList.toggle('urgent', urgent);
 }
+// 🔒 조작 잠금 — 다른 기기 조작 중이면 확인 후 권한 인계 + 자동 재시도
+async function ovCtrl(fn) {
+  let r = await fn();
+  if (r && r.ctrl && confirm((r.err || '다른 기기에서 조작 중이에요') + '\n이 기기에서 조작 권한을 가져올까요?')) {
+    await window.api.takeControl();
+    r = await fn();
+  }
+  return r;
+}
 function _gd() { return (itemData && itemData.gold && itemData.gold.data) || {}; }
 function _eqEmblemId(d) {   // 현재 장착 강철심장 id(명시적 장착 없으면 성능 1위=레거시 자동장착)
   const arr = (Array.isArray(d.emblems_s2) ? d.emblems_s2 : []).filter(Boolean);
@@ -553,10 +562,10 @@ async function onItemAction(b) {
   const d = _gd(), act = b.dataset.act;
   let r;
   try {
-    if (act === 'toggle') r = await window.api.itemToggle(b.dataset.id);
-    else if (act === 'buy') r = await window.api.itemBuy(b.dataset.id);
-    else if (act === 'emblem') { const clicked = Number(b.dataset.id), cur = _eqEmblemId(d); r = await window.api.emblemEquip(clicked === cur ? null : clicked); if (r && r.ok) d.emblemEquipped_s2 = (clicked === cur ? null : clicked); }
-    else if (act === 'synergy') { const sid = b.dataset.sid, t = Number(b.dataset.tier); r = await window.api.synergyEquip(sid, t); if (r && r.ok) { const cur = d.activeSynergy_s2; d.activeSynergy_s2 = (cur && cur.sid === sid && cur.tier === t) ? null : { sid, tier: t }; } }
+    if (act === 'toggle') r = await ovCtrl(() => window.api.itemToggle(b.dataset.id));
+    else if (act === 'buy') r = await ovCtrl(() => window.api.itemBuy(b.dataset.id));
+    else if (act === 'emblem') { const clicked = Number(b.dataset.id), cur = _eqEmblemId(d); r = await ovCtrl(() => window.api.emblemEquip(clicked === cur ? null : clicked)); if (r && r.ok) d.emblemEquipped_s2 = (clicked === cur ? null : clicked); }
+    else if (act === 'synergy') { const sid = b.dataset.sid, t = Number(b.dataset.tier); r = await ovCtrl(() => window.api.synergyEquip(sid, t)); if (r && r.ok) { const cur = d.activeSynergy_s2; d.activeSynergy_s2 = (cur && cur.sid === sid && cur.tier === t) ? null : { sid, tier: t }; } }
   } catch (e) { r = { ok: false, err: String((e && e.message) || e) }; }
   _itemBusy = false; b.classList.remove('busy');
   if (!r || !r.ok) { el('it-err').textContent = '⚠️ ' + ((r && r.err) || '실패'); el('it-err').style.display = ''; return; }

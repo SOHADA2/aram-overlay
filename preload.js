@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('api', {
   lotteryFinish: (revealedSkulls) => ipcRenderer.invoke('lottery-finish', { revealedSkulls }),
   lotteryCancel: () => ipcRenderer.invoke('lottery-cancel'),
   lotteryDiscard: () => ipcRenderer.invoke('lottery-discard'),
+  takeControl: () => ipcRenderer.invoke('take-control'),                     // 🔒 계정 조작 권한 가져오기
   openHome: (goto) => ipcRenderer.send('open-home', { goto }),               // 🌐 홈 창 열기+딥링크(복권/대장간)
   onHomeGoto: (cb) => ipcRenderer.on('home-goto', (_e, t) => cb(t)),
   onHomeShown: (cb) => ipcRenderer.on('home-shown', () => cb()),             // 홈 창 표시/리사이즈 → webview 재레이아웃

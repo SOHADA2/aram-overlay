@@ -257,6 +257,15 @@ async function renderRanking(silent) {
 }
 
 // ── 🛒 상점 / 🃏 가챠 / 🎫 패스 (홈 로직 = main.js IPC·store.js) ─────────────
+// 🔒 조작 잠금 — 다른 기기 조작 중이면 확인 후 권한 인계 + 자동 재시도
+async function withCtrl(fn) {
+  let r = await fn();
+  if (r && r.ctrl && confirm((r.err || '다른 기기에서 조작 중이에요') + '\n이 기기에서 조작 권한을 가져올까요?\n(같은 순간 동시 조작 사고 방지용 — 보는 건 자유)')) {
+    await window.api.takeControl();
+    r = await fn();
+  }
+  return r;
+}
 function spToast(msg) {   // 사이드패널 간이 토스트
   let t = $('sp-toast');
   if (!t) { t = document.createElement('div'); t.id = 'sp-toast'; document.body.appendChild(t); }
@@ -296,13 +305,13 @@ async function renderShop(silent) {
     + `<div class="sh-row"><div class="sh-info"><b>대장간</b><small>강철심장 ${r.emblems}개 보유 · 강화·걸작·판매</small></div><button class="sh-buy" data-cat-go="forge">이동</button></div>`;
   el.querySelectorAll('[data-buy-item]').forEach(b => b.onclick = async () => {
     b.disabled = true;
-    const res = await window.api.itemBuy(b.dataset.buyItem);
+    const res = await withCtrl(() => window.api.itemBuy(b.dataset.buyItem));
     spToast(res && res.ok ? '구매 완료' : (res && res.err) || '구매 실패');
     renderShop(true);
   });
   const buyTk = async (type, qty, btn) => {
     btn.disabled = true;
-    const res = await window.api.buyTicket(type, qty);
+    const res = await withCtrl(() => window.api.buyTicket(type, qty));
     spToast(res && res.ok ? `구매 완료 (잔여 ${res.gold}G)` : (res && res.err) || '구매 실패');
     renderShop(true);
   };
@@ -335,14 +344,14 @@ async function renderGacha(silent) {
     + `<div class="sh-sec">시너지 <small>완성된 그룹만 · 1개 활성</small></div>${syn}`;
   el.querySelectorAll('[data-pull]').forEach(b => b.onclick = async () => {
     el.querySelectorAll('[data-pull]').forEach(x => x.disabled = true);
-    const res = await window.api.gachaPull(Number(b.dataset.pull));
+    const res = await withCtrl(() => window.api.gachaPull(Number(b.dataset.pull)));
     if (res && res.ok) { _gaLastResults = res.results; spToast(`뽑기 완료 (잔여 ${res.gold}G)`); }
     else spToast((res && res.err) || '뽑기 실패 — 다시 시도해주세요');
     renderGacha(true);
   });
   el.querySelectorAll('[data-syn]').forEach(b => b.onclick = async () => {
     b.disabled = true;
-    const res = await window.api.synergyEquip(b.dataset.syn, Number(b.dataset.tier));
+    const res = await withCtrl(() => window.api.synergyEquip(b.dataset.syn, Number(b.dataset.tier)));
     if (!res || !res.ok) spToast((res && res.err) || '변경 실패');
     renderGacha(true);
   });
@@ -372,7 +381,7 @@ async function renderPass(silent) {
     `<div class="ps-head"><div class="ps-bar"><i style="width:${Math.round(r.curLv / r.maxLv * 100)}%"></i></div><small>퀘스트를 완료해 보상을 받아요 · 한 레벨씩 순서대로</small></div>${rows}`;
   el.querySelectorAll('.ps-claim').forEach(b => b.onclick = async () => {
     b.disabled = true;
-    const res = await window.api.claimPass(Number(b.dataset.lv));
+    const res = await withCtrl(() => window.api.claimPass(Number(b.dataset.lv)));
     if (res && res.ok) {
       const p = [];
       if (res.reward.gold) p.push(`🪙${res.reward.gold}G`);
@@ -412,7 +421,7 @@ async function renderLottery(silent) {
   const rs = $('lo-resume'); if (rs) rs.onclick = () => openScratch(r.pending, true);
 }
 async function loBuy(tierIdx, useFree) {
-  const res = await window.api.lotteryBuy(tierIdx, useFree);
+  const res = await withCtrl(() => window.api.lotteryBuy(tierIdx, useFree));
   if (!res || !res.ok) { spToast((res && res.err) || '구매 실패'); renderLottery(true); return; }
   openScratch(res.rec, false);
 }
@@ -459,7 +468,7 @@ function openScratch(rec, resume) {
     $('sc-aside').style.display = 'none'; $('sc-discard').style.display = 'none'; if ($('sc-cancel')) $('sc-cancel').style.display = 'none';
     $('sc-take').onclick = async () => {
       if (finished) return; finished = true;
-      const res = await window.api.lotteryFinish(skullHits);
+      const res = await withCtrl(() => window.api.lotteryFinish(skullHits));
       spToast(res && res.ok ? (res.net > 0 ? `+${res.net}G 획득!` : res.net < 0 ? `${res.net}G (해골 패널티)` : '기록 완료') : (res && res.err) || '정산 실패');
       ov.remove(); renderLottery(true);
     };
@@ -504,14 +513,14 @@ function openScratch(rec, resume) {
     cv.addEventListener('pointerleave', () => { if (down) { down = false; check(); } });
   });
   $('sc-cancel').onclick = async () => {
-    const res = await window.api.lotteryCancel();
+    const res = await withCtrl(() => window.api.lotteryCancel());
     spToast(res && res.ok ? '구매 취소 — 환불됐어요' : (res && res.err) || '취소 실패');
     ov.remove(); renderLottery(true);
   };
   $('sc-aside').onclick = async () => { await window.api.lotteryAside(revealed); ov.remove(); renderLottery(true); };
   $('sc-discard').onclick = async () => {
     if (!confirm('이 복권을 버릴까요?\n당첨이어도 골드를 받지 못하고, 구매비는 돌려받지 않아요.')) return;
-    const res = await window.api.lotteryDiscard();
+    const res = await withCtrl(() => window.api.lotteryDiscard());
     spToast(res && res.ok ? '버렸어요' : (res && res.err) || '실패');
     ov.remove(); renderLottery(true);
   };
@@ -551,7 +560,7 @@ async function renderForge(silent) {
     + '<div class="sh-note">강화권·정수 구매는 상점 탭 · 홈페이지 대장간과 동일한 확률·기록</div>';
   el.querySelectorAll('[data-enh]').forEach(b => b.onclick = async () => {
     b.disabled = true;
-    const res = await window.api.forgeEnhance(b.dataset.enh);
+    const res = await withCtrl(() => window.api.forgeEnhance(b.dataset.enh));
     if (res && res.ok) spToast(res.result.ok ? `✨ 강화 성공! 성능 ${res.result.power} (+${res.result.level})` : `💥 강화 실패… (슬롯 ${res.result.slotsUsed}/5)`);
     else spToast((res && res.err) || '강화 실패');
     renderForge(true);
@@ -559,28 +568,28 @@ async function renderForge(silent) {
   const rr = $('fg-reroll'); if (rr) rr.onclick = async () => {
     if (!confirm('걸작의 정수 1개로 효과 3줄을 전부 다시 뽑을까요?\n(기존 걸작 효과는 사라져요)')) return;
     rr.disabled = true;
-    const res = await window.api.forgeReroll();
+    const res = await withCtrl(() => window.api.forgeReroll());
     spToast(res && res.ok ? '🏆 걸작 완성!' : (res && res.err) || '실패');
     renderForge(true);
   };
   const fb = $('fg-buy'); if (fb) fb.onclick = async () => {
     fb.disabled = true;
-    const res = await window.api.forgeBuyBase();
+    const res = await withCtrl(() => window.api.forgeBuyBase());
     spToast(res && res.ok ? '⚒️ 강철심장 획득!' : (res && res.err) || '구매 실패');
     renderForge(true);
   };
-  el.querySelectorAll('[data-fg-eq]').forEach(b => b.onclick = async () => { await window.api.emblemEquip(Number(b.dataset.fgEq)); renderForge(true); });
+  el.querySelectorAll('[data-fg-eq]').forEach(b => b.onclick = async () => { const eq = await withCtrl(() => window.api.emblemEquip(Number(b.dataset.fgEq))); if (eq && !eq.ok && eq.err && !eq.ctrl) spToast(eq.err); renderForge(true); });
   el.querySelectorAll('[data-fg-sell]').forEach(b => b.onclick = async () => {
     const em = r.emblems.find(e => e.id === Number(b.dataset.fgSell));
     if (!confirm(`이 강철심장(성능 ${em ? em.power : '?'})을 ${em ? em.sellPrice : '?'}G에 팔까요?\n강화·걸작이 함께 사라져요.`)) return;
-    const res = await window.api.forgeSell(Number(b.dataset.fgSell));
+    const res = await withCtrl(() => window.api.forgeSell(Number(b.dataset.fgSell)));
     spToast(res && res.ok ? `💰 판매 완료 +${res.refund}G` : (res && res.err) || '판매 실패');
     renderForge(true);
   });
   el.querySelectorAll('[data-fg-nick]').forEach(b => b.onclick = async () => {
     const nick = prompt('애칭 (최대 3글자, 비우면 제거)', '');
     if (nick === null) return;
-    const res = await window.api.forgeNick(Number(b.dataset.fgNick), nick);
+    const res = await withCtrl(() => window.api.forgeNick(Number(b.dataset.fgNick), nick));
     spToast(res && res.ok ? '저장했어요' : (res && res.err) || '실패');
     renderForge(true);
   });
