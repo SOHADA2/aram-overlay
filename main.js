@@ -36,7 +36,7 @@ function saveConfig() { try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(confi
 let dockedBounds = null;   // 마지막 적용 좌표(중복 setBounds 방지)
 let dockedNow = false, dockProc = null, _dockBuf = '';
 let leftWin = null, leftDockedBounds = null, leftUserHid = false;   // 🖥️ 왼쪽 도킹 = 내 정보(프로필/기록/랭킹)
-let slotWin = null, _slotSig = '', _slotTeam = 0;   // 📍 클라 로비 위 '내 팀 여기' 마커
+let slotWin = null, _slotSig = '', _slotTeam = 0, _slotDoneFormed = 0;   // 📍 클라 로비 위 '내 팀 여기' 마커 (_slotDoneFormed=게임이 시작된 팀결성 시각 → 그 판 끝나도 재등장 안 함)
 let _floating = false;   // 클라 없음 = 패널을 독립 창으로 띄운 상태
 let _lastRect = null;    // 마지막 감지된 클라 창 좌표(팀 마커 갱신용)
 let _startTs = 0;        // 시작 시각(시작 직후 잠깐은 패널 안 숨김)
@@ -153,8 +153,9 @@ function _repaintSlot() {   // 투명창이 흰 박스로 안 그려지는 Win �
 function updateSlotMarker(p) {   // p=[L,T,R,B] 원시 px(클라 감지됨)
   const t = teamOf(sessionData, config.myName);
   const side = t === 'teamA' ? 1 : t === 'teamB' ? 2 : 0;
-  // 로비 + 내 팀 있고 + 클라가 활성창일 때만(다른 창 위에 안 뜨게)
-  if (config.slot === false || inGame || !side || !clientFg) { hideSlotMarker(); return; }
+  // 로비 + 내 팀 있고 + 클라가 활성창일 때만(다른 창 위에 안 뜨게) · 이번 팀결성으로 게임이 이미 시작됐으면 숨김(게임 후 재등장 방지 — 다음 팀결성 때만 다시)
+  const startedThisFormation = !!(lastFormed && _slotDoneFormed === lastFormed);
+  if (config.slot === false || inGame || !side || !clientFg || startedThisFormation) { hideSlotMarker(); return; }
   if (!slotWin || slotWin.isDestroyed()) createSlotWin();
   const sf = (screen.getPrimaryDisplay().scaleFactor) || 1;
   const cx = p[0] / sf, cy = p[1] / sf, cw = (p[2] - p[0]) / sf, ch = (p[3] - p[1]) / sf;
@@ -162,7 +163,7 @@ function updateSlotMarker(p) {   // p=[L,T,R,B] 원시 px(클라 감지됨)
   const bw = 128, bh = 38;
   const colRight = side === 1 ? cx + cw * 0.39 : cx + cw * 0.79;
   const x = Math.round(colRight - bw - 4);
-  const y = Math.round(cy + ch * 0.195);
+  const y = Math.round(cy + ch * 0.235);   // 클라 상단에서 아래로 내린 위치(팀 컬럼 헤더에 맞춤) — 더 내리려면 이 값을 키우세요
   if (side !== _slotTeam) { _slotTeam = side; try { slotWin.webContents.send('slot-team', side); } catch (_) {} }
   const sig = `${x},${y},${side}`;
   if (sig !== _slotSig) { _slotSig = sig; slotWin.setBounds({ x, y, width: bw, height: bh }); }
@@ -581,7 +582,7 @@ async function pollGame() {
     inGame = nowIn;
     // 게임 중(전체화면)만 위로, 로비/클라에선 같은 층위(클라 활성 시에만 evalRaise가 올림)
     try { if (overlayWin && !overlayWin.isDestroyed()) overlayWin.setAlwaysOnTop(inGame, inGame ? 'screen-saver' : 'normal'); } catch (_) {}
-    if (inGame) { if (!userHid) showOverlay(); hideSlotMarker(); pollMyStats(); }   // 게임 중엔 마커 숨김 + 오늘전적 갱신
+    if (inGame) { if (!userHid) showOverlay(); _slotDoneFormed = lastFormed; hideSlotMarker(); pollMyStats(); }   // 게임 시작 → 이번 팀결성 마커 소진(끝나도 재등장 X) + 마커 숨김 + 오늘전적 갱신
     else { hideOverlay(); userHid = false; latestPlayers = []; _lastRaise = null; evalRaise(); }   // 게임 종료 → 로비 층위 재적용
     broadcast('state', { inGame, label: inGame ? '게임 중' : '대기' });
   }
