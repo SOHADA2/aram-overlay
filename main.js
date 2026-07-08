@@ -544,7 +544,7 @@ async function pollLp() {
   const data = await fetchLpPlayers();
   if (data) {
     const m = {};
-    for (const k in data) { const d = data[k]; const n = norm(d.name || k); if (n) m[n] = { tier: d.tier || '', lp: d.lp || 0 }; }
+    for (const k in data) { const d = data[k]; const n = norm(d.name || k); if (n) m[n] = { tier: d.tier || '', lp: d.lp || 0, placementDone: d.placementDone !== false, promoActive: !!d.promoActive, placementGames: d.placementGames || 0 }; }
     lpMap = m; broadcast('players', { players: latestPlayers, lpMap });
   }
 }
@@ -777,7 +777,8 @@ ipcMain.on('set-host', (_e, v) => {                // 방장(팀 짜기 진행�
 ipcMain.handle('get-players', async () => {        // 데스크톱 ID 선택용 목록 + 현재 설정
   const d = await fetchPlayers();
   const names = d ? [...new Set(Object.values(d).map(p => p && p.name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
-  return { names, myName: config.myName || '', isHost: !!config.isHost, webVersion };
+  if (!Object.keys(lpMap).length) await pollLp().catch(() => {});   // 첫 로드 시 티어 배지용 LP 확보
+  return { names, myName: config.myName || '', isHost: !!config.isHost, webVersion, lpMap };
 });
 
 // 🖼️ 챔피언 초상화용 ddragon 버전(1회 조회·캐시)

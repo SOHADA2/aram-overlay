@@ -15,7 +15,8 @@
   window.api = new Proxy({}, { get(_, k) {
     if (typeof k !== 'string') return undefined;
     if (k.startsWith('on')) return fn => { cb[k] = fn; };
-    if (k === 'getPlayers') return async () => ({ names: ['애긔반달곰', '울퉁쓰', 'ap렉사이서폿', '맹독 벌꿀오소리', '신규회원임', '나랑듀오해듀오'], myName: '애긔반달곰', isHost: true, webVersion: 'v2.45.566' });
+    if (k === 'getPlayers') return async () => ({ names: ['애긔반달곰', '울퉁쓰', 'ap렉사이서폿', '맹독 벌꿀오소리', '신규회원임', '나랑듀오해듀오'], myName: '애긔반달곰', isHost: true, webVersion: 'v2.45.566',
+      lpMap: { '애긔반달곰': { tier: 'gold', lp: 76, placementDone: true }, '울퉁쓰': { tier: 'gold', lp: 75, placementDone: true }, 'ap렉사이서폿': { tier: 'diamond', lp: 12, placementDone: true, promoActive: true }, '맹독벌꿀오소리': { tier: 'gold', lp: 80, placementDone: true }, '신규회원임': { tier: 'silver', lp: 40, placementDone: true }, '나랑듀오해듀오': { placementDone: false, placementGames: 3 } } });
     if (k === 'getProfile') return async () => ({ ok: true, ddVer: '14.24.1', profile: PROFILE });
     if (k === 'getRanking') return async () => ({ ok: true, ranking: RANK, myName: '애긔반달곰' });
     if (k === 'getRecords') return async () => ({ ok: true, ddVer: '14.24.1', records: RECORDS, myName: '애긔반달곰' });

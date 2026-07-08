@@ -56,13 +56,17 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 #cat-team .tb-modes label:has(input:checked) { background:var(--gold-soft); border-color:var(--gold-line); color:#ffe39a; }
 #cat-team .tb-modes input { position:absolute; opacity:0; width:0; height:0; }
 #cat-team .tb-list { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:11px; }
-#cat-team .tb-item { display:flex; align-items:center; gap:7px; padding:8px 9px; border-radius:9px; cursor:pointer;
-  background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.09); transition:.1s; min-width:0; }
+/* 홈 member-chip 톤: 커스텀 ✓박스 + 이름 + 티어 배지 · 드래그 다중 선택 */
+#cat-team .tb-item { display:flex; align-items:center; gap:6px; padding:7px 8px; border-radius:6px; cursor:pointer;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.09); transition:all .15s; min-width:0; overflow:hidden; user-select:none; }
 #cat-team .tb-item:hover { border-color:rgba(255,255,255,0.2); }
-#cat-team .tb-item.on { background:var(--gold-soft); border-color:var(--gold-line); }
-#cat-team .tb-item input { flex-shrink:0; margin:0; width:15px; height:15px; accent-color:var(--gold); cursor:pointer; }
-#cat-team .tb-item span { font-size:12px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#cat-team .tb-item.on span { color:#ffe8b8; }
+#cat-team .tb-item.on { background:rgba(200,168,75,0.1); border-color:var(--gold-line); }
+#cat-team .tb-check { position:relative; flex-shrink:0; width:13px; height:13px; border-radius:3px; border:1px solid rgba(255,255,255,0.25); background:rgba(0,0,0,0.3); transition:all .15s; }
+#cat-team .tb-item.on .tb-check { background:var(--gold); border-color:var(--gold); }
+#cat-team .tb-item.on .tb-check::after { content:'✓'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:9px; color:#1a1206; font-weight:800; }
+#cat-team .tb-nm { flex:1; min-width:0; font-size:12px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#cat-team .tb-item.on .tb-nm { color:#ffe8b8; }
+#cat-team .tb-badge { flex-shrink:0; font-size:8.5px; font-weight:800; font-family:'JetBrains Mono',monospace; letter-spacing:0.2px; white-space:nowrap; opacity:0.95; }
 #cat-team .btn-gold, #cat-team #tb-go { -webkit-app-region:no-drag; display:block; width:100%; cursor:pointer; padding:11px; border-radius:10px;
   font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:14px; letter-spacing:0.5px; color:#1a1206; border:none;
   background:linear-gradient(180deg,#e8c84a,#c89b3c); box-shadow:0 4px 14px rgba(200,155,60,0.3); }

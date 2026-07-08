@@ -38,7 +38,13 @@ const $ = id => document.getElementById(id);
 $('s-close').addEventListener('click', () => window.api.sideClose());
 
 // ── 로그인 상태(로그인 ↔ 내 정보) ─────────────────────────────────────────
-let _rosterNames = [], _myName = '', _isHost = false;
+let _rosterNames = [], _myName = '', _isHost = false, _lpMap = {};
+// LP 실시간 갱신(티어 배지) — 팀짜기 탭 보고 있으면 배지도 다시 그림
+if (window.api.onPlayers) window.api.onPlayers(({ lpMap }) => {
+  if (!lpMap) return;
+  _lpMap = lpMap;
+  if (_curCat === 'team' && $('tb-pick') && $('tb-pick').style.display !== 'none') tbRenderList();
+});
 function showLogin() {
   $('s-login').style.display = 'flex'; $('s-app').style.display = 'none';
   $('s-ttl').style.display = ''; $('s-me').style.display = 'none'; $('s-host-box').style.display = 'none'; $('s-change').style.display = 'none';
@@ -87,21 +93,61 @@ $('s-host').addEventListener('change', () => {
 
 // ── ⚔️ 팀 짜기(방장 전용) — 홈페이지와 완전 연동(desktop.js 이식) ───────────
 const _tbChecked = new Set(JSON.parse(localStorage.getItem('tbChecked') || '[]'));
+// 티어 메타(홈 S1_TIER_META 색·순위) — 칩 배지용
+const TB_TIER = {
+  unranked: ['언랭', '#8a94a6', -1], bronze: ['브론즈', '#f0a040', 0], silver: ['실버', '#b8c8dc', 1], gold: ['골드', '#ffc030', 2],
+  platinum: ['플래티넘', '#18dece', 3], diamond: ['다이아', '#60a0ff', 4], master: ['마스터', '#c055ff', 5], grandmaster: ['그마', '#ff4a4a', 6], challenger: ['챌린저', '#ffe040', 7],
+};
+const _tbNorm = s => String(s || '').replace(/\s+/g, '').toLowerCase();
+function _tbBadge(name) {   // 홈 member-chip-tier와 동일 분기: 배치 N/5 / 승급전 / 티어 NLP
+  const r = _lpMap[_tbNorm(name)];
+  if (!r || r.placementDone === false) return `<span class="tb-badge" style="color:#8a94a6">배치 ${(r && r.placementGames) || 0}/5</span>`;
+  const t = TB_TIER[r.tier] || TB_TIER.unranked;
+  if (r.promoActive) return `<span class="tb-badge" style="color:${t[1]}">승급전</span>`;
+  return `<span class="tb-badge" style="color:${t[1]}">${t[0]} ${r.lp || 0}LP</span>`;
+}
 function tbRenderList() {
   const list = $('tb-list');
-  list.innerHTML = _rosterNames.map(n => {
+  const sorted = [..._rosterNames].sort((a, b) => {   // 홈처럼 티어→LP 높은 순
+    const ra = _lpMap[_tbNorm(a)] || {}, rb = _lpMap[_tbNorm(b)] || {};
+    const ta = (TB_TIER[ra.tier] || TB_TIER.unranked)[2], tb2 = (TB_TIER[rb.tier] || TB_TIER.unranked)[2];
+    return tb2 - ta || (rb.lp || 0) - (ra.lp || 0) || a.localeCompare(b, 'ko');
+  });
+  list.innerHTML = sorted.map(n => {
     const e = n.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-    return `<label class="tb-item${_tbChecked.has(n) ? ' on' : ''}"><input type="checkbox" data-name="${e}"${_tbChecked.has(n) ? ' checked' : ''}><span>${e}</span></label>`;
+    return `<div class="tb-item${_tbChecked.has(n) ? ' on' : ''}" data-name="${e}"><div class="tb-check"></div><span class="tb-nm">${e}</span>${_tbBadge(n)}</div>`;
   }).join('');
-  list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
-    const name = cb.dataset.name;
-    if (cb.checked) _tbChecked.add(name); else _tbChecked.delete(name);
-    cb.closest('.tb-item').classList.toggle('on', cb.checked);
-    localStorage.setItem('tbChecked', JSON.stringify([..._tbChecked]));
-    tbSync();
-  }));
   tbSync();
 }
+// 드래그 선택(홈 initDragSelect 이식·데스크톱=마우스만): 누른 칩의 반대 상태를 목표로, 지나는 칩 전부 적용
+(function tbDragSelect() {
+  const list = $('tb-list');
+  let drag = null;   // { target: bool, done: Set }
+  const apply = chip => {
+    if (!chip || !drag || drag.done.has(chip)) return;
+    drag.done.add(chip);
+    const name = chip.dataset.name && chip.dataset.name.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+    if (!name) return;
+    if (drag.target) _tbChecked.add(name); else _tbChecked.delete(name);
+    chip.classList.toggle('on', drag.target);
+  };
+  list.addEventListener('mousedown', e => {
+    const chip = e.target.closest('.tb-item'); if (!chip) return;
+    e.preventDefault();
+    drag = { target: !chip.classList.contains('on'), done: new Set() };
+    apply(chip);
+  });
+  document.addEventListener('mousemove', e => {
+    if (!drag) return;
+    apply(document.elementFromPoint(e.clientX, e.clientY)?.closest('.tb-item'));
+  });
+  document.addEventListener('mouseup', () => {
+    if (!drag) return;
+    drag = null;
+    localStorage.setItem('tbChecked', JSON.stringify([..._tbChecked]));
+    tbSync();
+  });
+})();
 function tbSync() {
   const n = _tbChecked.size;
   $('tb-num').textContent = n;
@@ -200,8 +246,9 @@ async function renderRanking(silent) {
 // 초기 로드: 등록 플레이어 + 로그인 상태
 (async () => {
   try {
-    const { names, myName, isHost, webVersion } = await window.api.getPlayers();
+    const { names, myName, isHost, webVersion, lpMap } = await window.api.getPlayers();
     _rosterNames = names || [];
+    if (lpMap) _lpMap = lpMap;
     if (webVersion) { const e = $('s-ver'); if (e) e.textContent = '버전 ' + webVersion; }
     esel.innerHTML = '<option value="">— 아이디 선택 —</option>' +
       _rosterNames.map(n => `<option value="${n.replace(/"/g, '&quot;')}"${n === myName ? ' selected' : ''}>${n}</option>`).join('');
