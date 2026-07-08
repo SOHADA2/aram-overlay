@@ -44,7 +44,7 @@ function renderLiveStatus(s) {
   const el = $('s-live'); if (!el) return;
   if (s !== undefined) _liveStatus = s;
   if (!_isHost || !_liveStatus || _liveStatus === 'off') { el.style.display = 'none'; return; }
-  const M = { connecting: ['🔴 라이브 연결 중…', '#c8aa6e'], live: ['🔴 라이브 ON', '#7cfc9a'], noname: ['⚠️ 로그인 필요', '#e0a030'], error: ['⚠️ 라이브 오류', '#e06060'] };
+  const M = { connecting: ['🔴 라이브 연결 중…', '#c8aa6e'], live: ['🔴 라이브 ON', '#7cfc9a'], other: ['📡 다른 기기가 라이브', '#8fb8ff'], noname: ['⚠️ 로그인 필요', '#e0a030'], error: ['⚠️ 라이브 오류', '#e06060'] };
   const m = M[_liveStatus] || M.error;
   el.textContent = m[0]; el.style.color = m[1]; el.style.display = '';
 }

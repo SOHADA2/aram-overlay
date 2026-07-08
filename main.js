@@ -488,16 +488,28 @@ function showUpdateToast(version) {
 //   왜 이 방식? 저장은 이 앱에서 제일 복잡·위험(LP·골드·시너지·강철심장·승급전). 오버레이에 재구현하면 계산이 갈라지고
 //   두 번째 저장 경로 = 이중 기록 위험. 그래서 홈페이지의 "검증된 저장 코드 + 원자적 락(saveLock + gameId 마커)"을 그대로 돌린다.
 //   방장(config.isHost)일 때만 뜸. 이미 다른 라이브 계정이 있으면 홈페이지가 스스로 물러남(handleLiveKicked). 창은 숨김·backgroundThrottling off.
-let liveWin = null, _liveArmed = false, _liveStatus = 'off';   // off·connecting·live·error
+let liveWin = null, _liveArmed = false, _liveStatus = 'off';   // off·connecting·live·other·error
 function setLiveStatus(s) { if (s === _liveStatus) return; _liveStatus = s; broadcast('live-status', s); }
-async function _verifyLive() {   // 라이브 소유권 실제 획득 확인 → 상태 표시(빼앗기면 error)
+// 라이브 실제 상태 판정 — liveWin이 실제로 live-mode인지(=저장·정산 담당). enterLiveMode 반환값이 아니라 '실제 상태'로 판단.
+//   (enterLiveMode는 소유권 claim 후 updateLiveHouseGold 등 UI 함수에서 예외날 수 있는데, 그건 라이브 진입 성공과 무관 → 예외로 오류 표시하면 안 됨)
+async function _verifyLive(retry) {
+  retry = retry || 0;
   if (!liveWin || liveWin.isDestroyed()) return;
+  let st = {};
   try {
-    const on = await liveWin.webContents.executeJavaScript(
-      `(function(){try{return !!(document.body&&document.body.classList.contains('live-mode'))&&!!localStorage.getItem('liveMode')}catch(e){return false}})()`
+    const raw = await liveWin.webContents.executeJavaScript(
+      `(function(){try{return JSON.stringify({live:!!(document.body&&document.body.classList.contains('live-mode')),dev:localStorage.getItem('aram_deviceId')||''});}catch(e){return '{}'}})()`
     );
-    setLiveStatus(on ? 'live' : 'error');
-  } catch (_) {}
+    st = JSON.parse(raw);
+  } catch (_) { return; }
+  if (st.live) { setLiveStatus('live'); return; }   // liveWin이 라이브 모드 유지 = 정상(이 오버레이가 저장·정산 담당)
+  // 라이브 모드 아님 → 다른 기기가 소유 중이면 그 기기가 담당(정상) → 'other'
+  let owner = null;
+  try { owner = await getJson(`${FIREBASE_DB}/config/liveOwner.json`); } catch (_) {}
+  const fresh = owner && owner.heartbeatAt && (Date.now() - owner.heartbeatAt < 70000);
+  if (fresh && owner.deviceId && st.dev && owner.deviceId !== st.dev) { setLiveStatus('other'); return; }
+  if (retry < 3) { setTimeout(() => _verifyLive(retry + 1), 3000); return; }   // 부팅 지연일 수 있어 재시도
+  setLiveStatus('error');
 }
 function startLiveAccount() {
   if (!config.isHost) return;
@@ -511,15 +523,15 @@ function startLiveAccount() {
   liveWin.setMenuBarVisibility(false);
   liveWin.webContents.on('did-finish-load', async () => {
     if (_liveArmed) return; _liveArmed = true;
-    // 🔴 수동 홈페이지 라이브 계정과 100% 동일 진입: enterLiveMode()가 setLiveMode(true)→claimLiveOwner(소유권)+heartbeat까지 전부 수행.
-    //   (기존엔 localStorage.liveMode만 심어 '변수만 true'였고 소유권 claim·heartbeat가 안 돌아 저장·정산이 안 됐음 = 정산창 안 뜨던 근본 원인. 라이브 계정=익명이라 myName 불필요)
+    // 🔴 수동 홈페이지 라이브 계정과 100% 동일 진입: enterLiveMode()가 setLiveMode(true)→claimLiveOwner(소유권)+heartbeat 수행.
+    //   그 뒤 UI 함수(updateLiveHouseGold 등)에서 예외나도 라이브 진입 자체는 성공 → 예외 무시, 잠시 후 '실제 상태'로 판정.
     try {
-      const r = await liveWin.webContents.executeJavaScript(
-        `(function(){try{ if(typeof window.enterLiveMode!=='function') return 'noenter'; window.enterLiveMode(); return 'ok'; }catch(e){return 'err:'+((e&&e.message)||e)}})()`
+      await liveWin.webContents.executeJavaScript(
+        `(function(){try{ if(typeof window.enterLiveMode==='function') window.enterLiveMode(); else localStorage.setItem('liveMode','1'); }catch(e){} })()`
       );
-      if (r === 'ok') { setLiveStatus('live'); setTimeout(_verifyLive, 4000); }   // 4초 후 소유권 실제 획득 재확인
-      else setLiveStatus('error');
-    } catch (_) { setLiveStatus('error'); }
+    } catch (_) {}
+    setLiveStatus('connecting');
+    setTimeout(() => _verifyLive(0), 2500);
   });
   liveWin.webContents.on('did-fail-load', (_e, code) => {   // 네트워크 실패 → 8초 후 재시도
     if (code === -3) return;   // ERR_ABORTED(재로드 등) 무시

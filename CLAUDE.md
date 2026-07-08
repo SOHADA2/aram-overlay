@@ -43,7 +43,12 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.41** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.42** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🟢 v0.1.42 "라이브 오류" 오탐 수정 + 업데이트↔팀 상관관계 규명 (2026-07-09)
+- **증상**: v0.1.41 배포 후 방장 배지가 **"⚠️ 라이브 오류"** 로 뜸. **진단**: config/liveOwner에 "Chrome·Windows"가 하트비트 중=**liveWin이 실제로 소유권 잡고 정상 작동**. 원인=`enterLiveMode()`가 `setLiveMode(true)`(소유권 claim 성공) **후** `updateLiveHouseGold()`(`calcLotteryHouseGold`가 goldData 미로드 시 throw 가능) 등에서 예외 → 내 코드가 그 예외를 '오류'로 오판(라이브 진입은 이미 성공인데).
+- **수정(main.js)**: 상태를 **enterLiveMode 반환값이 아니라 '실제 상태'로 판정**. did-finish-load서 enterLiveMode 호출(예외 무시)→2.5초 후 `_verifyLive(retry)`: liveWin `document.body.classList.contains('live-mode')` true면 **'live'**, 아니면 config/liveOwner 조회해 **다른 기기(deviceId≠, hb<70초)면 'other'**(그 기기가 담당=정상), 아니면 3회 재시도 후 'error'. 사이드패널 배지에 **'other'=📡 다른 기기가 라이브** 추가.
+- **업데이트↔팀 상관관계(규명)**: `resetSession`(session active:false)은 **"🔄 재편성" 버튼에서만** 호출(로드/라이브부팅/재시작서 호출 안 됨)·saveMatch만 직접 초기화 → **확정된 팀(teamsFormedAt)은 Firebase에 남아 재시작 후 오버레이가 다시 읽어 표시**(안 날아감). **진짜 손실은 팀빌드 중(15초 아이템 타이머) 업데이트** = main.js finishTeamBuild 타이머가 오버레이 프로세스라 재시작 시 소실 → 팀 미확정. + 사이드패널 팀짜기 탭은 재시작 시 로컬 tb-* 상태 리셋돼 **빈 폼**을 보여줌(팀은 오버레이엔 떠 있는데 방장이 사이드패널만 보면 "날아간 것처럼" 보여 재빌드→덮어씀). ⏭️**미착수**: 사이드패널 팀짜기 탭이 재시작 시 확정 세션 감지해 "이미 팀 짜여있음" 표시(재빌드 방지). 지금 권장=**업데이트는 내전 사이/끝나고**(autoInstallOnAppQuit라 그냥 정상 종료 시 다음 실행에 적용).
 
 ### 🔴 v0.1.41 라이브 계정 근본 수정 — enterLiveMode()로 실제 소유권 획득 (2026-07-09) ★★정산창 안 뜨던 진짜 원인
 - **사장님 진단(정확)**: "방장 체크해도 팀짜기·투표는 뜨는데 정산창이 안 뜬다. 방장 클릭하면 그 사람이 라이브 계정으로 실제 연동돼야 하는데 안 된다. 2판은 폰/홈에서 라이브 계정을 따로 켜니까 정상 작동했다." → **오버레이의 숨은 라이브 계정(`liveWin`)이 실제 라이브 계정 역할을 못 하고 있었음**(저장·정산 담당 불능).
