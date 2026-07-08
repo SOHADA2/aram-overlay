@@ -43,9 +43,15 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.40** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.41** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
 
-### 🗳️ v0.1.40 방장 '정산 마감' 버튼 — 미투표자 있어 정산창 안 뜰 때 (2026-07-08·홈 v2.45.575) ★실기 미검증
+### 🔴 v0.1.41 라이브 계정 근본 수정 — enterLiveMode()로 실제 소유권 획득 (2026-07-09) ★★정산창 안 뜨던 진짜 원인
+- **사장님 진단(정확)**: "방장 체크해도 팀짜기·투표는 뜨는데 정산창이 안 뜬다. 방장 클릭하면 그 사람이 라이브 계정으로 실제 연동돼야 하는데 안 된다. 2판은 폰/홈에서 라이브 계정을 따로 켜니까 정상 작동했다." → **오버레이의 숨은 라이브 계정(`liveWin`)이 실제 라이브 계정 역할을 못 하고 있었음**(저장·정산 담당 불능).
+- **근본원인**: 기존 `startLiveAccount`는 `localStorage.setItem('liveMode','1')`만 심고 reload → 홈 `liveMode` **변수만 true**가 됐을 뿐, **`setLiveMode(true)`가 안 불려 `claimLiveOwner`(config/liveOwner 소유권)·`startLiveHeartbeat`가 안 돎**. 수동 라이브 계정은 `confirmLiveMode`→**`enterLiveMode()`→`setLiveMode(true)`**로 소유권+하트비트+풀 init을 하기 때문에 작동했던 것. (⚠️`enterLiveMode`는 `myName=null`로 두는 **익명** 라이브 계정 — 로그인 불필요. myName 심는 건 오답이었음)
+- **수정**: `liveWin` did-finish-load 시 `executeJavaScript('window.enterLiveMode()')` 호출 = 수동 라이브 계정과 **100% 동일 경로**(setLiveMode(true)→claimLiveOwner+heartbeat). reload·localStorage·myName 조작 제거. `stopLiveAccount`는 `window.exitLiveMode()`(소유권 즉시 반납). **방장 라이브 상태 배지**: main `setLiveStatus`(off·connecting·live·error)→`broadcast('live-status')`→preload `onLiveStatus`→사이드패널 `#s-live`(방장 옆 "🔴 라이브 ON"·4초 후 `_verifyLive`로 소유권 재확인). `get-players`에 `liveStatus` 동봉. **홈 변경 없음**(enterLiveMode 기존 함수). extBuild(팀 이중구성 방지) 그대로.
+- ⚠️**실기 미검증**: 사장님 실내전 확인 필요 — 방장 체크 시 사이드패널에 "🔴 라이브 ON" 뜨고, 오버레이만으로 저장·정산까지 완결되는지. v0.1.40 '정산 마감' 버튼은 안전망으로 유지.
+
+### 🗳️ v0.1.40 방장 '정산 마감' 버튼 — 미투표자 있어 정산창 안 뜰 때 (2026-07-08·홈 v2.45.575) ★안전망(근본원인은 v0.1.41)
 - **증상(사장님)**: "게임 완료·투표까지 했는데 정산창이 안 떠." **근본원인**: 정산(`lastSettlement`) 발행은 라이브 계정 `finalizeVotes`가 하는데, 그건 **전원 투표 시 `autoConfirmMvp`가 돌아야** 트리거됨(홈 `_tryAutoSave`=선택승자+양쪽 confirmed 필요). **한 명이라도 투표를 안 하면** 자동 확정이 안 되고, 유일한 탈출구인 홈 **'건너뛰기'(`skipAll`) 버튼은 `liveMode` 전용=숨은 라이브 웹뷰(`liveWin`)에만** 있어 **아무도 못 눌러** 정산이 영영 발행 안 됨(오버레이만으로 진행 시).
 - **수정**: 오버레이 투표 화면(`renderVoteProgress`)에 **방장 전용 '정산 마감' 버튼**. main.js `force-settle` IPC(`config.isHost`+`liveWin` 게이트)→`liveWin.webContents.executeJavaScript('window.overlayForceSettle()')`. **홈 신규 `window.overlayForceSettle`**(skipAll 옆)=이미 확정이면 재발행(`finalizeVotes`/`_tryAutoSave`), 아니면 `autoConfirmMvp()`(지금까지의 표로 확정→저장→발행). 구버전 홈이면 `window.skipAll` 폴백(수상 없이 발행). `broadcast('session')`에 `isHost` 동봉→오버레이 `myIsHost`로 버튼 노출·미투표 인원수 표시. CSS `.vt-force`/`.vt-force-hint`.
 - ⚠️**실기 미검증**: 개발환경에 게임/라이브 Firebase 없음. 사장님 실내전에서 확인 필요 — 정산 안 뜨면 방장이 투표화면 '정산 마감' 클릭 → 3초 내 정산창. liveWin 없으면(방장 미체크) 에러 토스트로 안내.

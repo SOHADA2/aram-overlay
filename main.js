@@ -488,32 +488,52 @@ function showUpdateToast(version) {
 //   왜 이 방식? 저장은 이 앱에서 제일 복잡·위험(LP·골드·시너지·강철심장·승급전). 오버레이에 재구현하면 계산이 갈라지고
 //   두 번째 저장 경로 = 이중 기록 위험. 그래서 홈페이지의 "검증된 저장 코드 + 원자적 락(saveLock + gameId 마커)"을 그대로 돌린다.
 //   방장(config.isHost)일 때만 뜸. 이미 다른 라이브 계정이 있으면 홈페이지가 스스로 물러남(handleLiveKicked). 창은 숨김·backgroundThrottling off.
-let liveWin = null, _liveArmed = false;
+let liveWin = null, _liveArmed = false, _liveStatus = 'off';   // off·connecting·live·error
+function setLiveStatus(s) { if (s === _liveStatus) return; _liveStatus = s; broadcast('live-status', s); }
+async function _verifyLive() {   // 라이브 소유권 실제 획득 확인 → 상태 표시(빼앗기면 error)
+  if (!liveWin || liveWin.isDestroyed()) return;
+  try {
+    const on = await liveWin.webContents.executeJavaScript(
+      `(function(){try{return !!(document.body&&document.body.classList.contains('live-mode'))&&!!localStorage.getItem('liveMode')}catch(e){return false}})()`
+    );
+    setLiveStatus(on ? 'live' : 'error');
+  } catch (_) {}
+}
 function startLiveAccount() {
   if (!config.isHost) return;
   if (liveWin && !liveWin.isDestroyed()) return;
   _liveArmed = false;
+  setLiveStatus('connecting');
   liveWin = new BrowserWindow({
     show: false, width: 960, height: 720, skipTaskbar: true,
     webPreferences: { backgroundThrottling: false, contextIsolation: true, nodeIntegration: false },
   });
   liveWin.setMenuBarVisibility(false);
-  liveWin.webContents.on('did-finish-load', () => {   // 첫 로드 → liveMode 심고 재로드 → 홈페이지가 라이브 계정으로 부팅
+  liveWin.webContents.on('did-finish-load', async () => {
     if (_liveArmed) return; _liveArmed = true;
-    liveWin.webContents.executeJavaScript("try{localStorage.setItem('liveMode','1')}catch(e){}")
-      .then(() => { if (liveWin && !liveWin.isDestroyed()) liveWin.reload(); }).catch(() => {});
+    // 🔴 수동 홈페이지 라이브 계정과 100% 동일 진입: enterLiveMode()가 setLiveMode(true)→claimLiveOwner(소유권)+heartbeat까지 전부 수행.
+    //   (기존엔 localStorage.liveMode만 심어 '변수만 true'였고 소유권 claim·heartbeat가 안 돌아 저장·정산이 안 됐음 = 정산창 안 뜨던 근본 원인. 라이브 계정=익명이라 myName 불필요)
+    try {
+      const r = await liveWin.webContents.executeJavaScript(
+        `(function(){try{ if(typeof window.enterLiveMode!=='function') return 'noenter'; window.enterLiveMode(); return 'ok'; }catch(e){return 'err:'+((e&&e.message)||e)}})()`
+      );
+      if (r === 'ok') { setLiveStatus('live'); setTimeout(_verifyLive, 4000); }   // 4초 후 소유권 실제 획득 재확인
+      else setLiveStatus('error');
+    } catch (_) { setLiveStatus('error'); }
   });
   liveWin.webContents.on('did-fail-load', (_e, code) => {   // 네트워크 실패 → 8초 후 재시도
     if (code === -3) return;   // ERR_ABORTED(재로드 등) 무시
+    setLiveStatus('connecting');
     setTimeout(() => { if (liveWin && !liveWin.isDestroyed()) liveWin.loadURL(WEB_URL).catch(() => {}); }, 8000);
   });
-  liveWin.on('closed', () => { liveWin = null; });
+  liveWin.on('closed', () => { liveWin = null; setLiveStatus('off'); });
   liveWin.loadURL(WEB_URL);
 }
 function stopLiveAccount() {
+  setLiveStatus('off');
   if (!liveWin || liveWin.isDestroyed()) { liveWin = null; return; }
   const w = liveWin; liveWin = null;
-  try { w.webContents.executeJavaScript("try{localStorage.removeItem('liveMode')}catch(e){}"); } catch (_) {}
+  try { w.webContents.executeJavaScript("try{ if(window.exitLiveMode) window.exitLiveMode(); else localStorage.removeItem('liveMode'); }catch(e){}"); } catch (_) {}   // exitLiveMode = 소유권 즉시 반납
   try { w.close(); } catch (_) {}   // close = beforeunload 발생 → 홈페이지가 config/liveOwner 락 반납(다음 라이브 즉시 인계)
   setTimeout(() => { try { if (!w.isDestroyed()) w.destroy(); } catch (_) {} }, 1500);   // 안전망: 안 닫히면 강제 파괴(락은 60초 stale로도 회수됨)
 }
@@ -799,7 +819,7 @@ ipcMain.handle('get-players', async () => {        // 데스크톱 ID 선택용 
   const d = await fetchPlayers();
   const names = d ? [...new Set(Object.values(d).map(p => p && p.name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
   if (!Object.keys(lpMap).length) await pollLp().catch(() => {});   // 첫 로드 시 티어 배지용 LP 확보
-  return { names, myName: config.myName || '', isHost: !!config.isHost, webVersion, lpMap };
+  return { names, myName: config.myName || '', isHost: !!config.isHost, webVersion, lpMap, liveStatus: _liveStatus };
 });
 
 // 🖼️ 챔피언 초상화용 ddragon 버전(1회 조회·캐시)

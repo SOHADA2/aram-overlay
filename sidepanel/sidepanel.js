@@ -38,7 +38,17 @@ const $ = id => document.getElementById(id);
 $('s-close').addEventListener('click', () => window.api.sideClose());
 
 // ── 로그인 상태(로그인 ↔ 내 정보) ─────────────────────────────────────────
-let _rosterNames = [], _myName = '', _isHost = false, _lpMap = {};
+let _rosterNames = [], _myName = '', _isHost = false, _lpMap = {}, _liveStatus = 'off';
+// 🔴 라이브 계정(방장 전용) 상태 배지 — 방장이면 이 오버레이가 경기 저장·정산 담당
+function renderLiveStatus(s) {
+  const el = $('s-live'); if (!el) return;
+  if (s !== undefined) _liveStatus = s;
+  if (!_isHost || !_liveStatus || _liveStatus === 'off') { el.style.display = 'none'; return; }
+  const M = { connecting: ['🔴 라이브 연결 중…', '#c8aa6e'], live: ['🔴 라이브 ON', '#7cfc9a'], noname: ['⚠️ 로그인 필요', '#e0a030'], error: ['⚠️ 라이브 오류', '#e06060'] };
+  const m = M[_liveStatus] || M.error;
+  el.textContent = m[0]; el.style.color = m[1]; el.style.display = '';
+}
+window.api.onLiveStatus(s => renderLiveStatus(s));
 // LP 실시간 갱신(티어 배지) — 팀짜기 탭 보고 있으면 배지도 다시 그림
 if (window.api.onPlayers) window.api.onPlayers(({ lpMap }) => {
   if (!lpMap) return;
@@ -59,6 +69,7 @@ function showLogged() {
   const sp = $('s-sp'); if (sp) sp.style.display = 'none';   // 재화가 flex:1로 공간 사용
   updateWallet();
   $('s-host-box').style.display = ''; $('s-host').checked = _isHost;
+  renderLiveStatus();
   $('s-change').style.display = '';
   $('s-rail-team').style.display = _isHost ? '' : 'none';
   switchCat(_isHost && _curCat === 'team' ? 'team' : 'profile');
@@ -165,6 +176,7 @@ $('s-change').addEventListener('click', showLogin);
 $('s-host').addEventListener('change', () => {
   _isHost = $('s-host').checked;
   window.api.setHost(_isHost);
+  if (!_isHost) renderLiveStatus('off');   // 방장 해제 → 배지 숨김(켜면 main이 connecting→live 브로드캐스트)
   $('s-rail-team').style.display = _isHost ? '' : 'none';
   if (_isHost) switchCat('team'); else if (_curCat === 'team') switchCat('profile');
 });
@@ -805,9 +817,10 @@ async function renderForge(silent) {
 // 초기 로드: 등록 플레이어 + 로그인 상태
 (async () => {
   try {
-    const { names, myName, isHost, webVersion, lpMap } = await window.api.getPlayers();
+    const { names, myName, isHost, webVersion, lpMap, liveStatus } = await window.api.getPlayers();
     _rosterNames = names || [];
     if (lpMap) _lpMap = lpMap;
+    if (liveStatus) _liveStatus = liveStatus;
     if (webVersion) { const e = $('s-ver'); if (e) e.textContent = '버전 ' + webVersion; }
     esel.innerHTML = '<option value="">— 아이디 선택 —</option>' +
       _rosterNames.map(n => `<option value="${n.replace(/"/g, '&quot;')}"${n === myName ? ' selected' : ''}>${n}</option>`).join('');

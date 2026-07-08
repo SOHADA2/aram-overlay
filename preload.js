@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('api', {
   onState: (cb) => ipcRenderer.on('state', (_e, d) => cb(d)),
   onSession: (cb) => ipcRenderer.on('session', (_e, d) => cb(d)),
   onMyName: (cb) => ipcRenderer.on('myname', (_e, n) => cb(n)),
+  onLiveStatus: (cb) => ipcRenderer.on('live-status', (_e, s) => cb(s)),   // 🔴 라이브 계정(방장) 상태
+
   onVersion: (cb) => ipcRenderer.on('version', (_e, v) => cb(v)),   // 🔖 홈페이지 버전(실시간 동기화)
   onDocked: (cb) => ipcRenderer.on('docked', (_e, v) => cb(v)),     // 🖥️ 클라 도킹 중이면 각진 모서리
   onSlotTeam: (cb) => ipcRenderer.on('slot-team', (_e, t) => cb(t)),  // 📍 클라 위 내 팀 마커(1/2)
