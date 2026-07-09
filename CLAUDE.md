@@ -43,7 +43,12 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.51** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.52** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🆕 v0.1.52 (2026-07-10) — 🎟🔨 복권↔대장간 전환 겹침(오른 3D 비침) 수정
+- **증상(사장님)**: "복권 켰을 때 오른 대장간이 겹쳤다가 사라지는 것 같아." **원인**: 복권/대장간은 **공유 webview 1개**(`_hpWv`·홈 임베드)를 `hpGoto`로 홈 안에서 화면만 이동(복권=`openLotteryHub` 모달 / 대장간=`gotoForgeTab` 오른 3D). 대장간을 보던 상태에서 복권 탭으로 가면 webview가 **아직 대장간 화면인 채로** `openLotteryHub()` 모달이 그 위에 열리는 사이 오른 3D가 잠깐 비쳤다 덮임.
+- **수정(sidepanel 전환 가림막)**: `#hp-embed`에 불투명 가림막 `#hp-cover`(`z-index:6`·`background:#060d14`) 추가. `hpEmbedFor`가 **이미 로드된 상태(_hpReady)에서 복권/대장간 탭 전환** 시 `hpCoverShow()`로 덮고, `hpRevealWhenReady(cat)`이 목표 화면(복권=`.lh-overlay` 존재 / 대장간=`.lh-overlay` 부재)이 뜨면 **140ms 정착 후 해제**(모달 페이드인 중 뒤 비침도 방지). 안전장치=최대 3초(30×100ms)면 무조건 해제·탭 또 바뀌면 즉시 해제. 첫 로드(_hpReady 전)는 기존 `#hp-load`가 담당(가림막 미개입). 헤드리스로 가림막이 z-index 5 콘텐츠를 완전히 덮음 확인.
+- ⚠️실기 미검증(개발환경에 Electron webview·라이브 홈 없음) — 실제 복권↔대장간 왕복 시 오른 비침 사라졌는지 확인 필요.
 
 ### 🆕 v0.1.51 (2026-07-09) — 🔶 상점 걸작의 정수 구매(내전 만렙 LV50 해금) + 🎮 게임 중 오버레이 완전 숨김
 - **🔶 걸작의 정수 상점 구매**(사장님): 그동안 오버레이 상점에선 정수가 "표시만"(구매는 홈)이었는데, 홈과 **동일한 내전 만렙(LV50) 게이트**로 구매 해금.

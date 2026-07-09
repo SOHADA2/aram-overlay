@@ -155,12 +155,27 @@ function hpGoto(target, tries) {
   if (!_hpReady) { retry(); return; }
   try { _hpWv.executeJavaScript(js, false).then(ok => { if (!ok) retry(); }).catch(retry); } catch (_) { retry(); }
 }
+// 🎟🔨 전환 가림막 — 복권↔대장간 전환 시 공유 webview가 직전 화면(오른 3D 대장간 등)을 잠깐 보이는 겹침 방지
+function hpCoverShow() { const c = $('hp-cover'); if (c) c.style.display = 'block'; }
+function hpCoverHide() { const c = $('hp-cover'); if (c) c.style.display = 'none'; }
+function hpRevealWhenReady(cat, tries) {   // 목표 화면(복권 허브 / 대장간)이 실제로 뜨면 가림막 해제(최대 3초 안전 해제)
+  tries = tries || 0;
+  if (_curCat !== cat) { hpCoverHide(); return; }   // 그새 다른 탭 → 그 전환이 관리
+  if (!_hpReady || !_hpWv) { if (tries < 30) setTimeout(() => hpRevealWhenReady(cat, tries + 1), 100); else hpCoverHide(); return; }
+  const check = cat === 'lottery'
+    ? "!!document.querySelector('.lh-overlay')"                 // 복권 허브 모달 떴는지
+    : "!document.querySelector('.lh-overlay')";                 // 대장간 = 복권 허브가 닫혔는지(shop 탭 노출)
+  const again = () => { if (tries < 30 && _curCat === cat) setTimeout(() => hpRevealWhenReady(cat, tries + 1), 100); else hpCoverHide(); };
+  const reveal = () => setTimeout(() => { if (_curCat === cat) hpCoverHide(); }, 140);   // 모달 페이드인 정착 후 해제(뒤 비침 방지)
+  try { _hpWv.executeJavaScript(check, false).then(ready => { if (ready) reveal(); else again(); }).catch(again); } catch (_) { hpCoverHide(); }
+}
 function hpEmbedFor(cat) {
   const host = $('hp-embed'); if (!host) return;
   const emb = cat === 'lottery' || cat === 'forge';
   host.style.display = emb ? 'flex' : 'none';
-  if (!emb) return;
+  if (!emb) { hpCoverHide(); return; }
   ensureHpWv();
+  if (_hpReady) { hpCoverShow(); hpRevealWhenReady(cat, 0); }   // 이미 로드됨 = 탭 전환 → 목표 화면 뜰 때까지 직전 화면(오른 등) 가림. 첫 로드는 hp-load가 담당
   if (_hpWv) { _hpWv.style.height = '99.99%'; requestAnimationFrame(() => { if (_hpWv) _hpWv.style.height = '100%'; }); }   // 뷰포트 고착 해제(홈창 quirk)
   hpGoto(cat, 0);
 }
