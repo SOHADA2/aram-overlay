@@ -36,6 +36,7 @@ const $ = id => document.getElementById(id);
 })();
 
 $('s-close').addEventListener('click', () => window.api.sideClose());
+$('s-min').addEventListener('click', () => window.api.sideMinimize());
 
 // ── 로그인 상태(로그인 ↔ 내 정보) ─────────────────────────────────────────
 let _rosterNames = [], _myName = '', _isHost = false, _lpMap = {}, _liveStatus = 'off';

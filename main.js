@@ -22,6 +22,7 @@ const bridge = require('./bridge');                    // 🔌 내장 브릿지(
 
 let overlayWin = null, desktopWin = null, homeWin = null, tray = null;
 let inGame = false, userHid = false, lpMap = {}, latestPlayers = [];
+let overlayMinimized = false, leftMinimized = false;   // ◀ 최소화(작업표시줄로 내림) 상태 — show 루프가 다시 띄우지 않게
 let sampleActive = false;   // 미리보기(게임 없이 모양 보기) 중이면 폴링이 안 지움
 let sessionData = null, lastFormed = 0;   // 🧩 홈페이지 session(팀 배정) 상태
 let config = {};            // { myName }  — 내 이름(팀 판별용)
@@ -186,8 +187,8 @@ function applyRaise() {
     if (allowed) { if (!win.isVisible()) win.showInactive(); }
     else if (win.isVisible()) win.hide();   // 사용자가 직접 숨긴(userHid/leftUserHid) 경우만 숨김
   };
-  show(overlayWin, !userHid && !sampleActive);
-  show(leftWin, config.sidePanel !== false && !leftUserHid);
+  show(overlayWin, !userHid && !sampleActive && !overlayMinimized);
+  show(leftWin, config.sidePanel !== false && !leftUserHid && !leftMinimized);
   // 📍 마커는 클라가 '활성창'일 때만(도킹 중·다른 앱 위엔 안 뜨게)
   if (!_floating && clientFg && _lastRect) updateSlotMarker(_lastRect); else hideSlotMarker();
 }
@@ -446,6 +447,7 @@ function createOverlay() {
   overlayWin.on('focus', () => { _ovFocus = true; setPanelFg(); });   // 패널 클릭=활성 유지
   overlayWin.on('blur', () => { _ovFocus = false; setPanelFg(); });
   overlayWin.on('closed', () => { overlayWin = null; _ovFocus = false; setPanelFg(); });
+  overlayWin.on('restore', () => { overlayMinimized = false; try { overlayWin.setSkipTaskbar(true); } catch (_) {} });   // 작업표시줄서 복원 → 다시 오버레이 층위로
 }
 function createDesktop() {
   desktopWin = new BrowserWindow({
@@ -478,6 +480,7 @@ function createLeftPanel() {
   leftWin.on('focus', () => { _lfFocus = true; setPanelFg(); });   // 패널 클릭=활성 유지
   leftWin.on('blur', () => { _lfFocus = false; setPanelFg(); });
   leftWin.on('closed', () => { leftWin = null; _lfFocus = false; setPanelFg(); });
+  leftWin.on('restore', () => { leftMinimized = false; try { leftWin.setSkipTaskbar(true); } catch (_) {} });   // 작업표시줄서 복원
 }
 // 데스크톱(메인) 창 표시 — 생성 안 됐으면 만들고, 숨어있으면 띄워서 앞으로 (레거시·트레이 폴백용)
 function showDesktop() {
@@ -514,7 +517,7 @@ function floatPanels() {   // 클라 없음/도킹 끔 → 독립 창으로 표�
 function showMainPanel() {   // 트레이/재실행 → 내 정보 패널(메인)을 앞으로
   if (!leftWin || leftWin.isDestroyed()) createLeftPanel();
   if (config.sidePanel === false) { config.sidePanel = true; saveConfig(); refreshTrayMenu(); }
-  leftUserHid = false;
+  leftUserHid = false; leftMinimized = false; try { leftWin.setSkipTaskbar(true); } catch (_) {}
   if (!leftWin.isVisible() && _floating) leftWin.setBounds(standaloneBounds('right'));   // 플로팅일 때만 위치 리셋
   leftWin.show(); leftWin.moveTop(); leftWin.focus();
 }
@@ -643,7 +646,7 @@ function stopLiveAccount() {
 }
 
 // ── 오버레이 표시/숨김 ────────────────────────────────────────────────────
-function showOverlay() { if (overlayWin && !overlayWin.isVisible()) overlayWin.showInactive(); } // 게임 포커스 뺏지 않게
+function showOverlay() { overlayMinimized = false; if (overlayWin) { try { overlayWin.setSkipTaskbar(true); } catch (_) {} if (!overlayWin.isVisible()) overlayWin.showInactive(); } } // 게임 포커스 뺏지 않게
 function hideOverlay() { if (overlayWin && overlayWin.isVisible()) overlayWin.hide(); }
 function toggleOverlay() {
   if (!overlayWin) return;
@@ -913,6 +916,12 @@ function makeTray() {
 
 // ── IPC ──────────────────────────────────────────────────────────────────
 ipcMain.on('overlay-hide', () => { hideOverlay(); userHid = true; });
+ipcMain.on('overlay-min', () => {   // ◀ 팀/명단 오버레이 최소화 — 작업표시줄로 내림(클릭 복원)
+  if (overlayWin && !overlayWin.isDestroyed()) { overlayMinimized = true; try { overlayWin.setSkipTaskbar(false); overlayWin.minimize(); } catch (_) {} }
+});
+ipcMain.on('side-min', () => {      // ◀ 내 정보 패널 최소화
+  if (leftWin && !leftWin.isDestroyed()) { leftMinimized = true; try { leftWin.setSkipTaskbar(false); leftWin.minimize(); } catch (_) {} }
+});
 ipcMain.on('update-now', () => { app._quitting = true; try { autoUpdater.quitAndInstall(); } catch (_) { app.quit(); } });   // 🔄 지금 업데이트(재시작)
 ipcMain.on('update-later', () => { if (updateToastWin && !updateToastWin.isDestroyed()) updateToastWin.hide(); });          // 나중에 — 트레이 메뉴로 계속 가능
 ipcMain.on('open-web', () => shell.openExternal(WEB_URL));

@@ -43,7 +43,16 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.49** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.50** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🆕 v0.1.50 (2026-07-09) — X 흐릿·무배경 + 각 패널 최소화 버튼
+- **사장님**: X는 최상단 우측에 박스 없이 흐릿하게, 각 패널에 최소화 버튼 추가.
+- **X 리스타일(양 패널)**: `#s-close`/`#close` 배경·테두리 제거(`background:none`)·평상시 `color:rgba(207,212,230,0.38)`(흐릿)·hover 시 밝게(닫기=빨강 `#ff6b5c`). 공통 클래스 `.s-winbtn`(사이드)/`.win-btn`(오버레이).
+- **최소화 버튼 신규**: 헤더에 `–` 버튼(`#s-min`/`#ov-min`) X 왼쪽. 클릭→작업표시줄로 내림→클릭해서 복원.
+  - **구현(작업표시줄 방식)**: 두 패널은 `skipTaskbar:true` 오버레이라 그냥 `minimize()`하면 복원 버튼이 없음 → IPC `side-min`/`overlay-min`에서 `setSkipTaskbar(false)`+`minimize()`로 **임시 작업표시줄 버튼** 생성. `win.on('restore')`에서 플래그 해제+`setSkipTaskbar(true)`(다시 오버레이 층위).
+  - **show 루프 게이트**: `overlayMinimized`/`leftMinimized` 플래그로 `applyRaise()`의 `show()`가 최소화된 패널을 다시 안 띄우게. `showOverlay()`/`showMainPanel()`에서도 플래그 해제(트레이/도킹 복귀 시 복원).
+  - preload: `sideMinimize`/`overlayMinimize` 추가. 배선=sidepanel.js `s-min`·overlay.js `ov-min`.
+  - ⚠️실기 미검증(개발환경 창 미실행) — 최소화→작업표시줄 클릭 복원, 도킹 중 최소화 동작 확인 필요.
 
 ### 🆕 v0.1.49 (2026-07-09) — 헤더 지갑 1열 정렬(골드 박스 제거)
 - **사장님**: 헤더 골드의 금색 박스 없애고, 골드 옆 재화(뽑기·투기장)가 2층으로 쌓인 걸 그냥 한 줄로 나열(전체 1열).

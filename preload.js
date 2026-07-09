@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('api', {
   onDocked: (cb) => ipcRenderer.on('docked', (_e, v) => cb(v)),     // 🖥️ 클라 도킹 중이면 각진 모서리
   onSlotTeam: (cb) => ipcRenderer.on('slot-team', (_e, t) => cb(t)),  // 📍 클라 위 내 팀 마커(1/2)
   sideClose: () => ipcRenderer.send('side-hide'),                   // ◀ 내 정보 패널 닫기
+  sideMinimize: () => ipcRenderer.send('side-min'),                 // ◀ 내 정보 패널 최소화(작업표시줄)
+  overlayMinimize: () => ipcRenderer.send('overlay-min'),           // ◀ 팀/명단 오버레이 최소화
   // 🔄 업데이트 토스트
   onUpdateInfo: (cb) => ipcRenderer.on('update-info', (_e, d) => cb(d)),
   updateNow: () => ipcRenderer.send('update-now'),

@@ -14,8 +14,9 @@ header { -webkit-app-region:drag; display:flex; align-items:center; gap:8px; pad
   background:linear-gradient(180deg, rgba(200,170,110,0.10), rgba(200,170,110,0.03)); border-bottom:1px solid rgba(255,255,255,0.11); }   /* 클라 네비 아래 구분선=얇은 회색 */
 header .ttl { flex:1; font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:15px; letter-spacing:1px; color:var(--gold); text-shadow:0 0 16px rgba(200,155,60,0.45); }
 header .phase { font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:600; color:var(--dim); background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); padding:2px 8px; border-radius:5px; }
-header #close { -webkit-app-region:no-drag; width:22px; height:22px; border:none; border-radius:6px; cursor:pointer; background:rgba(255,255,255,0.08); color:#cfd4e6; font-size:12px; font-weight:800; }
-header #close:hover { background:#e0483a; color:#fff; }
+header .win-btn { -webkit-app-region:no-drag; width:20px; height:20px; border:none; background:none; border-radius:5px; cursor:pointer; color:rgba(207,212,230,0.38); font-size:13px; font-weight:700; line-height:1; padding:0; display:inline-flex; align-items:center; justify-content:center; transition:color .12s; }
+header .win-btn:hover { color:rgba(255,255,255,0.92); }
+header #close:hover { color:#ff6b5c; }
 
 .view { flex:1; overflow-y:auto; min-height:0; padding:11px 11px 6px; }
 .view::-webkit-scrollbar { width:6px; } .view::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.14); border-radius:3px; }

@@ -12,6 +12,7 @@ let sessionData = null, myName = '', roster = [], lpMap = {}, inGame = false, ph
 let _gamePlayed = false, _lastFormedSeen = 0;   // 🏁 이번 팀결성으로 게임이 이미 진행됐는지 — 게임 후엔 '팀 배정'으로 되돌아가지 않고 '정산 대기'로 (다음 팀결성 때 리셋)
 
 el('close').addEventListener('click', () => window.api.hideOverlay());
+el('ov-min').addEventListener('click', () => window.api.overlayMinimize());
 
 let settleData = null;   // 💰 최근 정산 {settle, lpNow}
 let itemData = null, _itemPhaseKey = 0, _itemSeenAt = 0, _itemBusy = false, _itOpen = new Set();   // 🎒 아이템 페이즈(_itOpen=펼친 아코디언)

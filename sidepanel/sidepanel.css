@@ -11,9 +11,10 @@
 #sbar .s-me { font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:14px; color:var(--ink); max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 @keyframes sLivePulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.8); } }
 #sbar .s-sp { flex:1; }
-#sbar #s-close { width:22px; height:22px; border:none; border-radius:6px; cursor:pointer;
-  background:rgba(255,255,255,0.08); color:#cfd4e6; font-size:12px; font-weight:800; }
-#sbar #s-close:hover { background:#e0483a; color:#fff; }
+#sbar .s-winbtn { width:20px; height:20px; border:none; background:none; border-radius:5px; cursor:pointer;
+  color:rgba(207,212,230,0.38); font-size:13px; font-weight:700; line-height:1; padding:0; display:inline-flex; align-items:center; justify-content:center; transition:color .12s; }
+#sbar .s-winbtn:hover { color:rgba(255,255,255,0.92); }
+#sbar #s-close:hover { color:#ff6b5c; }
 #panel .app-shell { flex:1; min-height:0; }
 /* 🎮 로그인(입장) 뷰 */
 .s-login { position:relative; z-index:1; flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:20px 18px; overflow-y:auto; }
