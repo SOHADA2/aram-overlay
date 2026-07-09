@@ -134,7 +134,8 @@ function ensureHpWv() {
         + '.mgintro-overlay,#mgintro-popup,.s2tut-overlay{display:none!important}'   // 시즌2·막고라 인트로 모달 억제(백업)
         + 'body{padding-top:2px!important}'
         + '.sp-cat-tabs{margin-top:2px!important}'   // '아이템 상점' 타이틀 숨김 → 대장간 카테고리 탭이 상단
-        + '.lh-close{display:none!important}');
+        + '.lh-close{display:none!important}'
+        + '.lh-overlay,.season-2 .lh-overlay{background:#050810!important;animation:none!important}');   // 🎟 복권 허브 완전 불투명+페이드 제거 → 뒤 오른 3D(z-index:1) 비침 차단(기본 92~94% 투명+0.2s 페이드라 비쳤음)
     } catch (_) {}
   });
   _hpWv.addEventListener('did-stop-loading', () => { const l = $('hp-load'); if (l) l.style.display = 'none'; });
@@ -158,15 +159,15 @@ function hpGoto(target, tries) {
 // 🎟🔨 전환 가림막 — 복권↔대장간 전환 시 공유 webview가 직전 화면(오른 3D 대장간 등)을 잠깐 보이는 겹침 방지
 function hpCoverShow() { const c = $('hp-cover'); if (c) c.style.display = 'block'; }
 function hpCoverHide() { const c = $('hp-cover'); if (c) c.style.display = 'none'; }
-function hpRevealWhenReady(cat, tries) {   // 목표 화면(복권 허브 / 대장간)이 실제로 뜨면 가림막 해제(최대 3초 안전 해제)
+function hpRevealWhenReady(cat, tries) {   // 목표 화면(복권 허브 / 오른 대장간 무대)이 실제로 뜨면 가림막 해제
   tries = tries || 0;
   if (_curCat !== cat) { hpCoverHide(); return; }   // 그새 다른 탭 → 그 전환이 관리
-  if (!_hpReady || !_hpWv) { if (tries < 30) setTimeout(() => hpRevealWhenReady(cat, tries + 1), 100); else hpCoverHide(); return; }
+  if (!_hpReady || !_hpWv) { if (tries < 150) setTimeout(() => hpRevealWhenReady(cat, tries + 1), 100); else hpCoverHide(); return; }   // 첫 로드 대기(홈 로딩 최대 ~15초)
   const check = cat === 'lottery'
-    ? "!!document.querySelector('.lh-overlay')"                 // 복권 허브 모달 떴는지
-    : "!document.querySelector('.lh-overlay')";                 // 대장간 = 복권 허브가 닫혔는지(shop 탭 노출)
-  const again = () => { if (tries < 30 && _curCat === cat) setTimeout(() => hpRevealWhenReady(cat, tries + 1), 100); else hpCoverHide(); };
-  const reveal = () => setTimeout(() => { if (_curCat === cat) hpCoverHide(); }, 140);   // 모달 페이드인 정착 후 해제(뒤 비침 방지)
+    ? "!!document.querySelector('.lh-overlay')"     // 복권 허브 모달이 실제로 떴는지
+    : "!!document.querySelector('#forge-stage')";   // 오른 대장간 무대가 실제로 떴는지
+  const again = () => { if (tries < 150 && _curCat === cat) setTimeout(() => hpRevealWhenReady(cat, tries + 1), 100); else hpCoverHide(); };
+  const reveal = () => setTimeout(() => { if (_curCat === cat) hpCoverHide(); }, 80);   // 목표 화면 안착 후 해제
   try { _hpWv.executeJavaScript(check, false).then(ready => { if (ready) reveal(); else again(); }).catch(again); } catch (_) { hpCoverHide(); }
 }
 function hpEmbedFor(cat) {
@@ -175,7 +176,7 @@ function hpEmbedFor(cat) {
   host.style.display = emb ? 'flex' : 'none';
   if (!emb) { hpCoverHide(); return; }
   ensureHpWv();
-  if (_hpReady) { hpCoverShow(); hpRevealWhenReady(cat, 0); }   // 이미 로드됨 = 탭 전환 → 목표 화면 뜰 때까지 직전 화면(오른 등) 가림. 첫 로드는 hp-load가 담당
+  hpCoverShow(); hpRevealWhenReady(cat, 0);   // 항상 가림 → 첫 로드(홈 메인/네비게이션)·직전 화면(오른 등) 전부 마스킹 후 목표 화면 뜨면 해제
   if (_hpWv) { _hpWv.style.height = '99.99%'; requestAnimationFrame(() => { if (_hpWv) _hpWv.style.height = '100%'; }); }   // 뷰포트 고착 해제(홈창 quirk)
   hpGoto(cat, 0);
 }

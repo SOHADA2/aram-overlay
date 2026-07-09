@@ -350,5 +350,5 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 #panel .cat { position:relative; }
 #hp-embed { position:absolute; inset:0; z-index:5; display:flex; flex-direction:column; background:#060d14; }
 #hp-embed webview { flex:1; border:0; width:100%; height:100%; }
-#hp-load { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9aa0b4; font-size:12px; pointer-events:none; }
-#hp-cover { position:absolute; inset:0; z-index:6; background:#060d14; display:none; }   /* 🎟🔨 복권↔대장간 전환 중 겹침(오른 3D 비침) 가림 — 목표 화면 뜨면 해제 */
+#hp-cover { position:absolute; inset:0; z-index:6; background:#060d14; display:none; }   /* 🎟🔨 복권↔대장간 전환·첫 로드 중 홈 메인/오른 비침 가림 — 목표 화면 뜨면 해제 */
+#hp-load { position:absolute; inset:0; z-index:7; display:flex; align-items:center; justify-content:center; color:#9aa0b4; font-size:12px; pointer-events:none; }   /* 가림막 위에 로딩 텍스트 표시 */

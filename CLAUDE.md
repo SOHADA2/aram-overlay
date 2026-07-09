@@ -43,7 +43,13 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.52** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.53** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🆕 v0.1.53 (2026-07-10) — 🎟 복권 오른 비침 근본수정(허브 불투명화) + 첫 로드 마스킹 (v0.1.52 보강)
+- **v0.1.52로 부족**(사장님 재보고): ①복권창 켜질 때 오른 대장간이 **뒤에 계속 비침** ②첫 로드 시 프로필→복권 누르면 **홈 메인화면→복권 진입 과정이 다 보임**.
+- **근본원인 규명**: 홈 `.lh-overlay`(복권 허브)가 `z-index:3500·background:rgba(6,5,3,0.92)`(시즌2, 92~94% 불투명)+`animation:taFadeIn 0.2s`. → **페이드인 0.2초 동안 뒤 오른 3D(z-index:1) 그대로 비침 + 페이드 후에도 6~8% 투명해 은은히 비침**. v0.1.52 가림막은 `.lh-overlay` 뜨자마자(페이드 시작·opacity~0) 140ms 후 해제라 비침 잔존 + `_hpReady` 게이트로 첫 로드 미마스킹.
+- **수정 3종(sidepanel)**: ①**insertCSS로 복권 허브 완전 불투명화**: `.lh-overlay,.season-2 .lh-overlay{background:#050810!important;animation:none!important}` → 페이드 제거+불투명 → 오른 z-index:1을 확실히 덮음(헤드리스 before/after로 비침→차단 확인). ②**가림막 항상 켜기**(`_hpReady` 게이트 제거): 첫 로드(홈 메인/네비게이션)·직전 화면 전부 마스킹. ③**목표 감지 정확화**: 복권=`.lh-overlay` 존재 / 대장간=`#forge-stage` 존재(홈 오른 무대), 첫 로드 대기 15초로 연장, `#hp-load`(불러오는 중) z-index:7로 가림막 위 표시. ⚠️v0.1.52의 `:has(.lh-overlay) .fg2-stage` 무대숨김은 **제거**(불투명 허브로 불필요·오른 렌더 루프 간섭 위험 회피). scard-overlay(z3100·시즌2 불투명 그라디언트)는 원래 오른 안 비침.
+- ⚠️실기 미검증(Electron webview·라이브 홈 필요) — 실제 복권↔대장간·첫 로드 시 오른 비침/과정 노출 사라졌는지 확인 필요.
 
 ### 🆕 v0.1.52 (2026-07-10) — 🎟🔨 복권↔대장간 전환 겹침(오른 3D 비침) 수정
 - **증상(사장님)**: "복권 켰을 때 오른 대장간이 겹쳤다가 사라지는 것 같아." **원인**: 복권/대장간은 **공유 webview 1개**(`_hpWv`·홈 임베드)를 `hpGoto`로 홈 안에서 화면만 이동(복권=`openLotteryHub` 모달 / 대장간=`gotoForgeTab` 오른 3D). 대장간을 보던 상태에서 복권 탭으로 가면 webview가 **아직 대장간 화면인 채로** `openLotteryHub()` 모달이 그 위에 열리는 사이 오른 3D가 잠깐 비쳤다 덮임.
