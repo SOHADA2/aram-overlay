@@ -1397,6 +1397,7 @@ else {
   app.whenReady().then(() => {
     CONFIG_PATH = path.join(app.getPath('userData'), 'aram-overlay-config.json');
     config = loadConfig();
+    config.isHost = false;   // 🔒 방장은 재실행마다 초기화 — 자동 방장 방지(로그인 화면서 매번 다시 체크). 추후 비밀번호 로그인 대비.
     if (!config.deviceId) { config.deviceId = 'ov_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36); saveConfig(); }   // 🔒 계정 조작 잠금용 기기 ID
     createOverlay();
     createLeftPanel(); // ▶ 내 정보 패널(로그인·방장·팀짜기) = 메인 창
@@ -1417,7 +1418,7 @@ else {
     setupAutoUpdate();                  // 🔄 자동 업데이트
     // 🔌 내장 브릿지 시작 — LCU에 붙어 게임 페이즈·EOG 통계를 홈페이지가 읽는 bridge/* 경로에 기록(aram-bridge 대체)
     bridge.start({ getOperatorName: () => config.myName || null, appVer: app.getVersion(), log: (m) => { try { console.log(m); } catch (_) {} } });
-    if (config.isHost) startLiveAccount();   // 🔴 방장이면 라이브 계정(경기 저장 담당) 가동
+    // 🔒 방장 자동 가동 안 함 — 매번 로그인 화면서 방장 체크 시에만 setHost→startLiveAccount (자동 방장 방지)
   });
 }
 

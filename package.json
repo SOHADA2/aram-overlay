@@ -1,6 +1,6 @@
 {
   "name": "aram-overlay",
-  "version": "0.1.46",
+  "version": "0.1.47",
   "description": "아수라장 내전 인게임 오버레이 (Electron) — 홈페이지/Firebase 연동",
   "main": "main.js",
   "author": "SOHADA2",

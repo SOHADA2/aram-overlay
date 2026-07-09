@@ -915,8 +915,8 @@ async function renderForge(silent) {
     esel.innerHTML = '<option value="">— 아이디 선택 —</option>' +
       _rosterNames.map(n => `<option value="${n.replace(/"/g, '&quot;')}"${n === myName ? ' selected' : ''}>${n}</option>`).join('');
     $('s-entry-go').disabled = !esel.value;
-    _myName = myName || ''; _isHost = !!isHost;
-    if (_myName) showLogged(); else showLogin();
+    _myName = myName || ''; _isHost = false;   // 🔒 방장은 자동 X — 매번 로그인 화면서 다시 체크(자동 방장 방지)
+    showLogin();   // 🔒 자동 로그인 안 함 — 매번 입장창 띄워 직접 고르게(지난 아이디는 드롭다운에 미리 선택돼 편의만 제공). 추후 비밀번호 로그인 대비.
   } catch (_) { showLogin(); }
 })();
 // 현재 탭만 조용히 갱신(깜빡임 없이) — 1분마다. 팀짜기 탭은 진행 방해 않게 제외
