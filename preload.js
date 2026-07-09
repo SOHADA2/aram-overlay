@@ -32,6 +32,15 @@ contextBridge.exposeInMainWorld('api', {
   tbStart: (names, mode) => ipcRenderer.invoke('tb-start', { names, mode }),
   tbSkip: () => ipcRenderer.send('tb-skip'),
   onTeamBuild: (cb) => ipcRenderer.on('teambuild', (_e, d) => cb(d)),
+  // 🛠️ 팀 결성 로비(방장 선택 중 → 팀원 "준비 중" 안내)
+  onLobby: (cb) => ipcRenderer.on('lobby', (_e, d) => cb(d)),
+  lobbyPrep: (names) => ipcRenderer.send('lobby-prep', { names }),
+  lobbyClear: () => ipcRenderer.send('lobby-clear'),
+  // 🥊 막고라(생성만 오버레이 · 배팅/정산=홈페이지)
+  magollaStart: (names) => ipcRenderer.invoke('magolla-start', { names }),
+  onMagolla: (cb) => ipcRenderer.on('magolla', (_e, d) => cb(d)),
+  magollaShowLive: () => ipcRenderer.send('magolla-show-live'),   // 🥊 (폴백) 방장: 라이브 창 열기
+  magollaResult: (matchId, winner, cond, aug) => ipcRenderer.invoke('magolla-result', { matchId, winner, cond, aug }),   // 🥊 방장: 결과 3가지 확정 → 정산
   // 🗳️ 투표
   voteCast: (mvpPick, mannerPick) => ipcRenderer.invoke('vote-cast', { mvpPick, mannerPick }),
   voteClear: () => ipcRenderer.invoke('vote-clear'),

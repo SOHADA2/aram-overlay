@@ -260,6 +260,7 @@ function getJson(opts) {
 const liveClientPlayerList = () => getJson({ host: '127.0.0.1', port: 2999, path: '/liveclientdata/playerlist', rejectUnauthorized: false, timeout: 2000 });
 const fetchLpPlayers = () => getJson(`${FIREBASE_DB}/season2/players.json`);
 const fetchSession   = () => getJson(`${FIREBASE_DB}/session.json`);
+const fetchLobby     = () => getJson(`${FIREBASE_DB}/lobby.json`);   // 🛠️ 방장 팀 구성 준비 중 배너(홈페이지와 동일 노드)
 const fetchPlayers   = () => getJson(`${FIREBASE_DB}/players.json`);   // 등록 플레이어(이름 목록)
 const fetchMatches   = () => getJson(`${FIREBASE_DB}/matches.json`);   // ⚔️ 팀짜기 승률 계산용(수 MB — 팀짤 때만)
 const fetchNormalMatches = () => getJson(`${FIREBASE_DB}/normal_matches.json`);   // 🎫 패스 퀘스트·기록 필터용
@@ -320,6 +321,56 @@ async function fbUpdate(pathStr, value) {   // 노드 일부 필드만 갱신(PA
   const r = await reqJson('PATCH', `${FIREBASE_DB}/${pathStr}.json?auth=${tok}`, value);
   if (r.status === 401 || r.status === 403) { _fbTok = null; }
   return { ok: r.status === 200, err: r.status === 200 ? null : `쓰기 실패(HTTP ${r.status})` };
+}
+async function fbPush(pathStr, value) {   // 홈페이지 push(ref(db,path), value)와 동일 — 새 고유 키 생성 후 반환
+  const tok = await fbToken();
+  if (!tok) return { ok: false, err: '인증 실패' };
+  const r = await reqJson('POST', `${FIREBASE_DB}/${pathStr}.json?auth=${tok}`, value);
+  if (r.status === 401 || r.status === 403) { _fbTok = null; }
+  return { ok: r.status === 200, key: r.json && r.json.name, err: r.status === 200 ? null : `쓰기 실패(HTTP ${r.status})` };
+}
+
+// ── 🥊 막고라 매치 생성(방장) — 홈페이지 openMagollaModal 파이터 선정 로직 이식 ──
+// 생성만 오버레이가 담당. session/magollaMatchId 설정 → 홈페이지 유저에게 배팅 모달 자동 전파(배팅·결과·정산은 홈페이지).
+const MG_TIER_ORDER = ['unranked', 'iron', 'bronze', 'silver', 'gold', 'platinum', 'emerald', 'diamond', 'master', 'grandmaster', 'challenger'];
+let _mgLastFighters = null;   // 직전 파이터 쌍(연속 회피)
+async function createMagollaMatch(names) {
+  if (!config.isHost) return { ok: false, err: '방장만 막고라를 시작할 수 있어요' };
+  names = (names || []).map(n => String(n)).filter(Boolean);
+  if (names.length < 5) return { ok: false, err: `막고라는 최소 5명이 필요해요 (현재 ${names.length}명)` };
+  const [lpAll, seasonV] = await Promise.all([fetchLpPlayers(), fetchSeason()]);
+  const season = (typeof seasonV === 'number') ? seasonV : 2;
+  const lp = lpAll || {};
+  const scoreOf = (name) => { const d = lp[normName(name)] || {}; return (MG_TIER_ORDER.indexOf(d.tier || 'unranked') + 1) * 100 + (d.lp || 0); };
+  const players = names.map(n => ({ name: n, score: scoreOf(n) })).sort((a, b) => a.score - b.score);
+  // LP 가중 랜덤 파이터 2명 선정(차이 작을수록↑·직전 쌍 제외·직전 파이터 포함 30%)
+  const lastPair = _mgLastFighters, lastSet = new Set(lastPair || []);
+  const pairs = [];
+  for (let i = 0; i < players.length; i++) for (let j = i + 1; j < players.length; j++) {
+    const diff = Math.abs(players[i].score - players[j].score);
+    const n1 = normName(players[i].name), n2 = normName(players[j].name);
+    const isLast = lastPair && ((n1 === lastPair[0] && n2 === lastPair[1]) || (n1 === lastPair[1] && n2 === lastPair[0]));
+    let weight = isLast ? 0 : 1 / (diff + 20);
+    if (!isLast && (lastSet.has(n1) || lastSet.has(n2))) weight *= 0.3;
+    pairs.push({ diff, i, j, weight });
+  }
+  let pool = pairs.filter(p => p.weight > 0);
+  if (!pool.length) { pairs.forEach(p => p.weight = 1 / (p.diff + 20)); pool = pairs; }
+  const totalW = pool.reduce((s, p) => s + p.weight, 0);
+  let rnd = Math.random() * totalW, best = pool[pool.length - 1];
+  for (const p of pool) { rnd -= p.weight; if (rnd <= 0) { best = p; break; } }
+  const f1 = players[best.i].name, f2 = players[best.j].name;
+  const spectators = players.filter((_, idx) => idx !== best.i && idx !== best.j).map(p => p.name);
+  const pr = await fbPush('magolla_matches', {
+    status: 'betting', fighter1: f1, fighter2: f2, spectators,
+    createdBy: config.myName || '진행자', season, bettingStartAt: Date.now(), bets: {}, result: null, createdAt: Date.now(),   // 배팅 즉시 시작(90초)
+  });
+  if (!pr.ok || !pr.key) return { ok: false, err: pr.err || '생성 실패(네트워크 확인)' };
+  _mgLastFighters = [normName(f1), normName(f2)];
+  const sw = await fbSet('session/magollaMatchId', pr.key);   // → 모든 기기에 배팅 모달 전파
+  if (!sw.ok) return { ok: false, err: sw.err };
+  fbSet('lobby', null).catch(() => {});   // 준비 중 배너 제거
+  return { ok: true, matchId: pr.key, fighter1: f1, fighter2: f2 };
 }
 // 🎒 내 gold 노드({key, name, items_s2, ...}) 찾기 — 이름 매칭
 let _myGoldKey = null;   // 내 gold 노드 키 캐시 → 재화 갱신 시 전체 gold.json 대신 내 노드만(가벼움)
@@ -539,8 +590,20 @@ function startLiveAccount() {
     setLiveStatus('connecting');
     setTimeout(() => { if (liveWin && !liveWin.isDestroyed()) liveWin.loadURL(WEB_URL).catch(() => {}); }, 8000);
   });
+  liveWin.on('close', (e) => { if (!app._quitting) { e.preventDefault(); try { liveWin.hide(); } catch (_) {} _mgLiveShown = false; } });   // 🥊 막고라로 띄웠을 때 X=숨김(라이브 계정 유지)
   liveWin.on('closed', () => { liveWin = null; setLiveStatus('off'); });
   liveWin.loadURL(WEB_URL);
+}
+// 🥊 막고라 = 배팅 시작·결과 입력이 라이브 전용 → 방장은 라이브 창(liveWin)을 띄워 직접 조작. 정산·세션 종료 시 다시 숨김.
+let _mgLiveShown = false;
+function showLiveForMagolla() {
+  if (!liveWin || liveWin.isDestroyed() || _mgLiveShown) return;
+  _mgLiveShown = true;
+  try { liveWin.show(); liveWin.focus(); } catch (_) {}
+}
+function hideLiveForMagolla() {
+  if (!_mgLiveShown) return; _mgLiveShown = false;
+  try { if (liveWin && !liveWin.isDestroyed()) liveWin.hide(); } catch (_) {}
 }
 function stopLiveAccount() {
   setLiveStatus('off');
@@ -635,11 +698,20 @@ async function pollMyStats() {
 
 // 🧩 홈페이지 session(팀 배정) 폴링 — 새 팀 짜이면 오버레이 자동 표시
 async function pollSession() {
-  const s = await fetchSession();
+  const [s, lob] = await Promise.all([fetchSession(), fetchLobby()]);
+  // 🥊 막고라 진행 중이면 파이터·상태를 오버레이/사이드패널로(배팅·정산은 홈페이지 담당)
+  const mgId = s && s.magollaMatchId;
+  if (mgId) {
+    const mg = await getJson(`${FIREBASE_DB}/magolla_matches/${mgId}.json`);
+    const involved = mg && config.myName && [mg.fighter1, mg.fighter2].concat(mg.spectators || []).some(n => normName(n) === normName(config.myName));
+    if (involved && mg.status !== 'settled' && !userHid) showOverlay();
+    broadcast('magolla', mg ? Object.assign({ matchId: mgId }, mg) : { matchId: mgId });
+  } else { hideLiveForMagolla(); broadcast('magolla', null); }
   // 🎒 아이템 페이즈(팀 확정 전) — 내 gold·LP 상태 함께 오버레이로. 방장/참가자 모두 아이템 사용 가능.
   if (isItemPhase(s)) {
     const [g, lp] = await Promise.all([fetchMyGold(), fetchMyLpState()]);
     if (!userHid) showOverlay();
+    broadcast('lobby', null);   // 아이템 타이머가 담당 → 준비 중 배너 숨김
     broadcast('itemphase', { gold: g, lp, endAt: s.itemPhaseEnd });
     return;
   }
@@ -647,6 +719,7 @@ async function pollSession() {
   if (formed && formed !== lastFormed) {         // 새 팀 배정 감지
     lastFormed = formed; sampleActive = false; userHid = false; sessionData = s;
     showOverlay();
+    broadcast('lobby', null);
     broadcast('session', { session: s, myName: config.myName || '', lpMap });
     if (_lastRect && !inGame && !_floating) updateSlotMarker(_lastRect);   // 📍 팀 배정 → 마커 갱신
     return;
@@ -655,6 +728,10 @@ async function pollSession() {
   sessionData = s || null;
   // 🗳️ 투표 단계면 오버레이 자동 표시(게임 끝나 숨겨졌어도) — manualEog 신선 or 이미 투표 진행 중
   if (isVotingStage(s) && !userHid) showOverlay();
+  // 🛠️ 방장이 팀 구성 준비 중(참가자 고르는 중) → 대기 화면에 안내 배너. 내가 선택됐으면 오버레이 자동 표시.
+  if (lob && lob.state === 'preparing' && config.myName && Array.isArray(lob.participants)
+      && lob.participants.some(n => normName(n) === normName(config.myName)) && !userHid) showOverlay();
+  broadcast('lobby', lob || null);
   broadcast('session', { session: sessionData, myName: config.myName || '', lpMap });
   if (_lastRect && !inGame && !_floating) updateSlotMarker(_lastRect);   // 📍 팀 상태 변경 → 마커 갱신
 }
@@ -680,6 +757,7 @@ async function startTeamBuild(names, mode) {
   // extBuild:true = 오버레이가 팀 구성 담당 → (숨은) 라이브 웹뷰는 이 페이즈에 makeTeams 하지 않음(이중 팀구성 방지)
   const w = await fbSet('session', { phase: 'item', itemPhaseEnd, players: names.map(n => normName(n)), extBuild: true });
   if (!w.ok) return { ok: false, err: w.err };
+  fbSet('lobby', null).catch(() => {});   // 🛠️ 팀 결성 시작 → 준비 중 배너 제거(아이템 타이머가 담당)
   // 방장 오버레이도 즉시 아이템 뷰 표시(3초 폴 안 기다리게=이슈5) — 방장이 참가자일 때만. endAt 동일이라 우측 카운트다운과 정확 동기(이슈2)
   if (config.myName && names.map(n => normName(n)).includes(normName(config.myName))) {
     Promise.all([fetchMyGold(), fetchMyLpState()]).then(([g, lp]) => {
@@ -826,8 +904,15 @@ ipcMain.on('set-myname', (_e, name) => {           // 내 이름(입장 ID) 저�
 });
 ipcMain.on('set-host', (_e, v) => {                // 방장(팀 짜기 진행자) 여부 — 방장이면 라이브 계정(저장 담당) 자동 가동
   config.isHost = !!v; saveConfig();
-  if (config.isHost) startLiveAccount(); else stopLiveAccount();
+  if (config.isHost) startLiveAccount(); else { stopLiveAccount(); fbSet('lobby', null).catch(() => {}); }
 });
+// 🛠️ 팀 결성 로비 — 방장이 참가자 고르는 중 팀원에게 "준비 중" 안내(홈페이지 /lobby 노드와 동일 = 홈 팀원도 자동 표시)
+ipcMain.on('lobby-prep', (_e, { names } = {}) => {
+  if (!config.isHost) return;
+  const list = (Array.isArray(names) ? names : []).map(n => String(n)).filter(Boolean);
+  fbSet('lobby', list.length ? { state: 'preparing', by: config.myName || '진행자', at: Date.now(), participants: list } : null).catch(() => {});
+});
+ipcMain.on('lobby-clear', () => { if (config.isHost) fbSet('lobby', null).catch(() => {}); });
 ipcMain.handle('get-players', async () => {        // 데스크톱 ID 선택용 목록 + 현재 설정
   const d = await fetchPlayers();
   const names = d ? [...new Set(Object.values(d).map(p => p && p.name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
@@ -869,6 +954,19 @@ ipcMain.handle('ranking-data', async () => {
 });
 ipcMain.handle('tb-start', (_e, { names, mode }) => startTeamBuild(names, mode));   // ⚔️ 팀 짜기 시작(방장)
 ipcMain.on('tb-skip', () => skipItemPhase());                                       // ⏭️ 아이템 시간 건너뛰기
+ipcMain.handle('magolla-start', (_e, { names }) => createMagollaMatch(names));      // 🥊 막고라 시작(방장) — 생성만·배팅/정산은 홈페이지
+ipcMain.on('magolla-show-live', () => { _mgLiveShown = false; showLiveForMagolla(); });   // 🥊 (폴백) 방장: 라이브 창 직접 열기
+// 🥊 방장이 오버레이에서 고른 결과 3가지를 라이브 계정 권한으로 확정(숨은 liveWin에 주입) → 홈 정산
+ipcMain.handle('magolla-result', async (_e, { matchId, winner, cond, aug }) => {
+  if (!config.isHost) return { ok: false, err: '방장만 결과를 확정할 수 있어요' };
+  if (!liveWin || liveWin.isDestroyed()) return { ok: false, err: '라이브 계정이 없어요 (방장 체크 확인)' };
+  try {
+    const js = `(window.overlayMagollaResult?window.overlayMagollaResult(${JSON.stringify(matchId)},${JSON.stringify(winner)},${JSON.stringify(cond)},${JSON.stringify(aug)}):Promise.resolve('err:홈페이지 업데이트 필요'))`;
+    const r = await liveWin.webContents.executeJavaScript(js);
+    if (r === 'ok') return { ok: true };
+    return { ok: false, err: (typeof r === 'string' && r.startsWith('err:')) ? r.slice(4) : '정산 실패' };
+  } catch (e) { return { ok: false, err: String((e && e.message) || e) }; }
+});
 // 🗳️ 투표 — 내 이름·현재 session으로 팀/키 계산 후 mvp·manner 두 노드에 write(홈 castCombinedVote와 동일 경로)
 ipcMain.handle('vote-cast', async (_e, { mvpPick, mannerPick }) => {
   const s = sessionData, me = config.myName;
@@ -1309,6 +1407,6 @@ function setupAutoUpdate() {
   autoUpdater.checkForUpdates().catch(() => {});
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 30 * 60 * 1000);   // 30분마다 재확인
 }
-app.on('before-quit', () => { app._quitting = true; try { bridge.stop(); } catch (_) {} try { stopLiveAccount(); } catch (_) {} try { stopDockStream(); } catch (_) {} });   // 종료: 브릿지·라이브계정·도킹 스트림 정리
+app.on('before-quit', () => { app._quitting = true; try { bridge.stop(); } catch (_) {} try { stopLiveAccount(); } catch (_) {} try { if (config.isHost) fbSet('lobby', null); } catch (_) {} try { stopDockStream(); } catch (_) {} });   // 종료: 브릿지·라이브계정·로비배너·도킹 스트림 정리
 app.on('window-all-closed', (e) => { /* 트레이 상주 — 창 다 닫혀도 안 죽음 */ });
 app.on('will-quit', () => globalShortcut.unregisterAll());

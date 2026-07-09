@@ -23,6 +23,10 @@ window.api.onDocked(v => { document.body.classList.toggle('docked', !!v); });   
 window.api.onSettlement(d => { settleData = d || null; render(); });
 let myStats = null;   // 🎮 인게임 — 오늘 전적·연승
 window.api.onMystats(d => { myStats = d || null; if (inGame) render(); });
+let lobbyData = null;   // 🛠️ 방장이 팀 구성 준비 중(참가자 고르는 중)
+window.api.onLobby(d => { lobbyData = d || null; render(); });
+let magollaData = null;   // 🥊 막고라 진행 중(배팅/정산은 홈페이지)
+window.api.onMagolla && window.api.onMagolla(d => { magollaData = (d && d.matchId) ? d : null; render(); });
 window.api.onItemPhase(d => {
   itemData = d || null;
   if (d && d.endAt !== _itemPhaseKey) { _itemPhaseKey = d.endAt; _itemSeenAt = Date.now(); _itOpen.clear(); }   // 새 페이즈 = 로컬 15초 시작(아코디언 초기화)
@@ -68,14 +72,44 @@ function renderTeam() {
   el('t2-players').innerHTML = B.length ? B.map(playerRow).join('') : '<li><span class="num"></span><span class="nm" style="color:#5f6478">—</span></li>';
 }
 
+// 🛠️ 방장 팀 구성 준비 중 안내(대기 화면) — 홈페이지 /lobby와 동일. 방장 본인은 제외(자기 UI).
+function _lobbyBanner() {
+  const L = lobbyData;
+  if (!L || !L.at || myIsHost) return null;
+  const age = Date.now() - L.at;
+  if (L.state === 'cancelled' && age < 7000)
+    return '<span class="lobby-pulse cancel"></span>❌ 팀 결성이 취소됐어요<br><span class="status-sub">방장이 다시 준비하면 여기에 떠요.</span>';
+  if (L.state === 'preparing' && age < 30 * 60 * 1000) {
+    const parts = Array.isArray(L.participants) ? L.participants : [];
+    const who = esc(L.by || '방장');
+    const meIn = myName && parts.some(n => nn(n) === nn(myName));
+    const sub = meIn
+      ? '<b style="color:#0AC8B9">✅ 나를 선택했어요</b> · 잠시만 기다려주세요'
+      : `대기 중이에요 · ${parts.length}명 선택됨`;
+    return `<span class="lobby-pulse"></span>🛠️ ${who}님이 팀을 짜는 중이에요<br><span class="status-sub">${sub}</span>`;
+  }
+  return null;
+}
+// 🥊 막고라 진행 중 안내(대기 화면) — 배팅/정산은 홈페이지(우측 내 정보 패널)에서
+function _magollaBanner() {
+  const m = magollaData;
+  if (!m || !m.matchId) return null;
+  const f1 = esc(m.fighter1 || '?'), f2 = esc(m.fighter2 || '?');
+  const meFighter = myName && (nn(m.fighter1) === nn(myName) || nn(m.fighter2) === nn(myName));
+  const st = m.status === 'settled' ? '정산 완료' : m.status === 'closed' ? '배팅 마감' : '배팅 중';
+  const sub = meFighter ? '⚔️ 내가 파이터예요 · 최선을 다해요!' : '우측 「내 정보」 패널에서 배팅해요';
+  return `<span class="lobby-pulse mg"></span>🥊 막고라 · <b style="color:#ff9a8a">${f1}</b> vs <b style="color:#ff9a8a">${f2}</b><br><span class="status-sub">${st} · ${sub}</span>`;
+}
 function renderRoster() {
   const has = roster.length;
   el('roster-h').style.display = has ? 'block' : 'none';
   el('pcount').textContent = has ? `${roster.length}명` : '';
   el('status').style.display = has ? 'none' : 'block';
-  if (!has) el('status').innerHTML = _gamePlayed
+  const lobHtml = has ? null : (_magollaBanner() || _lobbyBanner());
+  el('status').classList.toggle('lobby', !!lobHtml);
+  if (!has) el('status').innerHTML = lobHtml || (_gamePlayed
     ? '🏁 경기 종료<br><span class="status-sub">정산을 기다리는 중이에요.<br>잠시 후 투표·정산이 자동으로 떠요.</span>'
-    : '⚔️ 팀짜기 대기 중<br><span class="status-sub">방장이 팀을 짜거나 게임을 시작하면<br>여기에 자동으로 떠요.</span>';
+    : '⚔️ 팀짜기 대기 중<br><span class="status-sub">방장이 팀을 짜거나 게임을 시작하면<br>여기에 자동으로 떠요.</span>');
   el('players').innerHTML = roster.map(p => {
     const r = lpMap[norm(p.name)];
     const lp = r ? `<span class="lp">${TIER_SHORT[r.tier] || '?'} ${r.lp}</span>` : `<span class="lp none">—</span>`;

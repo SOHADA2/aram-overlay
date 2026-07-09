@@ -3,19 +3,13 @@
   background:linear-gradient(165deg, rgba(9,19,26,0.985), rgba(4,12,19,0.985));   /* 클라 로비 톤 ~#061117 (덜 블루한 블랙) */
   border:1px solid rgba(120,90,40,0.6); border-left:none; border-top:2px solid #785A28; border-radius:0;   /* 각지게 + 상단 골드 라인(클라 #785A28) */
   box-shadow:3px 0 20px rgba(0,0,0,0.45); }   /* 그림자는 바깥(오른쪽)으로만 — 클라 위로 안 새게 */
-#sbar { -webkit-app-region:drag; display:flex; align-items:center; gap:7px; padding:0 11px; min-height:80px; flex:0 0 auto;   /* 클라 상단 네비바 높이에 맞춤(아래 구분선 정렬) */
+#sbar { -webkit-app-region:drag; display:flex; align-items:center; gap:9px; padding:0 11px; min-height:80px; flex:0 0 auto;   /* 재화 전용 헤더(단일 행) — 클라 네비바 높이에 맞춤 */
   background:linear-gradient(180deg, rgba(200,170,110,0.10), rgba(200,170,110,0.03)); border-bottom:1px solid rgba(255,255,255,0.11); }   /* 클라 네비 아래 구분선=얇은 회색 */
 #panel .rail { padding-top:10px; }   /* rail-logo 제거 후 상단 여백 */
 #sbar label, #sbar button, #sbar input, #sbar select { -webkit-app-region:no-drag; }
 #sbar .s-ttl { font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:14px; letter-spacing:0.5px; color:var(--gold); }
 #sbar .s-me { font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:14px; color:var(--ink); max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#sbar .s-host { display:inline-flex; align-items:center; gap:4px; cursor:pointer; font-size:11px; font-weight:800; color:var(--ink-soft);
-  padding:3px 8px; border-radius:7px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); }
-#sbar .s-host input { margin:0; accent-color:var(--gold); }
-#sbar .s-host:has(input:checked) { background:var(--gold-soft); border-color:var(--gold-line); color:#ffe39a; }
-#sbar .s-live { -webkit-app-region:no-drag; font-size:9.5px; font-weight:800; white-space:nowrap; letter-spacing:0.2px; }
-#sbar #s-change { border:1px solid rgba(255,255,255,0.12); border-radius:6px; cursor:pointer; font-size:10px; color:var(--dim); background:rgba(255,255,255,0.05); padding:3px 8px; white-space:nowrap; }
-#sbar #s-change:hover { color:var(--ink); border-color:var(--gold-line); }
+@keyframes sLivePulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.8); } }
 #sbar .s-sp { flex:1; }
 #sbar #s-close { width:22px; height:22px; border:none; border-radius:6px; cursor:pointer;
   background:rgba(255,255,255,0.08); color:#cfd4e6; font-size:12px; font-weight:800; }
@@ -48,6 +42,14 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 
 /* ── ⚔️ 팀짜기 톤앤매너(헥스텍) 오버라이드 ── */
 #cat-team .cat-scroll { padding:9px 12px 8px; }
+/* ⚔️/🥊 매치 종류 토글(일반전/막고라) */
+#cat-team .tb-type { display:flex; gap:5px; margin-bottom:9px; }
+#cat-team .tbt-btn { -webkit-app-region:no-drag; flex:1; cursor:pointer; padding:8px 6px; border-radius:9px; font-size:12px; font-weight:800;
+  color:var(--dim); background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); }
+#cat-team .tbt-btn:hover { color:var(--ink); }
+#cat-team .tbt-btn.on { background:var(--gold-soft); border-color:var(--gold-line); color:#ffe39a; }
+#cat-team .tbt-btn.on[data-mtype="magolla"] { background:rgba(224,72,58,0.14); border-color:rgba(224,72,58,0.5); color:#ff9a8a; }
+#cat-team.magolla .tb-modes { display:none; }   /* 막고라는 밸런스/랜덤 무관 */
 #cat-team .tb-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
 #cat-team .tb-count { font-size:11.5px; color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px; }
 #cat-team #tb-clear { -webkit-app-region:no-drag; cursor:pointer; font-size:9.5px; font-weight:800; color:var(--dim);
@@ -267,11 +269,27 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 .fg-pips i.ok { background:#5fbf8a; } .fg-pips i.no { background:#e0685a; }
 .fg-em-eff { font-size:9.5px; color:#ffd98a; line-height:1.5; word-break:keep-all; }
 .fg-em-btns { display:flex; gap:5px; }
-/* 🪙 상단 재화(아이디 대신) — 골드=pill·코인=심플 텍스트(겹침 없음) */
-.s-wallet { flex:1; min-width:0; display:flex; align-items:center; gap:10px; white-space:nowrap; overflow:hidden; }
-.s-wallet .sw-g { flex-shrink:0; display:inline-flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:800; color:#ffe39a;
-  background:rgba(240,200,90,0.1); border:1px solid rgba(240,200,90,0.35); border-radius:9px; padding:4px 11px; }
-.s-wallet span { flex-shrink:1; min-width:0; overflow:hidden; text-overflow:ellipsis; font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:700; color:var(--dim); }
+/* 🪙 상단 재화 헤더 — 골드 크게(좌측) + 뽑기/투기장 코인 2줄 스택 */
+.s-wallet { flex:1; min-width:0; display:flex; align-items:center; gap:11px; }
+.s-wallet .sw-gold { flex-shrink:0; display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:800; color:#ffe39a;
+  background:rgba(240,200,90,0.12); border:1px solid rgba(240,200,90,0.42); border-radius:11px; padding:6px 15px; letter-spacing:0.3px; }
+.s-wallet .sw-coins { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.s-wallet .sw-c { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:var(--ink-soft); white-space:nowrap; }
+/* 👑 로그인 화면 방장 토글 */
+.s-host-login { display:flex; align-items:center; gap:10px; cursor:pointer; padding:9px 12px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); transition:.12s; }
+.s-host-login:has(input:checked) { background:var(--gold-soft); border-color:var(--gold-line); }
+.s-host-login input { width:17px; height:17px; accent-color:var(--gold); flex-shrink:0; }
+.s-host-login .shl-tx { display:flex; flex-direction:column; text-align:left; }
+.s-host-login .shl-tx b { font-size:12px; font-weight:800; color:var(--ink-soft); }
+.s-host-login:has(input:checked) .shl-tx b { color:#ffe39a; }
+.s-host-login .shl-tx small { font-size:9px; color:var(--dim); margin-top:1px; }
+/* 프로필 우측 상단 액션(계정 변경 + 라이브 상태 점) */
+.cat-hd { display:flex; align-items:center; gap:5px; }
+.cat-hd-actions { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.s-change-btn { -webkit-app-region:no-drag; border:1px solid rgba(255,255,255,0.14); border-radius:7px; cursor:pointer; font-size:10.5px; font-weight:700; color:var(--dim); background:rgba(255,255,255,0.05); padding:4px 10px; font-family:var(--f-body); }
+.s-change-btn:hover { color:var(--ink); border-color:var(--gold-line); }
+.cat-hd-actions .s-live-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.cat-hd-actions .s-live-dot.pulse { animation:sLivePulse 1.7s ease-in-out infinite; }
 /* 📋 기록 필터/상세 + 🏆 랭킹 히어로 */
 .rc-segs { display:flex; gap:5px; margin-bottom:2px; }
 .rc-seg { -webkit-app-region:no-drag; flex:1; cursor:pointer; padding:6px 4px; border-radius:8px; font-size:10.5px; font-weight:800;
@@ -300,6 +318,31 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 .rk-hero-tier { font-size:9px; font-weight:800; color:var(--tc, var(--dim)); }
 .rk-hero-lp { font-family:'JetBrains Mono',monospace; font-size:14px; color:var(--tc, var(--gold)); }
 .rk-hero .rk-bar { width:100%; margin:4px 0 0; }
+
+/* ── 🥊 막고라 진행 배너(하단 스트립) ── */
+#mg-bar { position:absolute; left:0; right:0; bottom:0; z-index:6; display:flex; align-items:center; gap:8px; padding:8px 11px;
+  background:linear-gradient(180deg, rgba(224,72,58,0.16), rgba(20,8,8,0.96)); border-top:1px solid rgba(224,72,58,0.5); }
+#mg-bar .mg-info { flex:1; min-width:0; font-size:11px; font-weight:700; color:#ffd0c6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#mg-bar .mg-info b { color:#ff9a8a; }
+#mg-bar .mg-open { -webkit-app-region:no-drag; flex-shrink:0; cursor:pointer; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800;
+  color:#1a1206; background:linear-gradient(180deg,#ffb0a0,#e0685a); border:none; }
+#mg-bar .mg-x { -webkit-app-region:no-drag; flex-shrink:0; width:24px; height:24px; cursor:pointer; border-radius:7px; font-size:11px; font-weight:800;
+  color:var(--ink-soft); background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); }
+/* 🥊 방장 결과 입력 폼(배팅 마감 후) */
+#mg-result { position:absolute; left:0; right:0; bottom:0; z-index:7; padding:12px 13px 13px;
+  background:linear-gradient(180deg, rgba(24,9,9,0.98), rgba(9,4,4,0.99)); border-top:1px solid rgba(224,72,58,0.55); box-shadow:0 -12px 34px rgba(0,0,0,0.55); }
+#mg-result .mgr-title { font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:13px; color:#ff9a8a; }
+#mg-result .mgr-title .mgr-sub { font-size:9px; font-weight:700; color:var(--dim); margin-left:5px; }
+#mg-result .mgr-label { font-size:9px; font-weight:800; letter-spacing:1px; color:rgba(255,150,138,0.6); margin:9px 2px 5px; }
+#mg-result .mgr-row { display:flex; gap:5px; }
+#mg-result .mgr-btn { -webkit-app-region:no-drag; flex:1; cursor:pointer; padding:8px 4px; border-radius:8px; font-size:11px; font-weight:800; color:var(--ink-soft);
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); white-space:nowrap; }
+#mg-result .mgr-btn:hover { border-color:rgba(224,72,58,0.4); }
+#mg-result .mgr-btn.on { background:rgba(224,72,58,0.22); border-color:#e0483a; color:#fff; }
+#mg-result .mgr-err { font-size:10px; color:#ff8b8b; margin-top:8px; }
+#mg-result .mgr-confirm { -webkit-app-region:no-drag; width:100%; margin-top:11px; cursor:pointer; padding:11px; border-radius:10px;
+  font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:14px; color:#1a1206; border:none; background:linear-gradient(180deg,#ffb0a0,#e0483a); }
+#mg-result .mgr-confirm:disabled { background:rgba(255,255,255,0.07); color:var(--dim); cursor:default; }
 
 /* ── 🎟🔨 복권·대장간 홈 임베드(webview) — .cat 위에 꽉 차게 ── */
 #panel .cat { position:relative; }

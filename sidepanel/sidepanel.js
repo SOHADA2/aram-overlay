@@ -43,10 +43,12 @@ let _rosterNames = [], _myName = '', _isHost = false, _lpMap = {}, _liveStatus =
 function renderLiveStatus(s) {
   const el = $('s-live'); if (!el) return;
   if (s !== undefined) _liveStatus = s;
-  if (!_isHost || !_liveStatus || _liveStatus === 'off') { el.style.display = 'none'; return; }
-  const M = { connecting: ['🔴 라이브 연결 중…', '#c8aa6e'], live: ['🔴 라이브 ON', '#7cfc9a'], other: ['📡 다른 기기가 라이브', '#8fb8ff'], noname: ['⚠️ 로그인 필요', '#e0a030'], error: ['⚠️ 라이브 오류', '#e06060'] };
+  if (!_isHost || !_liveStatus || _liveStatus === 'off') { el.style.display = 'none'; el.classList.remove('pulse'); return; }
+  // 텍스트 대신 색 점 + 툴팁(경기 저장·정산 담당 여부)
+  const M = { connecting: ['#e0a83a', '라이브 연결 중…'], live: ['#7cfc9a', '🔴 라이브 ON — 이 오버레이가 경기 저장·정산을 담당해요'], other: ['#8fb8ff', '📡 다른 기기가 라이브를 담당 중'], noname: ['#e0a030', '⚠️ 라이브하려면 로그인 필요'], error: ['#e06060', '⚠️ 라이브 오류'] };
   const m = M[_liveStatus] || M.error;
-  el.textContent = m[0]; el.style.color = m[1]; el.style.display = '';
+  el.style.display = ''; el.style.background = m[0]; el.style.boxShadow = '0 0 6px ' + m[0]; el.title = m[1];
+  el.classList.toggle('pulse', _liveStatus === 'live');
 }
 window.api.onLiveStatus(s => renderLiveStatus(s));
 // LP 실시간 갱신(티어 배지) — 팀짜기 탭 보고 있으면 배지도 다시 그림
@@ -57,20 +59,18 @@ if (window.api.onPlayers) window.api.onPlayers(({ lpMap }) => {
 });
 function showLogin() {
   $('s-login').style.display = 'flex'; $('s-app').style.display = 'none';
-  $('s-ttl').style.display = ''; $('s-me').style.display = 'none'; $('s-host-box').style.display = 'none'; $('s-change').style.display = 'none';
+  $('s-ttl').style.display = ''; $('s-me').style.display = 'none';
   $('s-wallet').style.display = 'none';
+  const h = $('s-host'); if (h) h.checked = _isHost;   // 로그인 화면 방장 체크 = 현재 상태 반영
   const sp = $('s-sp'); if (sp) sp.style.display = '';
 }
 function showLogged() {
   $('s-login').style.display = 'none'; $('s-app').style.display = 'flex';
-  $('s-ttl').style.display = 'none';
-  $('s-me').style.display = 'none';   // 아이디는 클라 옆이라 생략(사장님) — 대신 재화 표시
-  $('s-wallet').style.display = '';
-  const sp = $('s-sp'); if (sp) sp.style.display = 'none';   // 재화가 flex:1로 공간 사용
+  $('s-ttl').style.display = 'none'; $('s-me').style.display = 'none';
+  $('s-wallet').style.display = '';   // 헤더 = 재화 전용
+  const sp = $('s-sp'); if (sp) sp.style.display = 'none';
   updateWallet();
-  $('s-host-box').style.display = ''; $('s-host').checked = _isHost;
-  renderLiveStatus();
-  $('s-change').style.display = '';
+  renderLiveStatus();   // 라이브 점 = 프로필 우측 상단
   $('s-rail-team').style.display = _isHost ? '' : 'none';
   switchCat(_isHost && _curCat === 'team' ? 'team' : 'profile');
 }
@@ -79,12 +79,12 @@ async function updateWallet() {
   if (!window.api.getWallet) return;
   const w = await window.api.getWallet().catch(() => null);
   if (!w || !w.ok) return;
-  $('s-wallet').innerHTML = `<b class="sw-g">🪙 ${w.gold.toLocaleString()}</b>${w.claw ? `<span>🕹️ ${w.claw}</span>` : ''}${w.arena ? `<span>🗡️ ${w.arena}</span>` : ''}`;
+  $('s-wallet').innerHTML = `<b class="sw-gold">🪙 ${w.gold.toLocaleString()}</b><span class="sw-coins">${w.claw ? `<span class="sw-c">🕹️ ${w.claw}</span>` : ''}${w.arena ? `<span class="sw-c">🗡️ ${w.arena}</span>` : ''}</span>`;
 }
 // 소비/획득 직후 골드 즉시 반영(응답의 잔여 골드로 · fetch 없이) → 상단 재화바 바로바로 갱신
 function setWalletGold(gold) {
   if (typeof gold !== 'number') { updateWallet(); return; }
-  const w = $('s-wallet'); const g = w && w.querySelector('.sw-g');
+  const w = $('s-wallet'); const g = w && w.querySelector('.sw-gold');
   if (g) g.textContent = `🪙 ${gold.toLocaleString()}`; else updateWallet();
 }
 
@@ -101,6 +101,7 @@ function renderCat(cat, silent) {
   // 복권·대장간은 홈 임베드가 표시(hpEmbedFor) — 네이티브 렌더 스킵
 }
 function switchCat(cat) {
+  if (_curCat === 'team' && cat !== 'team' && window.api.lobbyClear) window.api.lobbyClear();   // 🛠️ 팀짜기 탭 벗어남 → 준비 중 배너 제거
   _curCat = cat;
   updateWallet();
   hpEmbedFor(cat);   // 🌐 복권/대장간 = 홈페이지 임베드 표시 토글
@@ -170,15 +171,20 @@ esel.addEventListener('change', () => { $('s-entry-go').disabled = !esel.value; 
 $('s-entry-go').addEventListener('click', () => {
   if (!esel.value) return;
   _myName = esel.value; window.api.setMyName(_myName);
+  window.api.setHost(_isHost);   // 로그인 화면 방장 체크 적용
+  if (!_isHost) renderLiveStatus('off');
   showLogged();
 });
 $('s-change').addEventListener('click', showLogin);
+// 방장 체크 = 로그인 화면에서만(입장 시 적용). 이미 입장한 상태서 바꾸면 즉시 반영.
 $('s-host').addEventListener('change', () => {
   _isHost = $('s-host').checked;
-  window.api.setHost(_isHost);
-  if (!_isHost) renderLiveStatus('off');   // 방장 해제 → 배지 숨김(켜면 main이 connecting→live 브로드캐스트)
-  $('s-rail-team').style.display = _isHost ? '' : 'none';
-  if (_isHost) switchCat('team'); else if (_curCat === 'team') switchCat('profile');
+  if ($('s-app').style.display !== 'none') {   // 로그인 후 토글(드묾) → 즉시 반영
+    window.api.setHost(_isHost);
+    if (!_isHost) renderLiveStatus('off');
+    $('s-rail-team').style.display = _isHost ? '' : 'none';
+    if (_isHost) switchCat('team'); else if (_curCat === 'team') switchCat('profile');
+  }
 });
 
 // ── ⚔️ 팀 짜기(방장 전용) — 홈페이지와 완전 연동(desktop.js 이식) ───────────
@@ -239,11 +245,24 @@ function tbRenderList() {
     tbSync();
   });
 })();
+// 🛠️ 방장이 참가자 고르는 중 → 팀원에게 "준비 중" 안내 송신(디바운스). 팀짜기 시작/탭이탈 시엔 빈 목록=배너 제거.
+let _lobbyPushT = null;
+function _lobbyPushDebounced() {
+  clearTimeout(_lobbyPushT);
+  _lobbyPushT = setTimeout(() => {
+    if (!window.api.lobbyPrep) return;
+    const picking = $('tb-pick') && $('tb-pick').style.display !== 'none';   // 선택 화면일 때만 준비 중 송신
+    window.api.lobbyPrep(picking ? [..._tbChecked] : []);
+  }, 300);
+}
 function tbSync() {
-  const n = _tbChecked.size;
+  const n = _tbChecked.size, mg = _tbType === 'magolla', min = mg ? 5 : 4;
   $('tb-num').textContent = n;
-  $('tb-go').disabled = n < 4;
-  $('tb-go').textContent = n < 4 ? `⚔️ 팀 구성 (최소 4명 · 현재 ${n}명)` : `⚔️ 팀 구성 — ${n}명 (아이템 15초 후 발표)`;
+  $('tb-go').disabled = n < min;
+  $('tb-go').textContent = mg
+    ? (n < 5 ? `🥊 막고라 시작 (최소 5명 · 현재 ${n}명)` : `🥊 막고라 시작 — ${n}명`)
+    : (n < 4 ? `⚔️ 팀 구성 (최소 4명 · 현재 ${n}명)` : `⚔️ 팀 구성 — ${n}명 (아이템 15초 후 발표)`);
+  _lobbyPushDebounced();
 }
 function tbShow(step) {
   $('tb-pick').style.display = step === 'pick' ? '' : 'none';
@@ -251,13 +270,84 @@ function tbShow(step) {
   $('tb-done').style.display = step === 'done' ? '' : 'none';
   if (step !== 'error') $('tb-err').style.display = 'none';
 }
+// ⚔️/🥊 매치 종류 토글
+let _tbType = 'normal';
+document.querySelectorAll('#tb-type .tbt-btn').forEach(b => b.addEventListener('click', () => {
+  _tbType = b.dataset.mtype;
+  document.querySelectorAll('#tb-type .tbt-btn').forEach(x => x.classList.toggle('on', x === b));
+  $('cat-team').classList.toggle('magolla', _tbType === 'magolla');
+  tbSync();
+}));
 $('tb-go').addEventListener('click', async () => {
+  $('tb-go').disabled = true; $('tb-err').style.display = 'none';
+  if (_tbType === 'magolla') {   // 🥊 막고라 = 즉시 생성(카운트다운 없음) → 홈페이지에 배팅 모달 전파
+    const r = await window.api.magollaStart([..._tbChecked]);
+    if (!r || !r.ok) { $('tb-err').textContent = '⚠️ ' + ((r && r.err) || '막고라 시작 실패'); $('tb-err').style.display = ''; }
+    else { $('tb-err').textContent = `🥊 막고라 생성! ${escH(r.fighter1)} vs ${escH(r.fighter2)} — 아래 배너에서 배팅/결과를 열어요`; $('tb-err').style.display = ''; $('tb-err').style.color = '#7fe0c8'; setTimeout(() => { $('tb-err').style.color = ''; }, 4000); }
+    $('tb-go').disabled = false;
+    return;
+  }
   const mode = document.querySelector('input[name=tb-mode]:checked')?.value || 'balance';
-  $('tb-go').disabled = true;
   const r = await window.api.tbStart([..._tbChecked], mode);
   if (!r || !r.ok) { $('tb-err').textContent = '⚠️ ' + ((r && r.err) || '시작 실패'); $('tb-err').style.display = ''; $('tb-go').disabled = false; return; }
   tbShow('run');
 });
+// 🥊 막고라 진행 배너 — 배팅/결과/정산은 홈페이지 임베드로(session/magollaMatchId 리스너가 모달 자동 오픈)
+let _mgActive = null, _mgr = { winner: null, cond: null, aug: null };
+function _mgrSync() { const c = $('mgr-confirm'); if (c) c.disabled = !(_mgr.winner && _mgr.cond && _mgr.aug); }
+function _mgrReset(m) {
+  _mgr = { winner: null, cond: null, aug: null };
+  const w = $('mgr-winner'); if (w) w.innerHTML = [m.fighter1, m.fighter2].map(f => `<button class="mgr-btn" data-k="winner" data-v="${escH(f)}">${escH(f)}</button>`).join('');
+  document.querySelectorAll('#mg-result .mgr-btn').forEach(b => b.classList.remove('on'));
+  const err = $('mgr-err'); if (err) err.style.display = 'none';
+  const c = $('mgr-confirm'); if (c) { c.disabled = true; c.textContent = '정산 확정'; }
+}
+if (window.api.onMagolla) window.api.onMagolla(d => {
+  const prev = _mgActive;
+  _mgActive = (d && d.matchId) ? d : null;
+  const bar = $('mg-bar'), resEl = $('mg-result'); if (!bar) return;
+  const meIn = _mgActive && _myName && [_mgActive.fighter1, _mgActive.fighter2, ...(_mgActive.spectators || [])].some(x => _tbNorm(x) === _tbNorm(_myName));
+  if (!_mgActive || (!meIn && !_isHost)) { bar.style.display = 'none'; if (resEl) resEl.style.display = 'none'; if (!_mgActive) hideMagollaEmbed(); return; }
+  const st = _mgActive.status === 'settled' ? '정산 완료' : _mgActive.status === 'closed' ? '배팅 마감' : '배팅 중';
+  const vs = `🥊 <b>${escH(_mgActive.fighter1 || '?')}</b> vs <b>${escH(_mgActive.fighter2 || '?')}</b>`;
+  const o = $('mg-open');
+  // 방장 = 마감 후 결과 3가지 입력(아래 폼) / 관전자 = 홈 임베드로 배팅
+  if (_isHost) { $('mg-info').innerHTML = `${vs} · ${st}${_mgActive.status === 'betting' ? ' · 마감 후 결과 입력' : ''}`; if (o) o.textContent = '🥊 라이브 창(폴백)'; }
+  else { $('mg-info').innerHTML = `${vs} · ${st}`; if (o) o.textContent = '🥊 배팅/결과 열기'; }
+  bar.style.display = 'flex';
+  if (resEl) {   // 방장 결과 입력 폼 = 배팅 마감(closed) 후
+    const showRes = _isHost && _mgActive.status === 'closed';
+    if (showRes) { if (!prev || prev.matchId !== _mgActive.matchId || prev.status !== 'closed') _mgrReset(_mgActive); resEl.style.display = 'block'; }
+    else resEl.style.display = 'none';
+  }
+});
+{ const rp = $('mg-result');
+  if (rp) rp.addEventListener('click', (e) => {
+    const b = e.target.closest('.mgr-btn'); if (!b) return;
+    const k = b.dataset.k; _mgr[k] = b.dataset.v;
+    rp.querySelectorAll(`.mgr-btn[data-k="${k}"]`).forEach(x => x.classList.toggle('on', x === b));
+    _mgrSync();
+  });
+  const cf = $('mgr-confirm');
+  if (cf) cf.addEventListener('click', async () => {
+    if (!_mgActive || !_mgr.winner || !_mgr.cond || !_mgr.aug) return;
+    cf.disabled = true; cf.textContent = '정산 중…';
+    const r = await window.api.magollaResult(_mgActive.matchId, _mgr.winner, _mgr.cond, _mgr.aug);
+    if (r && r.ok) { cf.textContent = '✅ 정산 완료'; if (rp) rp.style.display = 'none'; }
+    else { const err = $('mgr-err'); if (err) { err.textContent = '⚠️ ' + ((r && r.err) || '실패'); err.style.display = 'block'; } cf.disabled = false; cf.textContent = '정산 확정'; }
+  });
+}
+function showMagollaEmbed() {
+  const host = $('hp-embed'); if (!host) return;
+  host.style.display = 'flex'; ensureHpWv();
+  if (_hpWv) { _hpWv.style.height = '99.99%'; requestAnimationFrame(() => { if (_hpWv) _hpWv.style.height = '100%'; }); }   // 뷰포트 고착 해제
+  const x = $('mg-x'); if (x) x.style.display = '';   // 막고라 모달은 홈 session/magollaMatchId 리스너가 자동 오픈(goto 불필요)
+}
+function hideMagollaEmbed() {
+  const host = $('hp-embed'); if (host && _curCat !== 'lottery' && _curCat !== 'forge') host.style.display = 'none';
+  const x = $('mg-x'); if (x) x.style.display = 'none';
+}
+{ const o = $('mg-open'); if (o) o.addEventListener('click', () => { if (_isHost && window.api.magollaShowLive) window.api.magollaShowLive(); else showMagollaEmbed(); }); const x = $('mg-x'); if (x) x.addEventListener('click', hideMagollaEmbed); }
 $('tb-skip').addEventListener('click', () => window.api.tbSkip());
 $('tb-again').addEventListener('click', () => { tbShow('pick'); tbRenderList(); });
 window.api.onTeamBuild(d => {

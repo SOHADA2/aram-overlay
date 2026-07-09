@@ -17,10 +17,7 @@
       <span class="s-ttl" id="s-ttl">🗡️ 아수라장 내전</span>
       <span class="s-me" id="s-me" style="display:none;"></span>
       <span class="s-wallet" id="s-wallet" style="display:none;"></span>
-      <label class="s-host" id="s-host-box" style="display:none;"><input type="checkbox" id="s-host"><span>👑 방장</span></label>
-      <span class="s-live" id="s-live" style="display:none;" title="방장이면 이 오버레이가 경기 저장·정산을 담당해요"></span>
       <span class="s-sp" id="s-sp"></span>
-      <button id="s-change" style="display:none;">계정 변경</button>
       <button id="s-close" title="닫기">✕</button>
     </header>
 
@@ -31,6 +28,7 @@
         <div class="slb-label">계정 선택</div>
         <select id="s-entry-name"><option value="">— 아이디 선택 —</option></select>
         <button id="s-entry-go" class="ui-btn-gold slb-go" disabled>입장</button>
+        <label class="s-host-login" id="s-host-box"><input type="checkbox" id="s-host"><span class="shl-tx"><b>👑 방장으로 입장</b><small>이 오버레이가 경기 저장·정산을 담당</small></span></label>
         <div class="slb-hint">홈페이지에 등록된 <b>본인 닉네임</b>을 고르세요</div>
       </div>
       <div class="app-ver" id="s-ver"></div>
@@ -55,6 +53,10 @@
           <div class="cat-hd">⚔️ 팀 짜기 <span class="cat-hd-sub">방장</span></div>
           <div class="cat-scroll ui-scroll">
             <div id="tb-pick">
+              <div class="tb-type" id="tb-type">
+                <button type="button" class="tbt-btn on" data-mtype="normal">⚔️ 일반전</button>
+                <button type="button" class="tbt-btn" data-mtype="magolla">🥊 막고라</button>
+              </div>
               <div class="tb-row">
                 <span class="tb-count"><b id="tb-num">0</b>명 선택 <button id="tb-clear" title="전체 선택 해제">해제</button></span>
                 <span class="tb-modes">
@@ -77,7 +79,7 @@
             <div id="tb-err" class="tb-err" style="display:none;"></div>
           </div>
         </section>
-        <section class="cat-view" id="cat-profile" style="display:flex;"><div class="cat-hd">내 프로필</div><div id="pf-body" class="cat-scroll ui-scroll"></div></section>
+        <section class="cat-view" id="cat-profile" style="display:flex;"><div class="cat-hd">내 프로필<span class="cat-hd-actions"><i class="s-live-dot" id="s-live" style="display:none;" title="방장이면 이 오버레이가 경기 저장·정산을 담당해요"></i><button class="s-change-btn" id="s-change" title="계정 변경">계정 변경</button></span></div><div id="pf-body" class="cat-scroll ui-scroll"></div></section>
         <section class="cat-view" id="cat-records"><div class="cat-hd">최근 기록</div><div id="rc-body" class="cat-scroll ui-scroll"></div></section>
         <section class="cat-view" id="cat-ranking"><div class="cat-hd">랭킹 <span class="cat-hd-sub">SEASON 2</span></div><div id="rk-body" class="cat-scroll ui-scroll"></div></section>
         <section class="cat-view" id="cat-shop"><div class="cat-hd">상점 <span class="cat-hd-sub" id="sh-gold"></span></div><div id="sh-body" class="cat-scroll ui-scroll"></div></section>
@@ -88,6 +90,32 @@
         <!-- 🎟🔨 복권·대장간 = 홈페이지 임베드(오른 3D·긁기 모션·아이템 홈 그대로) -->
         <div id="hp-embed" style="display:none;"><div id="hp-load">홈페이지 불러오는 중…</div></div>
       </div>
+    </div>
+    <!-- 🥊 막고라 진행 중 배너(하단 스트립) — 배팅/결과는 홈페이지 임베드로 -->
+    <div id="mg-bar" style="display:none;">
+      <span class="mg-info" id="mg-info"></span>
+      <button class="mg-open" id="mg-open">🥊 배팅/결과 열기</button>
+      <button class="mg-x" id="mg-x" title="임베드 닫기" style="display:none;">✕</button>
+    </div>
+    <!-- 🥊 방장 결과 입력(배팅 마감 후) — 승자·요건·증강 3가지 고르면 라이브 권한으로 정산 -->
+    <div id="mg-result" style="display:none;">
+      <div class="mgr-title">🥊 결과 확정 <span class="mgr-sub">방장 · 라이브 권한</span></div>
+      <div class="mgr-label">승자</div>
+      <div class="mgr-row" id="mgr-winner"></div>
+      <div class="mgr-label">승리 요건</div>
+      <div class="mgr-row">
+        <button class="mgr-btn" data-k="cond" data-v="tower">🏰 타워 먼저</button>
+        <button class="mgr-btn" data-k="cond" data-v="kill2">💀 2킬 먼저</button>
+        <button class="mgr-btn" data-k="cond" data-v="cs100">🌾 CS 70</button>
+      </div>
+      <div class="mgr-label">첫 증강 티어</div>
+      <div class="mgr-row">
+        <button class="mgr-btn" data-k="aug" data-v="silver">🌙 실버</button>
+        <button class="mgr-btn" data-k="aug" data-v="gold">⭐ 골드</button>
+        <button class="mgr-btn" data-k="aug" data-v="prisma">💠 프리즘</button>
+      </div>
+      <div class="mgr-err" id="mgr-err" style="display:none;"></div>
+      <button class="mgr-confirm" id="mgr-confirm" disabled>정산 확정</button>
     </div>
   </div>
   <script src="mock.js"></script>

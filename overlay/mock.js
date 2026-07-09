@@ -32,17 +32,19 @@
     return async () => ({ ok: true });   // 그 외(itemToggle 등)=성공 스텁
   } });
 
-  const clr = () => { cb.onItemPhase && cb.onItemPhase(null); cb.onSettlement && cb.onSettlement(null); };   // 아이템·정산 초기화(우선순위 낮은 뷰 보이게)
+  const clr = () => { cb.onItemPhase && cb.onItemPhase(null); cb.onSettlement && cb.onSettlement(null); cb.onLobby && cb.onLobby(null); cb.onMagolla && cb.onMagolla(null); };   // 아이템·정산·로비·막고라 초기화(우선순위 낮은 뷰 보이게)
   const scenarios = {
     team() { clr(); cb.onSession({ session: TEAM, myName: '애긔반달곰', lpMap: LPMAP }); cb.onState({ inGame: false, label: '팀 배정' }); },
     item() { cb.onSettlement && cb.onSettlement(null); cb.onState({ inGame: false, label: '아이템' }); cb.onItemPhase({ gold: { key: 'k', data: JSON.parse(JSON.stringify(ITEM_GOLD)) }, lp: { placementDone: true, promoActive: false }, endAt: Date.now() + 15000 }); },
     ingame() { cb.onSettlement && cb.onSettlement(null); cb.onSession({ session: null, myName: '애긔반달곰', lpMap: LPMAP }); const g = JSON.parse(JSON.stringify(ITEM_GOLD)); g.items_s2 = [{ id: 's1_gamble', active: true }]; cb.onItemPhase({ gold: { key: 'k', data: g }, lp: { tier: 'gold', lp: 76, placementDone: true, promoActive: false }, endAt: Date.now() - 1000 }); cb.onMystats && cb.onMystats({ todayW: 3, todayL: 1, streakType: 'win', streakCount: 2 }); cb.onState({ inGame: true, label: '게임 중' }); },
     waiting() { clr(); cb.onSession({ session: null, myName: '애긔반달곰', lpMap: LPMAP }); cb.onPlayers({ players: [], lpMap: LPMAP }); cb.onState({ inGame: false, label: '대기' }); },
+    lobbyprep() { clr(); cb.onSession({ session: null, myName: '애긔반달곰', lpMap: LPMAP }); cb.onPlayers({ players: [], lpMap: LPMAP }); cb.onState({ inGame: false, label: '대기' }); cb.onLobby({ state: 'preparing', by: '울퉁쓰', at: Date.now(), participants: ['울퉁쓰', '애긔반달곰', '신규회원임'] }); },
+    magolla() { clr(); cb.onSession({ session: null, myName: '애긔반달곰', lpMap: LPMAP }); cb.onPlayers({ players: [], lpMap: LPMAP }); cb.onState({ inGame: false, label: '막고라' }); cb.onMagolla && cb.onMagolla({ matchId: 'm1', status: 'betting', fighter1: '울퉁쓰', fighter2: '맹독 벌꿀오소리', spectators: ['애긔반달곰', '신규회원임', 'ap렉사이서폿'] }); },
     roster() { clr(); cb.onSession({ session: null, myName: '애긔반달곰', lpMap: LPMAP }); cb.onPlayers({ players: ROSTER, lpMap: LPMAP }); cb.onState({ inGame: false, label: '명단' }); },
     vote() { clr(); cb.onSession({ session: VOTE, myName: '애긔반달곰', lpMap: LPMAP }); cb.onState({ inGame: false, label: '게임 종료' }); },
     settle() { cb.onItemPhase && cb.onItemPhase(null); cb.onSession({ session: TEAM, myName: '애긔반달곰', lpMap: LPMAP }); cb.onSettlement(JSON.parse(JSON.stringify(SETTLE))); },
   };
-  const LABELS = { team: '팀 배정', item: '아이템', ingame: '게임 중', waiting: '대기', roster: '명단', vote: '투표', settle: '정산' };
+  const LABELS = { team: '팀 배정', item: '아이템', ingame: '게임 중', waiting: '대기', lobbyprep: '방장 준비중', magolla: '막고라', roster: '명단', vote: '투표', settle: '정산' };
 
   window.addEventListener('load', () => {
     const st = document.createElement('style');

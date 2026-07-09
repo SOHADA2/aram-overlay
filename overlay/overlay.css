@@ -72,6 +72,12 @@ header #close:hover { background:#e0483a; color:#fff; }
 /* ── 참가자 명단 뷰 ── */
 .status { padding:30px 12px; font-family:'Noto Sans KR',sans-serif; font-weight:900; font-size:16px; letter-spacing:0.5px; color:var(--gold); line-height:1.5; text-align:center; }
 .status .status-sub { display:inline-block; margin-top:8px; font-family:'Noto Sans KR',sans-serif; font-size:11px; font-weight:400; letter-spacing:0; color:var(--dim); line-height:1.7; }
+/* 🛠️ 방장 팀 구성 준비 중 배너 */
+.status.lobby { color:var(--ink); }
+.lobby-pulse { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--gold); margin-right:8px; vertical-align:middle; box-shadow:0 0 9px rgba(200,170,110,0.7); animation:lobbyPulse 1.3s ease-in-out infinite; }
+.lobby-pulse.cancel { background:var(--lose); box-shadow:0 0 9px rgba(232,64,87,0.6); animation:none; }
+.lobby-pulse.mg { background:#ff6a55; box-shadow:0 0 10px rgba(232,64,87,0.7); }
+@keyframes lobbyPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.35; transform:scale(0.65); } }
 /* 🆕 대기 화면 정보(내 LP + 시즌 랭킹) */
 .waiting-info { padding:2px 3px 6px; }
 .wi-me { background:linear-gradient(160deg, rgba(200,170,110,0.1), rgba(200,170,110,0.03)); border:1px solid var(--gold-line); border-radius:12px; padding:11px 12px; margin-bottom:12px; }
