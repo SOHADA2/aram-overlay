@@ -22,7 +22,8 @@
       lpMap: { '애긔반달곰': { tier: 'gold', lp: 76, placementDone: true }, '울퉁쓰': { tier: 'gold', lp: 75, placementDone: true }, 'ap렉사이서폿': { tier: 'diamond', lp: 12, placementDone: true, promoActive: true }, '맹독벌꿀오소리': { tier: 'gold', lp: 80, placementDone: true }, '신규회원임': { tier: 'silver', lp: 40, placementDone: true }, '나랑듀오해듀오': { placementDone: false, placementGames: 3 } } });
     if (k === 'getProfile') return async () => ({ ok: true, ddVer: '14.24.1', profile: PROFILE });
     if (k === 'getWallet') return async () => ({ ok: true, gold: 1240, claw: 3, arena: 120 });
-    if (k === 'getShop') return async () => ({ ok: true, gold: 1240, itemCounts: { s1_gamble: { n: 1, active: 1 } }, tickets: { stable: 3, precise: 1 }, essence: 2, emblems: 4 });
+    if (k === 'getShop') return async () => ({ ok: true, gold: 1240, itemCounts: { s1_gamble: { n: 1, active: 1 } }, tickets: { stable: 3, precise: 1 }, essence: 2, emblems: 4, essMax: true, essPrice: 250, essLevelCap: 50 });
+    if (k === 'buyEssence') return async () => ({ ok: true, gold: 990 });
     if (k === 'getGacha') return async () => ({ ok: true, gold: 1240, yuumi: true,
       champs: [{ slug: 'Akshan', kr: '아크샨' }, { slug: 'Amumu', kr: '아무무' }, { slug: 'Brand', kr: '브랜드' }, { slug: 'DrMundo', kr: '문도 박사' }, { slug: 'Fizz', kr: '피즈' }, { slug: 'Gangplank', kr: '갱플랭크' }, { slug: 'Jhin', kr: '진' }, { slug: 'Khazix', kr: '카직스' }, { slug: 'Lulu', kr: '룰루' }, { slug: 'Malphite', kr: '말파이트' }, { slug: 'Malzahar', kr: '말자하' }, { slug: 'Mel', kr: '멜' }, { slug: 'Morgana', kr: '모르가나' }, { slug: 'Naafiri', kr: '나피리' }, { slug: 'Poppy', kr: '뽀삐' }, { slug: 'Rammus', kr: '람머스' }, { slug: 'Vayne', kr: '베인' }, { slug: 'Yasuo', kr: '야스오' }],
       cards: { Khazix: { s1: 4, s2: 1 }, Malzahar: { s1: 2, s3: 1 }, Yasuo: { s1: 7, s2: 2 }, Jhin: { s1: 3, s2: 1 } },

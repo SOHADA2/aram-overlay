@@ -537,10 +537,15 @@ async function renderShop(silent) {
     const n = r.tickets[t.id] || 0;
     return `<div class="sh-row"><span class="sh-dot" style="background:${t.color}"></span><div class="sh-info"><b>${t.name}</b><small>${t.sub}</small></div>${n ? `<span class="sh-own">보유 ${n}</span>` : ''}<button class="sh-buy" data-buy-tk="${t.id}" ${r.gold < t.price ? 'disabled' : ''}>${t.price}G</button><button class="sh-buy sh-buy5" data-buy-tk5="${t.id}" ${r.gold < t.price * 5 ? 'disabled' : ''}>×5</button></div>`;
   }).join('');
+  // 🔶 걸작의 정수 — 내전 만렙(LV50) 달성 시 구매 해금(그 전엔 레벨업 보상으로만). 가격·게이트는 홈과 동일
+  const essOwn = `<span class="sh-own">보유 ${r.essence || 0}</span>`;
+  const essPrice = r.essPrice || 250, essCap = r.essLevelCap || 50;
+  const essRow = r.essMax
+    ? `<div class="sh-row"><span class="sh-dot" style="background:#e8a33d"></span><div class="sh-info"><b>걸작의 정수</b><small>걸작 리롤용 · 내전 만렙 해금됨</small></div>${essOwn}<button class="sh-buy" data-buy-ess="1" ${r.gold < essPrice ? 'disabled' : ''}>${essPrice}G</button><button class="sh-buy sh-buy5" data-buy-ess5="5" ${r.gold < essPrice * 5 ? 'disabled' : ''}>×5</button></div>`
+    : `<div class="sh-row sh-locked"><span class="sh-dot" style="background:#e8a33d"></span><div class="sh-info"><b>걸작의 정수</b><small>🔒 내전 만렙(LV${essCap}) 달성 시 구매 해금 · 그 전엔 레벨업 보상으로</small></div>${essOwn}</div>`;
   el.innerHTML =
     `<div class="sh-sec">전투 아이템 <small>아이템 시간·인벤토리에서 활성화</small></div>${combat}`
-    + `<div class="sh-sec">강화권 <small>대장간 강화용(강화는 홈페이지에서)</small></div>${tickets}`
-    + `<div class="sh-row"><span class="sh-dot" style="background:#e8a33d"></span><div class="sh-info"><b>걸작의 정수</b><small>구매는 내전 만렙(LV50) 해금 — 홈페이지에서</small></div><span class="sh-own">보유 ${r.essence}</span></div>`
+    + `<div class="sh-sec">강화권 <small>대장간 강화용(강화는 홈페이지에서)</small></div>${tickets}${essRow}`
     + `<div class="sh-sec">바로가기</div>`
     + `<div class="sh-row"><div class="sh-info"><b>복권</b><small>실버·골드·프리즘 스크래치 긁기</small></div><button class="sh-buy" data-cat-go="lottery">이동</button></div>`
     + `<div class="sh-row"><div class="sh-info"><b>대장간</b><small>강철심장 ${r.emblems}개 보유 · 강화·걸작·판매</small></div><button class="sh-buy" data-cat-go="forge">이동</button></div>`;
@@ -559,6 +564,15 @@ async function renderShop(silent) {
   };
   el.querySelectorAll('[data-buy-tk]').forEach(b => b.onclick = () => buyTk(b.dataset.buyTk, 1, b));
   el.querySelectorAll('[data-buy-tk5]').forEach(b => b.onclick = () => buyTk(b.dataset.buyTk5, 5, b));
+  const buyEss = async (qty, btn) => {   // 🔶 걸작의 정수 구매(만렙 해금 시에만 버튼 노출)
+    btn.disabled = true;
+    const res = await withCtrl(() => window.api.buyEssence(qty));
+    if (res && res.ok) setWalletGold(res.gold);   // 상단 재화바 즉시 반영
+    spToast(res && res.ok ? `정수 ×${qty} 구매 (잔여 ${res.gold}G)` : (res && res.err) || '구매 실패');
+    renderShop(true);
+  };
+  el.querySelectorAll('[data-buy-ess]').forEach(b => b.onclick = () => buyEss(1, b));
+  el.querySelectorAll('[data-buy-ess5]').forEach(b => b.onclick = () => buyEss(5, b));
   el.querySelectorAll('[data-cat-go]').forEach(b => b.onclick = () => switchCat(b.dataset.catGo));
 }
 let _gaLastResults = null;   // 마지막 뽑기 결과(재렌더 시 유지)

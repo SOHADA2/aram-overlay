@@ -676,7 +676,7 @@ async function pollGame() {
     inGame = nowIn;
     // 게임 중(전체화면)만 위로, 로비/클라에선 같은 층위(클라 활성 시에만 evalRaise가 올림)
     try { if (overlayWin && !overlayWin.isDestroyed()) overlayWin.setAlwaysOnTop(inGame, inGame ? 'screen-saver' : 'normal'); } catch (_) {}
-    if (inGame) { if (!userHid) showOverlay(); _slotDoneFormed = lastFormed; hideSlotMarker(); pollMyStats(); }   // 게임 시작 → 이번 팀결성 마커 소진(끝나도 재등장 X) + 마커 숨김 + 오늘전적 갱신
+    if (inGame) { hideOverlay(); _slotDoneFormed = lastFormed; hideSlotMarker(); }   // 게임 시작 → 오버레이 완전히 숨김(전투 중 정보 미노출, 새 폼 재설계 예정) · applyRaise/floatPanels가 inGame return이라 재등장 없음 · 투표/정산 폴이 다시 표시
     else { hideOverlay(); userHid = false; latestPlayers = []; _lastRaise = null; evalRaise(); }   // 게임 종료 → 로비 층위 재적용
     broadcast('state', { inGame, label: inGame ? '게임 중' : '대기' });
   }
@@ -1180,8 +1180,10 @@ ipcMain.handle('wallet-data', async () => {   // 🪙 상단 재화(골드·뽑�
 ipcMain.handle('shop-data', async () => {
   const mg = await fetchMyGold();
   if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요(닉네임 확인)' };
-  const matches = await getMatchesCached();
-  const gold = availableGoldS2(mg.data.name || config.myName, mg.data, matches);
+  const [matches, nm, playersRaw] = await Promise.all([getMatchesCached(), getNormalMatchesCached(), fetchPlayers()]);
+  const players = playersRaw ? Object.values(playersRaw).filter(p => p && p.name) : [];
+  const name = mg.data.name || config.myName;
+  const gold = availableGoldS2(name, mg.data, matches);
   const counts = {};
   for (const it of (Array.isArray(mg.data.items_s2) ? mg.data.items_s2 : [])) {
     if (!it || !it.id) continue;
@@ -1189,7 +1191,26 @@ ipcMain.handle('shop-data', async () => {
     counts[it.id].n++; if (it.active) counts[it.id].active++;
   }
   return { ok: true, gold, itemCounts: counts, tickets: mg.data.emblemTickets_s2 || {}, essence: mg.data.emblemEssence_s2 || 0,
-    emblems: Array.isArray(mg.data.emblems_s2) ? mg.data.emblems_s2.filter(Boolean).length : 0 };
+    emblems: Array.isArray(mg.data.emblems_s2) ? mg.data.emblems_s2.filter(Boolean).length : 0,
+    essMax: store.plvMaxReached(name, matches, nm, players), essPrice: store.EMBLEM_ESSENCE_PRICE, essLevelCap: store.PLV_MAX_LEVEL };   // 🔶 정수 구매 = 내전 만렙(LV50) 해금
+});
+// 🔶 걸작의 정수 구매 — 홈 emblemBuyEssence 이식(내전 만렙 LV50 게이트·goldSpent + goldSpendLog 기록)
+ipcMain.handle('shop-buy-essence', async (_e, { qty }) => {
+  const _c = await ensureControl(); if (!_c.ok) return CTRL_FAIL(_c);   // 🔒 계정 조작 잠금
+  qty = Math.max(1, Math.min(99, Math.floor(qty || 1)));
+  const mg = await fetchMyGold();
+  if (!mg) return { ok: false, err: '내 계정을 찾을 수 없어요' };
+  const [matches, nm, playersRaw] = await Promise.all([getMatchesCached(), getNormalMatchesCached(), fetchPlayers()]);
+  const players = playersRaw ? Object.values(playersRaw).filter(p => p && p.name) : [];
+  const name = mg.data.name || config.myName;
+  if (!store.plvMaxReached(name, matches, nm, players)) return { ok: false, err: `정수 구매는 내전 만렙(LV${store.PLV_MAX_LEVEL}) 달성 시 해금돼요` };
+  const gold = availableGoldS2(name, mg.data, matches);
+  const cost = store.EMBLEM_ESSENCE_PRICE * qty;
+  if (gold < cost) return { ok: false, err: `골드 부족 (보유 ${gold}G · 필요 ${cost}G)` };
+  const upd = { emblemEssence_s2: (mg.data.emblemEssence_s2 || 0) + qty, goldSpent_s2: (mg.data.goldSpent_s2 || 0) + cost,
+    ...store.spendLogUpd(mg.data, 'emblem_essence', `걸작의 정수 ×${qty}`, cost) };
+  const r = await fbUpdate(`gold/${mg.key}`, upd);
+  return { ok: r.ok, err: r.err, gold: gold - cost };
 });
 // 🛒 강화권 구매 — 홈 emblemBuyTicket 이식(goldSpent + goldSpendLog 기록)
 ipcMain.handle('shop-buy-ticket', async (_e, { type, qty }) => {

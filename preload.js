@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('api', {
   getWallet: () => ipcRenderer.invoke('wallet-data'),                     // 🪙 상단 재화
   getShop: () => ipcRenderer.invoke('shop-data'),
   buyTicket: (type, qty) => ipcRenderer.invoke('shop-buy-ticket', { type, qty }),
+  buyEssence: (qty) => ipcRenderer.invoke('shop-buy-essence', { qty }),        // 🔶 걸작의 정수(내전 만렙 해금)
   getGacha: () => ipcRenderer.invoke('gacha-data'),
   gachaPull: (times) => ipcRenderer.invoke('gacha-pull', { times }),
   getPass: () => ipcRenderer.invoke('pass-data'),

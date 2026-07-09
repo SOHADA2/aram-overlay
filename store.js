@@ -216,6 +216,43 @@ function passClaim(name, data, level, matches, normalMatches, players) {
   return { reward, upd };
 }
 
+// ═══ 🔷 시즌2 플레이어 레벨(내전 만렙 LV50) — 홈 PLV_XP(L11111)·plvLevelFromXp(L11117)·_plvMaxReached(L11120) 이식 ═══
+//   정수 상점 구매 해금 판정용. XP는 매치 파생(저장X). 내전(matches)+일반게임(normalMatches) 통합.
+const PLV_XP = { game: 10, win: 6, award: 4, kda3: 3, kda5: 6 };   // 판수 / 승 / MVP·매너 / KDA3+ / KDA5+
+const PLV_MAX_LEVEL = 50, PLV_BASE_NEED = 12, PLV_NEED_STEP = 0.5;
+const plvNeed = i => Math.round(PLV_BASE_NEED + (i - 1) * PLV_NEED_STEP);   // 레벨 i→i+1 요구 XP
+const plvCumXp = L => { let s = 0; for (let i = 1; i < L; i++) s += plvNeed(i); return s; };   // 레벨 L 도달 누적 XP
+function plvLevelFromXp(xp) { let L = 1; while (L < PLV_MAX_LEVEL && (xp || 0) >= plvCumXp(L + 1)) L++; return L; }
+function calcPlayerXp(name, matches, normalMatches, players) {
+  if (!name) return 0;
+  const nnv = normName(name);
+  const plist = Array.isArray(players) ? players : [];
+  let xp = 0;
+  for (const m of Object.values(matches || {})) {
+    if ((m.season || 0) !== 2) continue;
+    const inA = (m.teamA || []).some(p => normName(p) === nnv), inB = (m.teamB || []).some(p => normName(p) === nnv);
+    if (!inA && !inB) continue;
+    xp += PLV_XP.game;
+    const won = (m.winner === 'blue' && inA) || (m.winner === 'red' && inB);
+    if (won) xp += PLV_XP.win;
+    if ([m.mvpWinner, m.mvpLoser, m.mannerWinner, m.mannerLoser, m.mannerKing].some(x => x && normName(x) === nnv)) xp += PLV_XP.award;
+    const pd = m.participants && m.participants[nnv];
+    if (pd) { const kda = ((pd.kills || 0) + (pd.assists || 0)) / Math.max(1, pd.deaths || 0);
+      if (kda >= 5) xp += PLV_XP.kda5; else if (kda >= 3) xp += PLV_XP.kda3; }
+  }
+  for (const m of Object.values(normalMatches || {})) {   // 일반게임(증바람) XP — 내전과 동일(경기·승리·KDA). 소환사명→팀원 매핑 위해 players 필요
+    if (!m || !Array.isArray(m.players) || (m.season || 0) !== 2) continue;
+    const pl = m.players.find(x => normName(normalMatchMember(x.summonerName, plist) || '') === nnv);
+    if (!pl) continue;
+    xp += PLV_XP.game;
+    if (pl.isWin) xp += PLV_XP.win;
+    const kda = ((pl.kills || 0) + (pl.assists || 0)) / Math.max(1, pl.deaths || 0);
+    if (kda >= 5) xp += PLV_XP.kda5; else if (kda >= 3) xp += PLV_XP.kda3;
+  }
+  return xp;
+}
+function plvMaxReached(name, matches, normalMatches, players) { return plvLevelFromXp(calcPlayerXp(name, matches, normalMatches, players)) >= PLV_MAX_LEVEL; }
+
 // ═══ 🔨 대장간(강철심장) — 홈 이식(emblemEnhance L10843·emblemMasterReroll L10773·emblemSell L10896·emblemBuyBase L10731) ═══
 const EMBLEM_SLOTS = 5, EMBLEM_LINES = 3, EMBLEM_BASE_PRICE = 150, EMBLEM_MAX_OWN = 15;
 const EMBLEM_EFFECT_POOL = ['matchG', 'winG', 'attend', 'mvpG', 'magollaG', 'winLP', 'lossLP', 'lottoTkt', 'yuumiCut', 'yuumiCool'];
@@ -609,5 +646,6 @@ function lotteryView(data) {
 }
 
 module.exports = { EMBLEM_TICKETS, EMBLEM_TICKET_ORDER, EMBLEM_ESSENCE_PRICE, spendLogUpd, GACHA_CHAMPS, gachaPull, S2_PASS_MAX_LEVEL, computePassRows, passClaim,
+  PLV_MAX_LEVEL, calcPlayerXp, plvLevelFromXp, plvMaxReached,
   getEmblems, getEquippedId, emblemEffectsOf, forgeEnhance, forgeReroll, forgeBuyBase, forgeSell, forgeNick, forgeHealUpd, computeForgeView,
   SCRATCH_TIERS, rollScratch, lotteryBuy, lotteryFinish, lotteryCancel, lotteryDiscard, lotteryView };

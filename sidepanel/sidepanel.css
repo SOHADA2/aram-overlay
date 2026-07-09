@@ -103,6 +103,8 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 .sh-sec { font-size:10.5px; font-weight:800; letter-spacing:0.4px; color:var(--gold); margin:6px 2px 0; }
 .sh-sec small { font-weight:400; color:var(--dim); margin-left:5px; letter-spacing:0; }
 .sh-row { display:flex; align-items:center; gap:8px; padding:8px 10px; background:rgba(255,255,255,0.03); border:1px solid var(--hair); border-radius:9px; }
+.sh-row.sh-locked { opacity:0.62; }
+.sh-row.sh-locked .sh-info small { color:#c8a24a; }
 .sh-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
 .sh-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
 .sh-info b { font-size:12px; color:#e8ecf6; } .sh-info small { font-size:9.5px; color:var(--dim); }
