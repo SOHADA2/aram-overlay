@@ -384,7 +384,7 @@ async function renderProfile(silent) {
   const p = r.profile, lp = p.lp, a = p.arena;
   const tc = lp ? (TB_TIER[lp.tier] || TB_TIER.unranked)[1] : TB_TIER.unranked[1];   // 티어 색(홈 S1_TIER_META)
   const lpHtml = lp
-    ? `<span class="pf-tier" style="background:${tc}">${lp.tierKr}</span><span class="pf-lpn" style="color:${tc}">${lp.placementDone ? lp.lp + ' LP' : '배치 ' + lp.placementGames + '/5'}</span>${lp.promoActive ? `<span class="pf-promo">승급전 ${lp.promoWins}승 ${lp.promoLosses}패</span>` : ''}`
+    ? `<span class="pf-tier" style="background:${tc}">${lp.tierKr}</span>${lp.promoActive ? '' : `<span class="pf-lpn" style="color:${tc}">${lp.placementDone ? lp.lp + ' LP' : '배치 ' + lp.placementGames + '/5'}</span>`}${lp.promoActive ? `<span class="pf-promo">⚔️ 승급전 ${lp.promoWins}승 ${lp.promoLosses}패</span>` : ''}`
     : `<span class="pf-tier">배치</span><span class="pf-lpn">기록 없음</span>`;
   // LP 바(홈 s1LpBarHtml 톤) — 정규전만(배치/승급전/챌린저=무제한 제외)
   const lpBar = (lp && lp.placementDone && !lp.promoActive && lp.tier !== 'challenger')

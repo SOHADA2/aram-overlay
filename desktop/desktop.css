@@ -129,7 +129,8 @@ select:focus { outline:none; border-color:var(--gold); }
 .pf-lp { display:flex; align-items:center; justify-content:center; gap:6px; margin-top:4px; flex-wrap:wrap; }
 .pf-tier { font-family:var(--f-mono); font-size:10px; font-weight:700; color:#1a1206; background:linear-gradient(180deg,#ffe08a,#f0c060); padding:2px 8px; border-radius:7px; }
 .pf-lpn { font-size:12.5px; font-weight:800; color:var(--gold); }
-.pf-promo { font-size:8.5px; color:#ff9a9a; border:1px solid rgba(255,120,120,0.4); border-radius:6px; padding:1px 5px; }
+.pf-promo { font-size:9px; font-weight:800; color:#1a1206; background:linear-gradient(180deg,#ffd968,#f0a63c); border-radius:6px; padding:2px 7px; white-space:nowrap; box-shadow:0 0 9px rgba(240,166,60,.5); animation:pfPromoPulse 1.4s ease-in-out infinite; }
+@keyframes pfPromoPulse { 0%,100%{ box-shadow:0 0 6px rgba(240,166,60,.35); } 50%{ box-shadow:0 0 15px rgba(240,166,60,.85); } }
 .pf-lpbar { height:4px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden; margin:5px 12px 0; }
 .pf-lpbar i { display:block; height:100%; border-radius:2px; }
 /* 최근 폼 + 4스탯을 한 카드로 묶어 세로 길이 절약 */

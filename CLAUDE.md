@@ -43,7 +43,11 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.47** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.48** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🆕 v0.1.48 (2026-07-09) — 승급전 표시 명확화(홈과 동일)
+- **문제(사장님)**: 승급전 도달 시 표시가 애매 → 승급전인 걸 확실히. 홈페이지도 동일 수정(v2.45.578·「⚔️ 승급전 N승 N패」 금빛 펄스 배지).
+- **수정 3곳**: ①`sidepanel/sidepanel.js` renderProfile `lpHtml` — 승급전 중이면 LP 숫자(`pf-lpn`) 숨기고 `pf-promo`를 「⚔️ 승급전 N승 N패」로(기존 "승급전 N승 N패"에 ⚔️). ②`overlay/overlay.js` renderIngame `promoCtx` — 「승급전 N-N」→「⚔️ 승급전 N승 N패」. ③`desktop/desktop.css` `.pf-promo` — 흐린 빨강 테두리칩 → 금빛 그라데이션 펄스 배지(`pfPromoPulse` 키프레임 추가). ⚠️실기 미검증(개발환경 실계정 승급전 데이터 없음).
 
 ### 🆕 v0.1.47 (2026-07-09) — 자동 로그인/자동 방장 제거(매번 입장창)
 - **문제**: 재실행 시 저장된 아이디로 자동 로그인 + 저장된 방장이면 자동 방장(라이브 계정 가동)돼버림 → 방장 켜둔 사람이 그냥 켜면 방장이 됨. **매번 입장창을 띄워 직접 고르게**(추후 비밀번호 로그인 예정·인원 늘면 보안).

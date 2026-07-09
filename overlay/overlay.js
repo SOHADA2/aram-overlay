@@ -683,7 +683,7 @@ function renderIngame() {
   const PREV_TIER = { platinum: 'gold', diamond: 'platinum', master: 'diamond', grandmaster: 'master', challenger: 'grandmaster' };
   let promoCtx;
   if (st.placementDone === false) promoCtx = `배치 ${st.placementGames}/5`;
-  else if (st.promoActive) promoCtx = `승급전 ${st.promoWins}-${st.promoLosses}`;
+  else if (st.promoActive) promoCtx = `⚔️ 승급전 ${st.promoWins}승 ${st.promoLosses}패`;
   else if (isChall) promoCtx = '정점 · LP 상한 없음';
   else promoCtx = (st.lp <= 15 && DEMOTE_TIERS.includes(st.tier)) ? `⚠️ 강등 위험 · 승급까지 ${LP_CAP - st.lp}` : `승급까지 ${LP_CAP - st.lp} LP`;
 
