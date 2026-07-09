@@ -271,10 +271,9 @@ body { background:#061117; }   /* 클라 로비 톤(블랙에 가까운 딥블�
 .fg-em-btns { display:flex; gap:5px; }
 /* 🪙 상단 재화 헤더 — 골드 크게(좌측) + 뽑기/투기장 코인 2줄 스택 */
 .s-wallet { flex:1; min-width:0; display:flex; align-items:center; gap:11px; }
-.s-wallet .sw-gold { flex-shrink:0; display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:800; color:#ffe39a;
-  background:rgba(240,200,90,0.12); border:1px solid rgba(240,200,90,0.42); border-radius:11px; padding:6px 15px; letter-spacing:0.3px; }
-.s-wallet .sw-coins { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.s-wallet .sw-c { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:var(--ink-soft); white-space:nowrap; }
+.s-wallet .sw-gold { flex-shrink:0; display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:800; color:#ffe39a; letter-spacing:0.3px; }
+.s-wallet .sw-coins { display:flex; flex-direction:row; align-items:center; gap:14px; min-width:0; }
+.s-wallet .sw-c { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--ink-soft); white-space:nowrap; }
 /* 👑 로그인 화면 방장 토글 */
 .s-host-login { display:flex; align-items:center; gap:10px; cursor:pointer; padding:9px 12px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); transition:.12s; }
 .s-host-login:has(input:checked) { background:var(--gold-soft); border-color:var(--gold-line); }

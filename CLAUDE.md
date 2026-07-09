@@ -43,7 +43,11 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.48** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.49** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🆕 v0.1.49 (2026-07-09) — 헤더 지갑 1열 정렬(골드 박스 제거)
+- **사장님**: 헤더 골드의 금색 박스 없애고, 골드 옆 재화(뽑기·투기장)가 2층으로 쌓인 걸 그냥 한 줄로 나열(전체 1열).
+- **수정(sidepanel.css만)**: ①`.sw-gold` — `background`/`border`/`border-radius`/`padding` 박스 제거(글자만). ②`.sw-coins` — `flex-direction:column`→`row`(gap 14px)로 코인 가로 나열. ③`.sw-c` 폰트 11→13px(1열이라 여유). 결과=`🪙 골드  🕹️ 뽑기  🗡️ 투기장` 한 줄.
 
 ### 🆕 v0.1.48 (2026-07-09) — 승급전 표시 명확화(홈과 동일)
 - **문제(사장님)**: 승급전 도달 시 표시가 애매 → 승급전인 걸 확실히. 홈페이지도 동일 수정(v2.45.578·「⚔️ 승급전 N승 N패」 금빛 펄스 배지).
