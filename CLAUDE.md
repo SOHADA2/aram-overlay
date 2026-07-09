@@ -43,7 +43,12 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.45** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.46** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🆕 v0.1.46 (2026-07-09) — 클라 종료 확인창 + 클라 없을 때 패널 가운데 모음
+- **🚪 클라 종료 시 "같이 끌까요?" 확인창**: 도킹 C# `Snap()`이 이제 **종료(`h==Zero`)=`"gone"` / 최소화(`IsIconic`)=`""`** 로 구분 emit(이전엔 둘 다 `""`라 구분 불가). `handleDockLine`이 `'gone'` 수신 시 `_clientPresent`였다면(있다가 사라짐=방금 종료) **2.5초 디바운스 후에도 없으면** `dialog.showMessageBox`(「종료 / 계속 켜두기」)→종료 선택 시 `app.quit()`. ⚠️게임 중(`inGame`)·그새 재감지(`_clientPresent`)·이미 열림(`_quitPromptOpen`)이면 안 띄움. 최소화는 종료 아님(플로팅만).
+- **🎯 클라 없을 때 패널 가운데로**: `standaloneBounds`가 좌우 화면 끝(`x:wa.x+40`/`wa.width-420`)에 벌리던 것 → **두 패널을 화면 가운데에 나란히**(좌 430 + gap 10 + 우 380 블록을 workArea 중앙 정렬). 클라 감지되면 기존대로 클라 좌우 도킹(무변). ⚠️실기 미검증(개발환경 롤클라 없음).
+
 
 ### 🆕 v0.1.45 (2026-07-09·이 PC·claude web) — 헤더 재설계 + 로비 준비중 배너 + 🥊막고라(생성+결과입력) ★필독
 > 이 세션 전부 **claude.ai Artifact 갤러리로 디자인 리뷰**하며 진행(⚔️오버레이 패널 / 🗂️사이드패널 각 갤러리·실제 CSS `@scope`로 격리 재현·한글은 시스템 고딕 폴백). 실제 폰트 확인=`overlay/overlay.html`·`sidepanel/sidepanel.html` 브라우저 직접 열기(목업바로 시나리오 전환). ⚠️**전부 실기 미검증**(개발환경 롤클라/실게임 없음).

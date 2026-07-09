@@ -3,7 +3,7 @@
 //   · 인게임 명단: Live Client Data API(127.0.0.1:2999·게임 실행 중에만 응답·자체서명 무시)
 //   · 내전 LP/티어: 홈페이지와 같은 Firebase(공개 read)
 // 브릿지(aram-bridge) 없이도 오버레이는 단독 동작. 게임 감지=2999 응답 여부.
-const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, nativeImage, screen, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');   // 🔄 GitHub Releases 자동 업데이트
 const path = require('path');
 const https = require('https');
@@ -39,6 +39,7 @@ let leftWin = null, leftDockedBounds = null, leftUserHid = false;   // 🖥️ �
 let slotWin = null, _slotSig = '', _slotTeam = 0, _slotDoneFormed = 0;   // 📍 클라 로비 위 '내 팀 여기' 마커 (_slotDoneFormed=게임이 시작된 팀결성 시각 → 그 판 끝나도 재등장 안 함)
 let _floating = false;   // 클라 없음 = 패널을 독립 창으로 띄운 상태
 let _lastRect = null;    // 마지막 감지된 클라 창 좌표(팀 마커 갱신용)
+let _clientPresent = false, _goneTimer = null, _quitPromptOpen = false;   // 🚪 클라 창 존재 추적(종료 시 "같이 끌까요?" 확인창)
 let _startTs = 0;        // 시작 시각(시작 직후 잠깐은 패널 안 숨김)
 const _dockScript = `
 $ErrorActionPreference='SilentlyContinue'
@@ -66,7 +67,8 @@ public class Win{
  static string Snap(){
   IntPtr h=FindWindow(null,"League of Legends");
   target=h;
-  if(h==IntPtr.Zero||!IsWindowVisible(h)||IsIconic(h)) return "";
+  if(h==IntPtr.Zero) return "gone";                // 클라 창 자체가 없음(=종료) — 최소화와 구분
+  if(!IsWindowVisible(h)||IsIconic(h)) return "";  // 최소화/숨김(=종료 아님·플로팅)
   RECT r; if(DwmGetWindowAttribute(h,9,out r,16)!=0 && !GetWindowRect(h,out r)) return "";  // 9=DWMWA_EXTENDED_FRAME_BOUNDS(보이는 실제 경계·투명 테두리 제외)
   int fg=(GetForegroundWindow()==h)?1:0;
   return r.L+" "+r.T+" "+r.R+" "+r.B+" "+fg;
@@ -194,14 +196,37 @@ function evalRaise() {   // 올릴 땐 즉시, 내릴 땐 살짝 텀(클라↔�
   else if (!_dropTimer) _dropTimer = setTimeout(() => { _dropTimer = null; applyRaise(); }, 300);
 }
 function setPanelFg() { const v = _ovFocus || _lfFocus; if (v !== panelFg) { panelFg = v; evalRaise(); } }
+async function maybePromptQuitOnClientClose() {
+  if (app._quitting || _quitPromptOpen || _clientPresent || inGame) return;   // 그새 다시 켜졌거나 게임 중이면 안 띄움
+  _quitPromptOpen = true;
+  try {
+    const r = await dialog.showMessageBox({
+      type: 'question', buttons: ['종료', '계속 켜두기'], defaultId: 0, cancelId: 1, noLink: true,
+      title: '롤 클라이언트 종료됨', message: '롤 클라이언트가 종료됐어요.', detail: '내전 오버레이도 같이 종료할까요?',
+    });
+    if (r.response === 0 && !_clientPresent) { app._quitting = true; app.quit(); }
+  } catch (_) {} finally { _quitPromptOpen = false; }
+}
 function handleDockLine(line) {
-  const p = line.split(/\s+/).map(Number);
+  const raw = String(line).trim();
+  if (raw === 'gone') {   // 🚪 클라 창 자체가 사라짐(종료) — 최소화(빈 줄)와 구분
+    hideSlotMarker(); floatPanels();
+    if (clientFg) { clientFg = false; evalRaise(); }
+    if (_clientPresent) {   // 있었다가 사라짐 = 방금 종료 → 잠깐 뒤에도 없으면 "같이 끌까요?" (오탐 방지 디바운스)
+      _clientPresent = false;
+      if (!_goneTimer && !app._quitting) _goneTimer = setTimeout(() => { _goneTimer = null; maybePromptQuitOnClientClose(); }, 2500);
+    }
+    return;
+  }
+  const p = raw.split(/\s+/).map(Number);
   const valid = p.length >= 4 && p.slice(0, 4).every(Number.isFinite) && (p[2] - p[0]) >= 700 && (p[3] - p[1]) >= 400;
-  if (config.dock === false || !valid) {   // 도킹 끔 or 클라 없음 → 독립 창(플로팅)으로
+  if (config.dock === false || !valid) {   // 도킹 끔 or 최소화/숨김 → 독립 창(플로팅)으로 (종료 아님)
     hideSlotMarker(); floatPanels();
     if (clientFg) { clientFg = false; evalRaise(); }
     return;
   }
+  if (_goneTimer) { clearTimeout(_goneTimer); _goneTimer = null; }   // 클라 다시 나타남 → 종료 확인 취소
+  _clientPresent = true;
   if (_floating) { _floating = false; _lastRaise = null; }   // 플로팅 → 도킹 전환
   _lastRect = p;
   const fg = p[4] === 1;                            // 롤 클라가 지금 활성창인가
@@ -464,12 +489,15 @@ function showDesktop() {
 }
 // ── 독립 창(플로팅) 배치 — 클라 없을 때 좌우에 띄움 ──────────────────────
 function standaloneBounds(which) {
+  // 클라 없음 = 좌우 끝에 벌리지 않고 두 패널을 화면 가운데에 나란히 모음
   const wa = screen.getPrimaryDisplay().workArea;
   const h = Math.min(760, wa.height - 100);
   const y = Math.round(wa.y + (wa.height - h) / 2);
+  const LW = 430, RW = 380, GAP = 10;                          // 좌(팀·명단) · 우(내 정보) · 사이 간격
+  const startX = Math.round(wa.x + (wa.width - (LW + GAP + RW)) / 2);
   return which === 'left'
-    ? { x: wa.x + 40, y, width: 430, height: h }               // ◀ 팀·명단 오버레이
-    : { x: wa.x + wa.width - 420, y, width: 380, height: h };   // ▶ 내 정보(메인)
+    ? { x: startX, y, width: LW, height: h }                   // ◀ 팀·명단 오버레이(가운데 왼쪽)
+    : { x: startX + LW + GAP, y, width: RW, height: h };       // ▶ 내 정보(가운데 오른쪽)
 }
 function floatPanels() {   // 클라 없음/도킹 끔 → 독립 창으로 표시(첫 전환 때만 위치 세팅)
   if (inGame) { hideLeftPanel(); return; }   // 게임 중엔 내 정보 패널 숨김(오버레이는 pollGame이 관리)
