@@ -43,7 +43,13 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 - 홈페이지가 로드 시 `config/appVersion=APP_VERSION` 기록 → 오버레이 main.js `pollVersion`(시작+5분마다 `config/appVersion.json` 읽음)이 `broadcast('version')` → 데스크톱 로그인/홈 하단 `.app-ver`에 "버전 v2.45.xxx" 표시. **항상 홈페이지와 동일**. getPlayers 응답에도 webVersion 실어 첫 로드 즉시 표시. preload `onVersion`.
 
 ## 🪟 창 구조 대개편 (v0.1.14~26·2026-07-06~07) ★새 세션 필독 — 아래 옛 설명보다 우선
-> **현재 배포 = v0.1.53** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+> **현재 배포 = v0.1.54** (CI Releases). 배포=package.json v↑→commit→`git tag vX.Y.Z && git push --tags`(CI가 빌드/릴리즈).
+
+### 🆕 v0.1.54 (2026-07-10) — 🚪 클라 종료 확인창 톤앤매너 + 🎮 인게임 좌측 패널도 숨김
+- **사장님**: ①클라 종료 시 뜨는 "같이 끌까요?"가 OS 기본 다이얼로그라 톤앤매너 안 맞음 → 앱 톤 창으로. ②인게임 중 창 하나(좌측 내 정보 패널) 아직 뜨는데 빼줘(인게임 폼은 나중에 추가 예정).
+- **🚪 종료 확인창 커스텀화**: `maybePromptQuitOnClientClose`가 쓰던 `dialog.showMessageBox`(네이티브) → **테마 창(블랙+골드)** `desktop/quit-confirm.html`(update-toast.html 톤 미러·화면 중앙 살짝 위·frameless/transparent/alwaysOnTop screen-saver). 버튼 [계속 켜두기 ghost]/[종료 gold]. 배선: preload `quitConfirm(yes)`→IPC `quit-confirm`(yes && !_clientPresent → app.quit / 아니면 창 닫기). `quitConfirmWin`/`closeQuitConfirm()`. **클라 복귀 시 자동 닫힘**(handleDockLine 유효 rect서 `closeQuitConfirm()`). `desktop/**` 화이트리스트라 새 html 자동 포함.
+- **🎮 인게임 좌측 패널 숨김**: pollGame 게임시작 분기가 `hideOverlay()`(우측 팀/명단)만 해서 **좌측 「내 정보」 패널(leftWin)은 인게임 중 남아있던 문제**(+클라 창이 게임 진입으로 사라질 때 `floatPanels`가 inGame 미확정 순간 잠깐 띄우는 레이스). → 게임시작 분기에 `hideLeftPanel()` 추가 → 인게임엔 **아무 패널도 안 뜸**. 게임종료 시 evalRaise/floatPanels(inGame=false 통과)가 자동 복귀. ⏭️인게임 전용 폼은 나중에 재설계 예정(우측 overlay.js `renderIngame`은 코드만 있고 창 숨김이라 미노출).
+- ⚠️실기 미검증(개발환경 롤 클라 없음) — 클라 종료 시 테마 창·인게임 중 패널 미노출 확인 필요.
 
 ### 🆕 v0.1.53 (2026-07-10) — 🎟 복권 오른 비침 근본수정(허브 불투명화) + 첫 로드 마스킹 (v0.1.52 보강)
 - **v0.1.52로 부족**(사장님 재보고): ①복권창 켜질 때 오른 대장간이 **뒤에 계속 비침** ②첫 로드 시 프로필→복권 누르면 **홈 메인화면→복권 진입 과정이 다 보임**.

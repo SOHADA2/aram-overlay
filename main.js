@@ -197,16 +197,24 @@ function evalRaise() {   // 올릴 땐 즉시, 내릴 땐 살짝 텀(클라↔�
   else if (!_dropTimer) _dropTimer = setTimeout(() => { _dropTimer = null; applyRaise(); }, 300);
 }
 function setPanelFg() { const v = _ovFocus || _lfFocus; if (v !== panelFg) { panelFg = v; evalRaise(); } }
-async function maybePromptQuitOnClientClose() {
+// 🚪 클라 종료 시 "같이 끌까요?" — OS 기본 다이얼로그 대신 앱 톤(블랙+골드) 커스텀 창
+let quitConfirmWin = null;
+function closeQuitConfirm() { _quitPromptOpen = false; if (quitConfirmWin && !quitConfirmWin.isDestroyed()) { try { quitConfirmWin.close(); } catch (_) {} } quitConfirmWin = null; }
+function maybePromptQuitOnClientClose() {
   if (app._quitting || _quitPromptOpen || _clientPresent || inGame) return;   // 그새 다시 켜졌거나 게임 중이면 안 띄움
   _quitPromptOpen = true;
-  try {
-    const r = await dialog.showMessageBox({
-      type: 'question', buttons: ['종료', '계속 켜두기'], defaultId: 0, cancelId: 1, noLink: true,
-      title: '롤 클라이언트 종료됨', message: '롤 클라이언트가 종료됐어요.', detail: '내전 오버레이도 같이 종료할까요?',
-    });
-    if (r.response === 0 && !_clientPresent) { app._quitting = true; app.quit(); }
-  } catch (_) {} finally { _quitPromptOpen = false; }
+  const W = 360, H = 182;
+  const wa = screen.getPrimaryDisplay().workArea;
+  const x = Math.round(wa.x + (wa.width - W) / 2), y = Math.round(wa.y + (wa.height - H) / 2.5);   // 화면 중앙(살짝 위)
+  quitConfirmWin = new BrowserWindow({
+    width: W, height: H, x, y, frame: false, transparent: true, resizable: false, movable: false,
+    alwaysOnTop: true, skipTaskbar: true, show: false, focusable: true, roundedCorners: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  quitConfirmWin.setAlwaysOnTop(true, 'screen-saver');
+  quitConfirmWin.loadFile('desktop/quit-confirm.html');
+  quitConfirmWin.once('ready-to-show', () => { if (quitConfirmWin && !quitConfirmWin.isDestroyed()) quitConfirmWin.show(); });
+  quitConfirmWin.on('closed', () => { quitConfirmWin = null; _quitPromptOpen = false; });
 }
 function handleDockLine(line) {
   const raw = String(line).trim();
@@ -227,6 +235,7 @@ function handleDockLine(line) {
     return;
   }
   if (_goneTimer) { clearTimeout(_goneTimer); _goneTimer = null; }   // 클라 다시 나타남 → 종료 확인 취소
+  if (quitConfirmWin) closeQuitConfirm();   // 종료 확인창 떠 있으면 닫음(클라 복귀)
   _clientPresent = true;
   if (_floating) { _floating = false; _lastRaise = null; }   // 플로팅 → 도킹 전환
   _lastRect = p;
@@ -676,7 +685,7 @@ async function pollGame() {
     inGame = nowIn;
     // 게임 중(전체화면)만 위로, 로비/클라에선 같은 층위(클라 활성 시에만 evalRaise가 올림)
     try { if (overlayWin && !overlayWin.isDestroyed()) overlayWin.setAlwaysOnTop(inGame, inGame ? 'screen-saver' : 'normal'); } catch (_) {}
-    if (inGame) { hideOverlay(); _slotDoneFormed = lastFormed; hideSlotMarker(); }   // 게임 시작 → 오버레이 완전히 숨김(전투 중 정보 미노출, 새 폼 재설계 예정) · applyRaise/floatPanels가 inGame return이라 재등장 없음 · 투표/정산 폴이 다시 표시
+    if (inGame) { hideOverlay(); hideLeftPanel(); _slotDoneFormed = lastFormed; hideSlotMarker(); }   // 게임 시작 → 양쪽 패널 완전히 숨김(전투 중 정보 미노출, 새 폼 재설계 예정) · 좌측 내 정보 패널도 숨김(클라 창 사라지며 floatPanels가 잠깐 띄우는 레이스 차단) · applyRaise/floatPanels가 inGame return이라 재등장 없음
     else { hideOverlay(); userHid = false; latestPlayers = []; _lastRaise = null; evalRaise(); }   // 게임 종료 → 로비 층위 재적용
     broadcast('state', { inGame, label: inGame ? '게임 중' : '대기' });
   }
@@ -921,6 +930,10 @@ ipcMain.on('overlay-min', () => {   // ◀ 팀/명단 오버레이 최소화 —
 });
 ipcMain.on('side-min', () => {      // ◀ 내 정보 패널 최소화
   if (leftWin && !leftWin.isDestroyed()) { leftMinimized = true; try { leftWin.setSkipTaskbar(false); leftWin.minimize(); } catch (_) {} }
+});
+ipcMain.on('quit-confirm', (_e, yes) => {   // 🚪 클라 종료 확인창 응답: 종료 or 계속 켜두기
+  closeQuitConfirm();
+  if (yes && !_clientPresent) { app._quitting = true; app.quit(); }
 });
 ipcMain.on('update-now', () => { app._quitting = true; try { autoUpdater.quitAndInstall(); } catch (_) { app.quit(); } });   // 🔄 지금 업데이트(재시작)
 ipcMain.on('update-later', () => { if (updateToastWin && !updateToastWin.isDestroyed()) updateToastWin.hide(); });          // 나중에 — 트레이 메뉴로 계속 가능

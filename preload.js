@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('api', {
   onUpdateInfo: (cb) => ipcRenderer.on('update-info', (_e, d) => cb(d)),
   updateNow: () => ipcRenderer.send('update-now'),
   updateLater: () => ipcRenderer.send('update-later'),
+  quitConfirm: (yes) => ipcRenderer.send('quit-confirm', yes),   // 🚪 클라 종료 시 "같이 끌까요?" 확인창 응답
   hideOverlay: () => ipcRenderer.send('overlay-hide'),
   openWeb: () => ipcRenderer.send('open-web'),
   previewOverlay: () => ipcRenderer.send('overlay-preview'),
