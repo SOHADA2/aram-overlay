@@ -183,7 +183,7 @@ function applyRaise() {
   //   (사장님 요청: "그냥 그 창 뒤로만 가면 되니까 안 사라져도 됨")
   const show = (win, allowed) => {
     if (!win || win.isDestroyed()) return;
-    try { win.setAlwaysOnTop(false, 'normal'); } catch (_) {}
+    try { if (win.isAlwaysOnTop()) win.setAlwaysOnTop(false, 'normal'); } catch (_) {}   // 바뀔 때만(매 이벤트 재설정=z-order 깜빡임·v0.1.55)
     if (allowed) { if (!win.isVisible()) win.showInactive(); }
     else if (win.isVisible()) win.hide();   // 사용자가 직접 숨긴(userHid/leftUserHid) 경우만 숨김
   };
@@ -250,13 +250,27 @@ function handleDockLine(line) {
   evalRaise();          // 표시/숨김·위로 = 클라 활성 여부에 따라(다른 창 위에 안 뜨게)
   updateSlotMarker(p);  // 📍 내 팀 마커
 }
+// 🪟 클라 창을 끄는 동안 위치 이벤트가 프레임보다 잦게 쏟아짐 → 줄마다 패널을 옮기면 투명창 재그리기가 밀려 끊김.
+//   각 줄은 '현재 상태 전체'(위치·활성)라 최신 1줄만 처리해도 의미 동일 → 최대 60fps로 묶어 처리(v0.1.55)
+let _dockPending = null, _dockTimer = null, _dockLastAt = 0;
+function queueDockLine(line) {
+  _dockPending = line;
+  if (_dockTimer) return;
+  const wait = Math.max(0, 16 - (Date.now() - _dockLastAt));
+  _dockTimer = setTimeout(() => {
+    _dockTimer = null; _dockLastAt = Date.now();
+    const ln = _dockPending; _dockPending = null;
+    if (ln !== null) handleDockLine(ln);
+  }, wait);
+}
 function startDockStream() {
   if (dockProc) return;
   try {
     dockProc = spawn('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', _dockB64], { windowsHide: true });
     dockProc.stdout.on('data', chunk => {
-      _dockBuf += chunk.toString(); let i;
-      while ((i = _dockBuf.indexOf('\n')) >= 0) { const ln = _dockBuf.slice(0, i).trim(); _dockBuf = _dockBuf.slice(i + 1); handleDockLine(ln); }
+      _dockBuf += chunk.toString(); let i, latest = null;
+      while ((i = _dockBuf.indexOf('\n')) >= 0) { latest = _dockBuf.slice(0, i).trim(); _dockBuf = _dockBuf.slice(i + 1); }
+      if (latest !== null) queueDockLine(latest);
     });
     dockProc.on('exit', () => { dockProc = null; if (!app._quitting) setTimeout(startDockStream, 2000); });  // 죽으면 재기동
     dockProc.on('error', () => { dockProc = null; });
@@ -291,6 +305,47 @@ function getJson(opts) {
     req.on('error', () => resolve(null));
     req.on('timeout', () => { req.destroy(); resolve(null); });
   });
+}
+// ⚡ Firebase 실시간 스트림(REST SSE) — 노드가 바뀌는 즉시 onChange 호출(3초 폴링 지연 제거·v0.1.55).
+//   끊기면 자동 재연결(1→30초 백오프). 폴링은 안전망으로 그대로 유지.
+function fbStream(pathStr, onChange) {
+  let retry = 1000;
+  const open = (url, hops) => {
+    if (app._quitting) return;
+    let lastBeat = Date.now(), buf = '', done = false;
+    const again = () => { if (done) return; done = true; clearInterval(idle); setTimeout(() => open(`${FIREBASE_DB}/${pathStr}.json`, 0), retry); retry = Math.min(retry * 2, 30000); };
+    const req = https.get(url, { headers: { Accept: 'text/event-stream' } }, res => {
+      if ((res.statusCode === 307 || res.statusCode === 302) && res.headers.location && hops < 3) {   // 샤드 호스트로 리다이렉트
+        done = true; clearInterval(idle); res.resume(); open(res.headers.location, hops + 1); return;
+      }
+      if (res.statusCode !== 200) { res.resume(); again(); return; }
+      res.setEncoding('utf8');
+      res.on('data', chunk => {
+        lastBeat = Date.now(); buf += chunk; let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const block = buf.slice(0, i); buf = buf.slice(i + 2);
+          const ev = (block.match(/^event: *(.*)$/m) || [])[1];
+          if (ev === 'put' || ev === 'patch') { retry = 1000; try { onChange(); } catch (_) {} }
+          else if (ev === 'cancel' || ev === 'auth_revoked') { req.destroy(); again(); return; }
+        }
+      });
+      res.on('end', again);
+      res.on('error', again);
+    });
+    req.on('error', again);
+    const idle = setInterval(() => { if (Date.now() - lastBeat > 90000) { req.destroy(); again(); } }, 30000);   // keep-alive(30초) 끊김 감지
+  };
+  open(`${FIREBASE_DB}/${pathStr}.json`, 0);
+}
+// 같은 폴러가 겹쳐 돌지 않게(스트림 이벤트+타이머 동시 호출) — 실행 중이면 끝난 뒤 1번만 다시
+function coalesce(fn) {
+  let running = false, again = false;
+  return async function run() {
+    if (running) { again = true; return; }
+    running = true;
+    try { await fn(); } catch (_) {}
+    finally { running = false; if (again) { again = false; run(); } }
+  };
 }
 const liveClientPlayerList = () => getJson({ host: '127.0.0.1', port: 2999, path: '/liveclientdata/playerlist', rejectUnauthorized: false, timeout: 2000 });
 const fetchLpPlayers = () => getJson(`${FIREBASE_DB}/season2/players.json`);
@@ -518,7 +573,7 @@ function floatPanels() {   // 클라 없음/도킹 끔 → 독립 창으로 표�
   for (const [win, allowed, side] of [[overlayWin, !userHid && !sampleActive, 'left'], [leftWin, config.sidePanel !== false && !leftUserHid, 'right']]) {
     if (!win || win.isDestroyed() || !allowed) continue;
     if (reposition) win.setBounds(standaloneBounds(side));
-    try { win.setAlwaysOnTop(false, 'normal'); } catch (_) {}
+    try { if (win.isAlwaysOnTop()) win.setAlwaysOnTop(false, 'normal'); } catch (_) {}   // 바뀔 때만(매 이벤트 재설정=z-order 깜빡임·v0.1.55)
     if (!win.isVisible()) win.showInactive();
   }
   setDockedFlag(false);
@@ -715,15 +770,12 @@ async function pollSettlement() {
   _settleSeenAt = s.publishedAt;
   if (Date.now() - s.publishedAt > 10 * 60 * 1000) return;   // 10분 넘은 정산은 무시(홈페이지와 동일 신선도)
   // 정산 반영 후 최신 LP를 normName(홈 규칙) 키로 — s1LpBefore와 같은 키라 델타 계산 가능
-  const raw = await fetchLpPlayers();
+  // LP·발동 효과 동시 조회(순차 대기 제거 · v0.1.55)
+  const [raw, m] = await Promise.all([fetchLpPlayers(), s.matchKey ? fetchMatch(s.matchKey) : Promise.resolve(null)]);
   const lpNow = {};
   if (raw) for (const k in raw) { const d = raw[k]; const key = normName(d.name || k); if (key) lpNow[key] = { tier: d.tier || '', lp: d.lp || 0 }; }
   // 💥 이번 판 발동 효과(시너지·강철심장·아이템) — 경기 기록 스냅샷에서 참여자별로 (홈 정산창과 동일 소스)
-  let procs = null;
-  if (s.matchKey) {
-    const m = await fetchMatch(s.matchKey);
-    if (m) procs = { syn: m.synergyEffects || {}, em: m.emblemEffects || {}, items: m.itemEffects || {} };
-  }
+  const procs = m ? { syn: m.synergyEffects || {}, em: m.emblemEffects || {}, items: m.itemEffects || {} } : null;
   if (!userHid) showOverlay();
   broadcast('settlement', { settle: s, lpNow, procs });
   _matchesCacheAt = 0;   // 경기 저장됨 → 매치 캐시 무효화(다음 오늘전적/연승 최신 반영)
@@ -1455,8 +1507,12 @@ else {
     setTimeout(() => { getMatchesCached().catch(() => {}); }, 2500);   // ⚡ 매치 캐시 예열(기록/골드 첫 로딩 빠르게)
     setInterval(pollGame, 2500);
     setInterval(pollLp, 60000);
-    setInterval(pollSession, 3000);
-    setInterval(pollSettlement, 3000);  // 💰 정산 결과 감지
+    const runSession = coalesce(pollSession), runSettlement = coalesce(pollSettlement);
+    setInterval(runSession, 3000);      // 안전망(스트림 끊겼을 때)
+    setInterval(runSettlement, 3000);   // 💰 정산 결과 감지(안전망)
+    fbStream('session', runSession);    // ⚡ 팀 배정·투표 단계 = 바뀌는 즉시
+    fbStream('lobby', runSession);      // ⚡ 방장 준비 중 배너
+    fbStream('lastSettlement', runSettlement);   // ⚡ 정산 결과
     setInterval(pollVersion, 5 * 60 * 1000);   // 🔖 홈페이지 버전 동기화(5분마다)
     setupAutoUpdate();                  // 🔄 자동 업데이트
     // 🔌 내장 브릿지 시작 — LCU에 붙어 게임 페이즈·EOG 통계를 홈페이지가 읽는 bridge/* 경로에 기록(aram-bridge 대체)

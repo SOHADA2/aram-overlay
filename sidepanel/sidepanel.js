@@ -74,6 +74,7 @@ function showLogged() {
   renderLiveStatus();   // 라이브 점 = 프로필 우측 상단
   $('s-rail-team').style.display = _isHost ? '' : 'none';
   switchCat(_isHost && _curCat === 'team' ? 'team' : 'profile');
+  setTimeout(hpPreload, 1200);   // ⚡ 복권·대장간용 홈 미리 로드(첫 클릭 대기 제거·v0.1.55)
 }
 // 🪙 상단 재화(골드·뽑기코인·투기장코인) — 탭 전환/60초마다 갱신
 async function updateWallet() {
@@ -149,10 +150,21 @@ setInterval(() => {
       .then(busy => { if (!busy) hpGoto('lottery', 39); }).catch(() => {});
   } catch (_) {}
 }, 1500);
+// ⚡ 미리 로드 — 로그인 직후 보이지 않게(visibility:hidden·뒤로) webview를 붙여 홈을 받아둠 → 복권·대장간 첫 클릭 즉시(v0.1.55)
+//   로드 끝나면 평소처럼 display:none으로 접어 렌더 비용 0. 그 사이 사용자가 복권/대장간을 누르면 hpEmbedFor가 즉시 승격.
+function hpPreload() {
+  if (_hpWv || $('s-app').style.display === 'none') return;
+  const host = $('hp-embed'); if (!host) return;
+  host.classList.add('hp-pre'); host.style.display = 'flex';
+  ensureHpWv();
+  const fold = () => { if (host.classList.contains('hp-pre')) { host.classList.remove('hp-pre'); if (_curCat !== 'lottery' && _curCat !== 'forge') host.style.display = 'none'; } };
+  if (_hpWv) _hpWv.addEventListener('did-stop-loading', () => setTimeout(fold, 2500), { once: true });   // 데이터 구독이 붙을 시간 확보 후 접기
+  setTimeout(fold, 30000);   // 안전망
+}
 function hpGoto(target, tries) {
   const js = HP_GOTO[target]; if (!js) return;
   tries = tries || 0;
-  const retry = () => { if (tries < 40 && _curCat === target) setTimeout(() => hpGoto(target, tries + 1), 500); };
+  const retry = () => { if (tries < 130 && _curCat === target) setTimeout(() => hpGoto(target, tries + 1), 150); };   // 0.5초→0.15초 간격(같은 ~20초 한도)
   if (!_hpReady) { retry(); return; }
   try { _hpWv.executeJavaScript(js, false).then(ok => { if (!ok) retry(); }).catch(retry); } catch (_) { retry(); }
 }
@@ -173,6 +185,8 @@ function hpRevealWhenReady(cat, tries) {   // 목표 화면(복권 허브 / 오�
 function hpEmbedFor(cat) {
   const host = $('hp-embed'); if (!host) return;
   const emb = cat === 'lottery' || cat === 'forge';
+  if (emb) host.classList.remove('hp-pre');            // 미리 로드 중이면 그대로 보이는 상태로 승격
+  else if (host.classList.contains('hp-pre')) { hpCoverHide(); return; }   // 미리 로드 중엔 숨긴 채 계속 로드
   host.style.display = emb ? 'flex' : 'none';
   if (!emb) { hpCoverHide(); return; }
   ensureHpWv();
@@ -356,7 +370,7 @@ if (window.api.onMagolla) window.api.onMagolla(d => {
 }
 function showMagollaEmbed() {
   const host = $('hp-embed'); if (!host) return;
-  host.style.display = 'flex'; ensureHpWv();
+  host.classList.remove('hp-pre'); host.style.display = 'flex'; ensureHpWv();
   if (_hpWv) { _hpWv.style.height = '99.99%'; requestAnimationFrame(() => { if (_hpWv) _hpWv.style.height = '100%'; }); }   // 뷰포트 고착 해제
   const x = $('mg-x'); if (x) x.style.display = '';   // 막고라 모달은 홈 session/magollaMatchId 리스너가 자동 오픈(goto 불필요)
 }
