@@ -48,9 +48,9 @@ npm start          # 개발 실행(소스 그대로·자동 업데이트 꺼짐)
 ### 🆕 v0.1.55 (2026-10-25) — ⚡ 렉 개선 3종: 실시간 스트림 · 복권/대장간 미리 로드 · 도킹 추종 묶기
 - **사장님 체감 렉 3가지**: ①화면(팀 발표·투표·정산)이 늦게 뜸 ②복권·대장간 전환 버벅임 ③패널 깜빡임/클라 따라다닐 때 끊김. 메뉴는 그대로 유지(사장님 결정).
 - **측정 먼저(이 PC·Electron 31·롤 클라 없이)**: 숨은 라이브 창(liveWin) CPU ≈0.1%·140~170MB(문제 아님) / 사이드패널 홈 임베드 보이는 동안 Tab ~1.5%+GPU ~2.8%(배경 헥스필드 꺼도 동일→원인 아님·미적용) / matches.json 1.5MB·파싱 9ms(문제 아님). → CPU 부하가 아니라 **지연·로딩·창 처리**가 원인.
-- **①실시간 스트림**: main.js (Firebase REST SSE·307 리다이렉트 추적·put/patch→onChange·cancel/auth_revoked/끊김→1→30초 백오프 재연결·keep-alive 90초 감시) → ·→, → 즉시 호출. 3초 폴링은 **안전망으로 유지**. =스트림+타이머 동시 호출 시 겹쳐 돌지 않고 끝난 뒤 1번만 재실행. 의 LP·매치 조회  병렬화. 검증: 실 DB 연결 0.2~0.4초 내 초기 이벤트 3/3·coalesce 10연타→2회.
-- **②복권·대장간 미리 로드**: sidepanel =로그인 1.2초 후 (visibility:hidden·z-index:-1)로 webview를 미리 붙여 홈 로드 → did-stop-loading+2.5초 뒤 display:none으로 접음(렌더 비용 0). 그 사이 복권/대장간 누르면 가 즉시 승격·도 hp-pre 해제.  재시도 0.5→0.15초. 검증(Electron 하네스): 숨긴 상태로 2.9초에 로드 완료·접었다 펼친 뒤 응답 1ms. ⚠️메모리: 로그인 후 webview가 항상 살아 있음(+약 150MB).
-- **③도킹 추종**: 도킹 PowerShell 스트림의 줄은 매번 라 **청크당 최신 1줄만** + 으로 **최대 60fps(16ms)** 묶어  처리(드래그 중 투명창 재그리기 밀림 방지·마지막 위치 보장). /의 를 **일 때만**(매 이벤트 재설정=z-order 깜빡임). 검증: 1ms 간격 200줄→23회 처리·마지막 줄 유지.
+- **①실시간 스트림**: main.js `fbStream(path,onChange)`(Firebase REST SSE·307 리다이렉트 추적·put/patch→onChange·cancel/auth_revoked/끊김→1→30초 백오프 재연결·keep-alive 90초 감시) → `session`·`lobby`→`runSession`, `lastSettlement`→`runSettlement` 즉시 호출. 3초 폴링은 **안전망으로 유지**. `coalesce(fn)`=스트림+타이머 동시 호출 시 겹쳐 돌지 않고 끝난 뒤 1번만 재실행. `pollSettlement`의 LP·매치 조회 `Promise.all` 병렬화. 검증: 실 DB 연결 0.2~0.4초 내 초기 이벤트 3/3·coalesce 10연타→2회.
+- **②복권·대장간 미리 로드**: sidepanel `hpPreload()`=로그인 1.2초 후 `#hp-embed.hp-pre`(visibility:hidden·z-index:-1)로 webview를 미리 붙여 홈 로드 → did-stop-loading+2.5초 뒤 display:none으로 접음(렌더 비용 0). 그 사이 복권/대장간 누르면 `hpEmbedFor`가 즉시 승격·`showMagollaEmbed`도 hp-pre 해제. `hpGoto` 재시도 0.5→0.15초. 검증(Electron 하네스): 숨긴 상태로 2.9초에 로드 완료·접었다 펼친 뒤 응답 1ms. ⚠️메모리: 로그인 후 webview가 항상 살아 있음(+약 150MB).
+- **③도킹 추종**: 도킹 PowerShell 스트림의 줄은 매번 「현재 상태 전체」라 **청크당 최신 1줄만** + `queueDockLine`으로 **최대 60fps(16ms)** 묶어 `handleDockLine` 처리(드래그 중 투명창 재그리기 밀림 방지·마지막 위치 보장). `applyRaise`/`floatPanels`의 `setAlwaysOnTop(false)`를 **`isAlwaysOnTop()`일 때만**(매 이벤트 재설정=z-order 깜빡임). 검증: 1ms 간격 200줄→23회 처리·마지막 줄 유지.
 - ⚠️**실기 미검증**(롤 클라 필요): 클라 드래그 시 패널 추종 부드러움·팀 발표/투표/정산 즉시 표시·복권 첫 클릭 즉시 표시 확인 필요. 문제 시 자동 업데이트로 핫픽스.
 
 ### 🆕 v0.1.54 (2026-07-10) — 🚪 클라 종료 확인창 톤앤매너 + 🎮 인게임 좌측 패널도 숨김
